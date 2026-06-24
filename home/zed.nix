@@ -15,9 +15,12 @@
     extraPackages = with pkgs; [
       nixd
       nil
-      rust-analyzer
+      rust-analyzer # Rust language server
       nodejs
       dotnet-sdk
+      csharp-ls # C# language server
+      omnisharp-roslyn # C# language tooling fallback
+      netcoredbg # .NET debugger
     ];
 
     userSettings = {
@@ -35,7 +38,7 @@
       };
 
       terminal = {
-        shell = "bash";
+        shell = "fish";
       };
     };
   };

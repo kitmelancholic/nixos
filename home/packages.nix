@@ -2,35 +2,40 @@
 
 {
   home.packages = with pkgs; [
-    git
-    kitty
+    kitty # fallback terminal
     wofi
-    waybar 
-    dunst #notifications
+    waybar
+    dunst # notifications
 
     grim
     slurp
+    swappy
     wl-clipboard
     pavucontrol
 
     fastfetch
+    btop
 
-    spice-vdagent
+    spice-vdagent # VM clipboard/display integration
     xclip
     xsel
 
-    nnn #explorer
-    firefox #browser
+    nnn # explorer
+    nautilus
+    file-rollerwhy in kit.nix there is 25.11
+    evince
+    loupe
+    vivaldi # browser
+    vivaldi-ffmpeg-codecs # Extra media codecs for Vivaldi
     qbittorrent
-    mpv
     anki
     telegram-desktop
 
     unityhub
-    vulkan-tools
+    mono # Unity/legacy .NET compatibility
     #zed-editor via zed.nix
 
-    #steam via steam.nix
+    #steam via modules/nixos/profiles/gaming.nix
     prismlauncher
   ];
 }

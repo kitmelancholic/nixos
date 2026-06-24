@@ -1,4 +1,8 @@
-{ ... }:
+{ config, ... }:
+
+let
+  colors = config.lib.stylix.colors;
+in
 
 {
   programs.waybar = {
@@ -21,6 +25,9 @@
         modules-right = [
           "pulseaudio"
           "network"
+          "backlight"
+          "battery"
+          "power-profiles-daemon"
         ];
 
         "hyprland/workspaces" = {
@@ -48,6 +55,37 @@
           format-ethernet = "󰈀  Ethernet";
           format-disconnected = "󰖪  Offline";
         };
+
+        backlight = {
+          format = "󰃠  {percent}%";
+        };
+
+        battery = {
+          format = "{icon}  {capacity}%";
+          format-charging = "󰂄  {capacity}%";
+          format-icons = [
+            "󰁺"
+            "󰁻"
+            "󰁼"
+            "󰁽"
+            "󰁾"
+            "󰁿"
+            "󰂀"
+            "󰂁"
+            "󰂂"
+            "󰁹"
+          ];
+        };
+
+        power-profiles-daemon = {
+          format = "{icon}";
+          tooltip-format = "Power profile: {profile}";
+          format-icons = {
+            performance = "󰓅";
+            balanced = "󰾅";
+            power-saver = "󰾆";
+          };
+        };
       };
     };
 
@@ -58,13 +96,13 @@
       }
 
       window#waybar {
-        background: rgba(20, 20, 20, 0.85);
-        color: #ffffff;
+        background: #${colors.base00};
+        color: #${colors.base05};
       }
 
       #workspaces button {
         padding: 0 9px;
-        color: #666666;
+        color: #${colors.base03};
         background: transparent;
         border: none;
         border-radius: 6px;
@@ -72,28 +110,31 @@
 
       /* Workspace with at least one window */
       #workspaces button:not(.empty) {
-        color: #ff9f1c;
+        color: #${colors.base0A};
       }
 
       /* Empty workspace */
       #workspaces button.empty {
-        color: #555555;
+        color: #${colors.base03};
       }
 
       /* Current workspace */
       #workspaces button.active {
-        color: #ffffff;
-        background: rgba(255, 159, 28, 0.35);
+        color: #${colors.base00};
+        background: #${colors.base0D};
       }
 
       #workspaces button.urgent {
-        color: #ffffff;
-        background: #ff4d4d;
+        color: #${colors.base00};
+        background: #${colors.base08};
       }
 
       #clock,
       #pulseaudio,
-      #network {
+      #network,
+      #backlight,
+      #battery,
+      #power-profiles-daemon {
         padding: 0 10px;
       }
     '';

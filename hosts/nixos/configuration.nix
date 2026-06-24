@@ -2,24 +2,41 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
-{ config, pkgs, ... }:
+{
+  constants,
+  inputs,
+  pkgs,
+  ...
+}:
 
 {
-  imports =
-    [ # Include the results of the hardware scan.
-      ./hardware-configuration.nix
-      ./steam.nix
-    ];
+  imports = [
+    # Include the results of the hardware scan.
+    ./hardware-configuration.nix
+    ../../modules/nixos/core/nix.nix
+    ../../modules/nixos/core/user.nix
+    ../../modules/nixos/desktop/audio-routing.nix
+    ../../modules/nixos/desktop/display-manager.nix
+    ../../modules/nixos/desktop/plumbing.nix
+    ../../modules/nixos/hardware/intel-graphics.nix
+    ../../modules/nixos/profiles/development.nix
+    ../../modules/nixos/profiles/gaming.nix
+    ../../modules/nixos/profiles/media.nix
+    ../../modules/nixos/profiles/streaming.nix
+  ];
 
-  # Bootloader.
-  boot.loader.grub.enable = true;
-  boot.loader.grub.device = "/dev/vda";
-  boot.loader.grub.useOSProber = true;
+  boot = {
+    loader.grub = {
+      enable = true;
+      device = "/dev/vda";
+      useOSProber = true;
+    };
 
-  # Use latest kernel.
-  boot.kernelPackages = pkgs.linuxPackages_latest;
+    # Use latest kernel.
+    kernelPackages = pkgs.linuxPackages_latest;
+  };
 
-  networking.hostName = "nixos"; # Define your hostname.
+  networking.hostName = constants.hostname; # Define your hostname.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
 
   # Configure network proxy if necessary
@@ -47,63 +64,53 @@
     LC_TIME = "uk_UA.UTF-8";
   };
 
-  # Configure keymap in X11
-  services.xserver.xkb = {
-    layout = "ua";
-    variant = "";
+  services = {
+    # Configure keymap in X11
+    xserver.xkb = {
+      layout = "us,ua";
+      options = "grp:alt_shift_toggle";
+    };
+
+    pulseaudio.enable = false;
+
+    pipewire = {
+      enable = true;
+      alsa.enable = true;
+      alsa.support32Bit = true;
+      jack.enable = true;
+      pulse.enable = true;
+      wireplumber.enable = true;
+    };
+
+    thermald.enable = true;
   };
 
   # Configure console keymap
   console.keyMap = "ua-utf";
-  
-  nix.settings.experimental-features = [
-    "nix-command"
-    "flakes"
-  ];
-
-  # Define a user account. Don't forget to set a password with ‘passwd’.
-  users.users.kit = {
-    isNormalUser = true;
-    description = "kit";
-    extraGroups = [ "networkmanager" "wheel" "video" "audio"];
-    packages = with pkgs; [];
-  };
 
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
 
   programs.hyprland = {
     enable = true;
+    package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
+    portalPackage =
+      inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
     withUWSM = true;
     xwayland.enable = true;
-  };
-
-  services.displayManager.sddm = {
-    enable = true;
-    wayland.enable = true;
-  };
-
-  services.displayManager.defaultSession = "hyprland-uwsm";
-
-  services.pulseaudio.enable = false;
-  security.rtkit.enable = true;
-
-  services.pipewire = {
-    enable = true;
-    alsa.enable = true;
-    pulse.enable = true;
   };
 
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
+    curl
+    fastfetch
     git
     neovim
     wget
-    curl
-    fastfetch
   ];
 
+  fonts.fontconfig.enable = true;
   fonts.packages = with pkgs; [
     noto-fonts
     noto-fonts-color-emoji

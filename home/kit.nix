@@ -1,23 +1,41 @@
-{ config, pkgs, ... }:
+{
+  constants,
+  pkgs,
+  ...
+}:
+
+let
+  inherit (constants) homeDirectory username;
+in
 
 {
   imports = [
+    ../modules/home/desktop/audio.nix
+    ../modules/home/desktop/default-apps.nix
+    ../modules/home/desktop/laptop.nix
+    ../modules/home/desktop/osd.nix
+    ../modules/home/desktop/screenshots.nix
+    ../modules/home/desktop/theme.nix
+    ../modules/home/desktop/wallpaper.nix
+    ../modules/home/development.nix
+    ../modules/home/media.nix
+    ../modules/home/programs/terminal.nix
     ./packages.nix
     ./hyprland.nix
     ./waybar.nix
     ./zed.nix
   ];
 
-  home.username = "kit";
-  home.homeDirectory = "/home/kit";
-  home.stateVersion = "25.11";
+  home = {
+    inherit homeDirectory username;
+    stateVersion = "25.11";
+  };
 
-  xdg.enable = true;
-
-  #for integration of link openning etc
-  xdg.portal = {
+  xdg = {
     enable = true;
-    xdgOpenUsePortal = true;
+
+    # For integration of link opening etc.
+    portal.xdgOpenUsePortal = true;
   };
 
   home.sessionVariables = {
