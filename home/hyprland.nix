@@ -1,14 +1,44 @@
 {
   config,
   constants,
+  lib,
   pkgs,
   ...
 }:
 
 let
+  lua = lib.generators.mkLuaInline;
   colors = config.lib.stylix.colors;
   color = name: "rgb(${colors.${name}})";
   mod = "SUPER";
+  mkArgs = args: { _args = args; };
+  mkEnv =
+    name: value:
+    mkArgs [
+      name
+      value
+    ];
+  mkBind =
+    key: action:
+    mkArgs [
+      key
+      (lua action)
+    ];
+  mkBindWithFlags =
+    key: action: flags:
+    mkArgs [
+      key
+      (lua action)
+      flags
+    ];
+  mkModBind = key: action: mkBind (lua ''mod .. " + ${key}"'') action;
+  mkShiftModBind = key: action: mkBind (lua ''mod .. " + SHIFT + ${key}"'') action;
+  startupCommands = [
+    "${pkgs.hyprpolkitagent}/bin/hyprpolkitagent"
+    "wallpaper-apply"
+    "waybar"
+    "dunst"
+  ];
   workspaceBinds = builtins.concatLists (
     builtins.genList (
       index:
@@ -16,8 +46,8 @@ let
         workspace = toString (index + 1);
       in
       [
-        "${mod}, ${workspace}, workspace, ${workspace}"
-        "${mod} SHIFT, ${workspace}, movetoworkspace, ${workspace}"
+        (mkModBind workspace "hl.dsp.focus({ workspace = ${workspace} })")
+        (mkShiftModBind workspace "hl.dsp.window.move({ workspace = ${workspace} })")
       ]
     ) 5
   );
@@ -34,6 +64,22 @@ in
         _var = mod;
       };
 
+      terminal = {
+        _var = constants.apps.terminal.command;
+      };
+
+      explorer = {
+        _var = constants.apps.explorer.command;
+      };
+
+      launcher = {
+        _var = constants.apps.launcher.command;
+      };
+
+      browser = {
+        _var = constants.apps.browser.command;
+      };
+
       monitor = {
         output = "";
         mode = "preferred";
@@ -42,18 +88,8 @@ in
       };
 
       env = [
-        {
-          _args = [
-            "XCURSOR_SIZE"
-            "24"
-          ];
-        }
-        {
-          _args = [
-            "NIXOS_OZONE_WL"
-            "1"
-          ];
-        }
+        (mkEnv "XCURSOR_SIZE" "24")
+        (mkEnv "NIXOS_OZONE_WL" "1")
       ];
 
       config = {
@@ -90,7 +126,6 @@ in
         };
 
         dwindle = {
-          pseudotile = true;
           preserve_split = true;
         };
 
@@ -101,56 +136,56 @@ in
       };
 
       bind = [
-        "${mod}, Return, exec, ${constants.apps.terminal.command}"
-        "${mod}, E, exec, ${constants.apps.explorer.command}"
-        "${mod}, R, exec, ${constants.apps.launcher.command}"
-        "${mod}, B, exec, ${constants.apps.browser.command}"
-        "CTRL, Z, exec, ${constants.apps.terminal.command} -e btop"
-        "CTRL, B, exec, ${constants.apps.browser.command}"
+        (mkModBind "Return" "hl.dsp.exec_cmd(terminal)")
+        (mkModBind "E" "hl.dsp.exec_cmd(explorer)")
+        (mkModBind "R" "hl.dsp.exec_cmd(launcher)")
+        (mkModBind "B" "hl.dsp.exec_cmd(browser)")
+        (mkBind "CTRL + Z" ''hl.dsp.exec_cmd(terminal .. " -e btop")'')
+        (mkBind "CTRL + B" "hl.dsp.exec_cmd(browser)")
 
-        "${mod}, W, killactive"
-        "${mod} SHIFT, W, exec, uwsm stop"
+        (mkModBind "W" "hl.dsp.window.close()")
+        (mkShiftModBind "W" ''hl.dsp.exec_cmd("uwsm stop")'')
 
-        "${mod}, F, fullscreen"
-        "${mod}, Space, togglefloating"
+        (mkModBind "F" ''hl.dsp.window.fullscreen({ action = "toggle" })'')
+        (mkModBind "Space" ''hl.dsp.window.float({ action = "toggle" })'')
 
-        "${mod}, H, movefocus, l"
-        "${mod}, L, movefocus, r"
-        "${mod}, K, movefocus, u"
-        "${mod}, J, movefocus, d"
+        (mkModBind "H" ''hl.dsp.focus({ direction = "l" })'')
+        (mkModBind "L" ''hl.dsp.focus({ direction = "r" })'')
+        (mkModBind "K" ''hl.dsp.focus({ direction = "u" })'')
+        (mkModBind "J" ''hl.dsp.focus({ direction = "d" })'')
 
-        "${mod} SHIFT, H, movewindow, l"
-        "${mod} SHIFT, L, movewindow, r"
-        "${mod} SHIFT, K, movewindow, u"
-        "${mod} SHIFT, J, movewindow, d"
+        (mkShiftModBind "H" ''hl.dsp.window.move({ direction = "l" })'')
+        (mkShiftModBind "L" ''hl.dsp.window.move({ direction = "r" })'')
+        (mkShiftModBind "K" ''hl.dsp.window.move({ direction = "u" })'')
+        (mkShiftModBind "J" ''hl.dsp.window.move({ direction = "d" })'')
       ]
       ++ workspaceBinds
       ++ [
-        ", XF86AudioRaiseVolume, exec, swayosd-client --output-volume raise"
-        ", XF86AudioLowerVolume, exec, swayosd-client --output-volume lower"
-        ", XF86AudioMute, exec, swayosd-client --output-volume mute-toggle"
-        ", XF86AudioMicMute, exec, swayosd-client --input-volume mute-toggle"
-        ", XF86MonBrightnessUp, exec, swayosd-client --brightness raise"
-        ", XF86MonBrightnessDown, exec, swayosd-client --brightness lower"
-        ", XF86KbdBrightnessUp, exec, keyboard-backlight-osd raise"
-        ", XF86KbdBrightnessDown, exec, keyboard-backlight-osd lower"
-
-        ", Print, exec, screenshot-area-edit"
-        "SHIFT, Print, exec, screenshot-full"
-        "${mod}, Print, exec, screenshot-window"
+        (mkBind "XF86AudioRaiseVolume" ''hl.dsp.exec_cmd("swayosd-client --output-volume raise")'')
+        (mkBind "XF86AudioLowerVolume" ''hl.dsp.exec_cmd("swayosd-client --output-volume lower")'')
+        (mkBind "XF86AudioMute" ''hl.dsp.exec_cmd("swayosd-client --output-volume mute-toggle")'')
+        (mkBind "XF86AudioMicMute" ''hl.dsp.exec_cmd("swayosd-client --input-volume mute-toggle")'')
+        (mkBind "XF86MonBrightnessUp" ''hl.dsp.exec_cmd("swayosd-client --brightness raise")'')
+        (mkBind "XF86MonBrightnessDown" ''hl.dsp.exec_cmd("swayosd-client --brightness lower")'')
+        (mkBind "XF86KbdBrightnessUp" ''hl.dsp.exec_cmd("keyboard-backlight-osd raise")'')
+        (mkBind "XF86KbdBrightnessDown" ''hl.dsp.exec_cmd("keyboard-backlight-osd lower")'')
+        (mkBind "Print" ''hl.dsp.exec_cmd("screenshot-area-edit")'')
+        (mkBind "SHIFT + Print" ''hl.dsp.exec_cmd("screenshot-full")'')
+        (mkModBind "Print" ''hl.dsp.exec_cmd("screenshot-window")'')
+        (mkBindWithFlags (lua ''mod .. " + mouse:272"'') "hl.dsp.window.drag()" { mouse = true; })
+        (mkBindWithFlags (lua ''mod .. " + mouse:273"'') "hl.dsp.window.resize()" { mouse = true; })
       ];
 
-      bindm = [
-        "${mod}, mouse:272, movewindow"
-        "${mod}, mouse:273, resizewindow"
-      ];
-
-      exec_cmd = [
-        "${pkgs.hyprpolkitagent}/bin/hyprpolkitagent"
-        "wallpaper-apply"
-        "waybar"
-        "dunst"
-      ];
+      on = {
+        _args = [
+          "hyprland.start"
+          (lua ''
+            function()
+              ${lib.concatMapStringsSep "\n  " (command: ''hl.exec_cmd("${command}")'') startupCommands}
+            end
+          '')
+        ];
+      };
     };
   };
 }

@@ -60,6 +60,7 @@
       };
       pkgs = import nixpkgs { inherit system; };
       pkgsUnstable = import inputs.nixpkgs-unstable { inherit system; };
+      hyprlandPkg = inputs.hyprland.packages.${system}.hyprland;
       fmtScript = pkgs.writeShellApplication {
         name = "repo-fmt";
         runtimeInputs = [ pkgs.nixfmt-tree ];
@@ -68,6 +69,27 @@
             exec treefmt --tree-root "$PWD" --excludes hosts/nixos/hardware-configuration.nix .
           fi
           exec treefmt --tree-root "$PWD" "$@"
+        '';
+      };
+      hyprlandCheckScript = pkgs.writeShellApplication {
+        name = "repo-hyprland-check";
+        runtimeInputs = with pkgs; [
+          coreutils
+          jq
+          lua5_4
+          nix
+          hyprlandPkg
+        ];
+        text = ''
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          config="$tmpdir/hyprland.lua"
+
+          nix eval .#nixosConfigurations.${constants.hostname}.config.home-manager.users.${constants.username}.xdg.configFile --json --no-write-lock-file \
+            | jq -r '."hypr/hyprland.lua".text' > "$config"
+
+          luac -p "$config"
+          Hyprland --verify-config --config "$config"
         '';
       };
       checkScript = pkgs.writeShellApplication {
@@ -83,6 +105,7 @@
           statix check --ignore hosts/nixos/hardware-configuration.nix
           deadnix --fail --exclude hosts/nixos/hardware-configuration.nix .
           nix flake show --no-write-lock-file
+          ${hyprlandCheckScript}/bin/repo-hyprland-check
         '';
       };
     in
@@ -165,6 +188,10 @@
         fmt = {
           type = "app";
           program = "${fmtScript}/bin/repo-fmt";
+        };
+        hyprland-check = {
+          type = "app";
+          program = "${hyprlandCheckScript}/bin/repo-hyprland-check";
         };
       };
     };
