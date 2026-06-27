@@ -22,7 +22,7 @@
 
     nnn # explorer
     nautilus
-    file-rollerwhy in kit.nix there is 25.11
+    file-roller
     evince
     loupe
     vivaldi # browser
@@ -33,7 +33,8 @@
 
     unityhub
     mono # Unity/legacy .NET compatibility
-    #zed-editor via zed.nix
+    #pkgs.zed-editor # zed-editor
+    goose-cli
 
     #steam via modules/nixos/profiles/gaming.nix
     prismlauncher
