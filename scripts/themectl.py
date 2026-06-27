@@ -9,6 +9,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 THEMES_FILE = REPO_ROOT / "themes" / "default.nix"
 SELECTED_FILE = REPO_ROOT / "themes" / "selected.nix"
+LOCAL_SELECTED_FILE = REPO_ROOT / "themes" / "local-selected.nix"
 
 
 def theme_names() -> list[str]:
@@ -17,14 +18,15 @@ def theme_names() -> list[str]:
 
 
 def selected_theme() -> str:
-    return SELECTED_FILE.read_text().strip().strip('"')
+    selected_file = LOCAL_SELECTED_FILE if LOCAL_SELECTED_FILE.exists() else SELECTED_FILE
+    return selected_file.read_text().strip().strip('"')
 
 
 def select_theme(name: str) -> None:
     names = theme_names()
     if name not in names:
         raise SystemExit(f"Unknown theme '{name}'. Available: {', '.join(names)}")
-    SELECTED_FILE.write_text(f'"{name}"\n')
+    LOCAL_SELECTED_FILE.write_text(f'"{name}"\n')
     print(f"Selected theme: {name}")
 
 

@@ -26,6 +26,8 @@ in
     ./zed.nix
   ];
 
+  nixpkgs.config.allowUnfree = true;
+
   home = {
     inherit homeDirectory username;
     stateVersion = "26.05";

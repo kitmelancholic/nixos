@@ -1,5 +1,7 @@
 let
-  selected = import ./selected.nix;
+  selectedDefault = import ./selected.nix;
+  selectedOverride =
+    if builtins.pathExists ./local-selected.nix then import ./local-selected.nix else selectedDefault;
   themes = {
     catppuccin = {
       name = "Catppuccin";
@@ -107,10 +109,11 @@ let
   };
 in
 {
-  inherit selected themes;
+  selected = selectedOverride;
+  inherit themes;
   active =
-    if builtins.hasAttr selected themes then
-      themes.${selected}
+    if builtins.hasAttr selectedOverride themes then
+      themes.${selectedOverride}
     else
-      throw "Unknown theme '${selected}' in themes/selected.nix";
+      throw "Unknown theme '${selectedOverride}' in themes/selected.nix or themes/local-selected.nix";
 }

@@ -8,6 +8,7 @@
 let
   colors = config.lib.stylix.colors;
   color = name: "rgb(${colors.${name}})";
+  mod = "SUPER";
   workspaceBinds = builtins.concatLists (
     builtins.genList (
       index:
@@ -15,8 +16,8 @@ let
         workspace = toString (index + 1);
       in
       [
-        "$mod, ${workspace}, workspace, ${workspace}"
-        "$mod SHIFT, ${workspace}, movetoworkspace, ${workspace}"
+        "${mod}, ${workspace}, workspace, ${workspace}"
+        "${mod} SHIFT, ${workspace}, movetoworkspace, ${workspace}"
       ]
     ) 5
   );
@@ -29,80 +30,99 @@ in
     portalPackage = null;
 
     settings = {
-      "$mod" = "SUPER";
+      mod = {
+        _var = mod;
+      };
 
-      monitor = ",preferred,auto,1";
+      monitor = {
+        output = "";
+        mode = "preferred";
+        position = "auto";
+        scale = 1;
+      };
 
       env = [
-        "XCURSOR_SIZE,24"
-        "NIXOS_OZONE_WL,1"
+        {
+          _args = [
+            "XCURSOR_SIZE"
+            "24"
+          ];
+        }
+        {
+          _args = [
+            "NIXOS_OZONE_WL"
+            "1"
+          ];
+        }
       ];
 
-      input = {
-        kb_layout = "us,ua";
-        kb_options = "grp:alt_shift_toggle";
-        follow_mouse = 1;
+      config = {
+        input = {
+          kb_layout = "us,ua";
+          kb_options = "grp:alt_shift_toggle";
+          follow_mouse = 1;
 
-        touchpad = {
-          natural_scroll = true;
+          touchpad = {
+            natural_scroll = true;
+          };
+        };
+
+        general = {
+          gaps_in = 4;
+          gaps_out = 8;
+          border_size = 2;
+          layout = "dwindle";
+          "col.active_border" = color "base0D";
+          "col.inactive_border" = color "base03";
+        };
+
+        decoration = {
+          rounding = 8;
+        };
+
+        group = {
+          "col.border_active" = color "base0D";
+          "col.border_inactive" = color "base03";
+        };
+
+        animations = {
+          enabled = true;
+        };
+
+        dwindle = {
+          pseudotile = true;
+          preserve_split = true;
+        };
+
+        misc = {
+          disable_hyprland_logo = true;
+          disable_splash_rendering = true;
         };
       };
 
-      general = {
-        gaps_in = 4;
-        gaps_out = 8;
-        border_size = 2;
-        layout = "dwindle";
-        "col.active_border" = color "base0D";
-        "col.inactive_border" = color "base03";
-      };
-
-      decoration = {
-        rounding = 8;
-      };
-
-      group = {
-        "col.border_active" = color "base0D";
-        "col.border_inactive" = color "base03";
-      };
-
-      animations = {
-        enabled = true;
-      };
-
-      dwindle = {
-        pseudotile = true;
-        preserve_split = true;
-      };
-
-      misc = {
-        disable_hyprland_logo = true;
-        disable_splash_rendering = true;
-      };
-
       bind = [
-        "$mod, Return, exec, ${constants.apps.terminal.command}"
-        "$mod, E, exec, ${constants.apps.explorer.command}"
-        "$mod, R, exec, ${constants.apps.launcher.command}"
-        "$mod, B, exec, ${constants.apps.browser.command}"
+        "${mod}, Return, exec, ${constants.apps.terminal.command}"
+        "${mod}, E, exec, ${constants.apps.explorer.command}"
+        "${mod}, R, exec, ${constants.apps.launcher.command}"
+        "${mod}, B, exec, ${constants.apps.browser.command}"
         "CTRL, Z, exec, ${constants.apps.terminal.command} -e btop"
         "CTRL, B, exec, ${constants.apps.browser.command}"
 
-        "$mod, W, killactive"
-        "$mod SHIFT, W, exec, uwsm stop"
+        "${mod}, W, killactive"
+        "${mod} SHIFT, W, exec, uwsm stop"
 
-        "$mod, F, fullscreen"
-        "$mod, Space, togglefloating"
+        "${mod}, F, fullscreen"
+        "${mod}, Space, togglefloating"
 
-        "$mod, H, movefocus, l"
-        "$mod, L, movefocus, r"
-        "$mod, K, movefocus, u"
-        "$mod, J, movefocus, d"
+        "${mod}, H, movefocus, l"
+        "${mod}, L, movefocus, r"
+        "${mod}, K, movefocus, u"
+        "${mod}, J, movefocus, d"
 
-        "$mod SHIFT, H, movewindow, l"
-        "$mod SHIFT, L, movewindow, r"
-        "$mod SHIFT, K, movewindow, u"
-        "$mod SHIFT, J, movewindow, d"
+        "${mod} SHIFT, H, movewindow, l"
+        "${mod} SHIFT, L, movewindow, r"
+        "${mod} SHIFT, K, movewindow, u"
+        "${mod} SHIFT, J, movewindow, d"
       ]
       ++ workspaceBinds
       ++ [
@@ -117,12 +137,12 @@ in
 
         ", Print, exec, screenshot-area-edit"
         "SHIFT, Print, exec, screenshot-full"
-        "$mod, Print, exec, screenshot-window"
+        "${mod}, Print, exec, screenshot-window"
       ];
 
       bindm = [
-        "$mod, mouse:272, movewindow"
-        "$mod, mouse:273, resizewindow"
+        "${mod}, mouse:272, movewindow"
+        "${mod}, mouse:273, resizewindow"
       ];
 
       exec-once = [

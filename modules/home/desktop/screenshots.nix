@@ -35,8 +35,8 @@ let
       tmp="$(mktemp --suffix=.png)"
       trap 'rm -f "$tmp"' EXIT
       grim -g "$(slurp)" "$tmp"
-      wl-copy < "$tmp"
       swappy -f "$tmp" -o "$file"
+      wl-copy < "$file"
       printf '%s\n' "$file"
     '';
   };
