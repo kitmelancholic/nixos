@@ -10,6 +10,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
     home-manager = {
       url = "github:nix-community/home-manager/release-26.05";
@@ -58,6 +59,7 @@
         };
       };
       pkgs = import nixpkgs { inherit system; };
+      pkgsUnstable = import inputs.nixpkgs-unstable { inherit system; };
       fmtScript = pkgs.writeShellApplication {
         name = "repo-fmt";
         runtimeInputs = [ pkgs.nixfmt-tree ];
@@ -87,7 +89,14 @@
     {
       nixosConfigurations.${constants.hostname} = nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit inputs self constants; };
+        specialArgs = {
+          inherit
+            inputs
+            self
+            constants
+            pkgsUnstable
+            ;
+        };
 
         modules = [
           ./hosts/nixos/configuration.nix
@@ -100,7 +109,14 @@
               useGlobalPkgs = true;
               useUserPackages = true;
               backupFileExtension = "hm-backup";
-              extraSpecialArgs = { inherit inputs self constants; };
+              extraSpecialArgs = {
+                inherit
+                  inputs
+                  self
+                  constants
+                  pkgsUnstable
+                  ;
+              };
 
               users.${constants.username} = import ./home/kit.nix;
               sharedModules = [ inputs.stylix.homeModules.stylix ];

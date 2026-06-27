@@ -1,196 +1,136 @@
 {
   config,
   constants,
-  lib,
   pkgs,
   ...
 }:
 
 let
-  lua = lib.generators.mkLuaInline;
-  mod = ''mod .. " + '';
-  dispatch = expr: lua "hl.dsp.${expr}";
-  bind = key: dispatcher: {
-    _args = [
-      (lua "${mod}${key}\"")
-      dispatcher
-    ];
-  };
-  bindNoMod = key: dispatcher: {
-    _args = [
-      key
-      dispatcher
-    ];
-  };
-  mouseBind = key: dispatcher: {
-    _args = [
-      (lua "${mod}${key}\"")
-      dispatcher
-      { mouse = true; }
-    ];
-  };
   colors = config.lib.stylix.colors;
-  color = name: lua "\"rgb(${colors.${name}})\"";
-  workspaceBinds =
-    lib.concatMap
-      (
-        workspace:
-        let
-          key = toString workspace;
-        in
-        [
-          (bind key (dispatch "focus({ workspace = ${key} })"))
-          (bind "SHIFT + ${key}" (dispatch "window.move({ workspace = ${key} })"))
-        ]
-      )
+  color = name: "rgb(${colors.${name}})";
+  workspaceBinds = builtins.concatLists (
+    builtins.genList (
+      index:
+      let
+        workspace = toString (index + 1);
+      in
       [
-        1
-        2
-        3
-        4
-        5
-      ];
+        "$mod, ${workspace}, workspace, ${workspace}"
+        "$mod SHIFT, ${workspace}, movetoworkspace, ${workspace}"
+      ]
+    ) 5
+  );
 in
 {
   wayland.windowManager.hyprland = {
     enable = true;
+    configType = "lua";
     package = null;
     portalPackage = null;
-    configType = "lua";
-    importantPrefixes = [
-      "env"
-      "monitor"
-      "config"
-    ];
 
     settings = {
-      mod._var = "SUPER";
-      terminal._var = constants.apps.terminal.command;
-      explorer._var = constants.apps.explorer.command;
-      launcher._var = constants.apps.launcher.command;
-      browser._var = constants.apps.browser.command;
+      "$mod" = "SUPER";
 
-      monitor = {
-        output = "";
-        mode = "1600x900@60";
-        position = "auto";
-        scale = 1;
-      };
+      monitor = ",preferred,auto,1";
 
       env = [
-        {
-          _args = [
-            "XCURSOR_SIZE"
-            "24"
-          ];
-        }
-        {
-          _args = [
-            "NIXOS_OZONE_WL"
-            "1"
-          ];
-        }
+        "XCURSOR_SIZE,24"
+        "NIXOS_OZONE_WL,1"
       ];
 
-      config = {
-        input = {
-          kb_layout = "us,ua";
-          kb_options = "grp:alt_shift_toggle";
-          follow_mouse = 1;
+      input = {
+        kb_layout = "us,ua";
+        kb_options = "grp:alt_shift_toggle";
+        follow_mouse = 1;
 
-          touchpad = {
-            natural_scroll = true;
-          };
+        touchpad = {
+          natural_scroll = true;
         };
+      };
 
-        general = {
-          gaps_in = 4;
-          gaps_out = 8;
-          border_size = 2;
-          layout = "dwindle";
-          "col.active_border" = color "base0D";
-          "col.inactive_border" = color "base03";
-        };
+      general = {
+        gaps_in = 4;
+        gaps_out = 8;
+        border_size = 2;
+        layout = "dwindle";
+        "col.active_border" = color "base0D";
+        "col.inactive_border" = color "base03";
+      };
 
-        decoration = {
-          rounding = 8;
-        };
-        group = {
-          "col.border_active" = color "base0D";
-          "col.border_inactive" = color "base03";
-        };
+      decoration = {
+        rounding = 8;
+      };
 
-        animations = {
-          enabled = true;
-        };
+      group = {
+        "col.border_active" = color "base0D";
+        "col.border_inactive" = color "base03";
+      };
 
-        dwindle = {
-          pseudotile = true;
-          preserve_split = true;
-        };
+      animations = {
+        enabled = true;
+      };
 
-        misc = {
-          disable_hyprland_logo = true;
-          disable_splash_rendering = true;
-        };
+      dwindle = {
+        pseudotile = true;
+        preserve_split = true;
+      };
+
+      misc = {
+        disable_hyprland_logo = true;
+        disable_splash_rendering = true;
       };
 
       bind = [
-        (bind "Return" (lua "hl.dsp.exec_cmd(terminal)"))
-        (bind "E" (lua "hl.dsp.exec_cmd(explorer)"))
-        (bind "R" (lua "hl.dsp.exec_cmd(launcher)"))
-        (bind "B" (lua "hl.dsp.exec_cmd(browser)"))
-        (bindNoMod "CTRL + Z" (lua ''hl.dsp.exec_cmd(terminal .. " -e btop")''))
-        (bindNoMod "CTRL + B" (lua "hl.dsp.exec_cmd(browser)"))
+        "$mod, Return, exec, ${constants.apps.terminal.command}"
+        "$mod, E, exec, ${constants.apps.explorer.command}"
+        "$mod, R, exec, ${constants.apps.launcher.command}"
+        "$mod, B, exec, ${constants.apps.browser.command}"
+        "CTRL, Z, exec, ${constants.apps.terminal.command} -e btop"
+        "CTRL, B, exec, ${constants.apps.browser.command}"
 
-        (bind "W" (dispatch "window.close()"))
-        (bind "SHIFT + W" (dispatch ''exec_cmd("uwsm stop")''))
+        "$mod, W, killactive"
+        "$mod SHIFT, W, exec, uwsm stop"
 
-        (bind "F" (dispatch ''window.fullscreen({ action = "toggle" })''))
-        (bind "Space" (dispatch ''window.float({ action = "toggle" })''))
+        "$mod, F, fullscreen"
+        "$mod, Space, togglefloating"
 
-        (bind "H" (dispatch ''focus({ direction = "l" })''))
-        (bind "L" (dispatch ''focus({ direction = "r" })''))
-        (bind "K" (dispatch ''focus({ direction = "u" })''))
-        (bind "J" (dispatch ''focus({ direction = "d" })''))
+        "$mod, H, movefocus, l"
+        "$mod, L, movefocus, r"
+        "$mod, K, movefocus, u"
+        "$mod, J, movefocus, d"
 
-        (bind "SHIFT + H" (dispatch ''window.move({ direction = "l" })''))
-        (bind "SHIFT + L" (dispatch ''window.move({ direction = "r" })''))
-        (bind "SHIFT + K" (dispatch ''window.move({ direction = "u" })''))
-        (bind "SHIFT + J" (dispatch ''window.move({ direction = "d" })''))
+        "$mod SHIFT, H, movewindow, l"
+        "$mod SHIFT, L, movewindow, r"
+        "$mod SHIFT, K, movewindow, u"
+        "$mod SHIFT, J, movewindow, d"
       ]
       ++ workspaceBinds
       ++ [
-        (bindNoMod "XF86AudioRaiseVolume" (dispatch ''exec_cmd("swayosd-client --output-volume raise")''))
-        (bindNoMod "XF86AudioLowerVolume" (dispatch ''exec_cmd("swayosd-client --output-volume lower")''))
-        (bindNoMod "XF86AudioMute" (dispatch ''exec_cmd("swayosd-client --output-volume mute-toggle")''))
-        (bindNoMod "XF86AudioMicMute" (dispatch ''exec_cmd("swayosd-client --input-volume mute-toggle")''))
-        (bindNoMod "XF86MonBrightnessUp" (dispatch ''exec_cmd("swayosd-client --brightness raise")''))
-        (bindNoMod "XF86MonBrightnessDown" (dispatch ''exec_cmd("swayosd-client --brightness lower")''))
-        (bindNoMod "XF86KbdBrightnessUp" (dispatch ''exec_cmd("keyboard-backlight-osd raise")''))
-        (bindNoMod "XF86KbdBrightnessDown" (dispatch ''exec_cmd("keyboard-backlight-osd lower")''))
+        ", XF86AudioRaiseVolume, exec, swayosd-client --output-volume raise"
+        ", XF86AudioLowerVolume, exec, swayosd-client --output-volume lower"
+        ", XF86AudioMute, exec, swayosd-client --output-volume mute-toggle"
+        ", XF86AudioMicMute, exec, swayosd-client --input-volume mute-toggle"
+        ", XF86MonBrightnessUp, exec, swayosd-client --brightness raise"
+        ", XF86MonBrightnessDown, exec, swayosd-client --brightness lower"
+        ", XF86KbdBrightnessUp, exec, keyboard-backlight-osd raise"
+        ", XF86KbdBrightnessDown, exec, keyboard-backlight-osd lower"
 
-        (bindNoMod "Print" (dispatch ''exec_cmd("screenshot-area-edit")''))
-        (bindNoMod "SHIFT + Print" (dispatch ''exec_cmd("screenshot-full")''))
-        (bind "Print" (dispatch ''exec_cmd("screenshot-window")''))
-
-        (mouseBind "mouse:272" (dispatch "window.drag()"))
-        (mouseBind "mouse:273" (dispatch "window.resize()"))
+        ", Print, exec, screenshot-area-edit"
+        "SHIFT, Print, exec, screenshot-full"
+        "$mod, Print, exec, screenshot-window"
       ];
 
-      on = {
-        _args = [
-          "hyprland.start"
-          (lua ''
-            function()
-              hl.exec_cmd("${pkgs.hyprpolkitagent}/bin/hyprpolkitagent")
-              hl.exec_cmd("wallpaper-apply")
-              hl.exec_cmd("waybar")
-              hl.exec_cmd("dunst")
-            end
-          '')
-        ];
-      };
+      bindm = [
+        "$mod, mouse:272, movewindow"
+        "$mod, mouse:273, resizewindow"
+      ];
+
+      exec-once = [
+        "${pkgs.hyprpolkitagent}/bin/hyprpolkitagent"
+        "wallpaper-apply"
+        "waybar"
+        "dunst"
+      ];
     };
   };
 }

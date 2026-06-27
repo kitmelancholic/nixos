@@ -1,8 +1,13 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  pkgsUnstable,
+  ...
+}:
 
 {
   programs.zed-editor = {
     enable = true;
+    package = pkgsUnstable.zed-editor;
 
     extensions = [
       "nix"
@@ -24,7 +29,7 @@
     ];
 
     userSettings = {
-      vim_mode = true;
+      vim_mode = false;
       hour_format = "hour24";
       auto_update = false;
 
@@ -35,10 +40,6 @@
         mode = "system";
         light = "One Light";
         dark = "One Dark";
-      };
-
-      terminal = {
-        shell = "fish";
       };
     };
   };
