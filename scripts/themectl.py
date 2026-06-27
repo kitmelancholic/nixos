@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import argparse
-import re
+import json
 from pathlib import Path
 
 
@@ -10,11 +10,19 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 THEMES_FILE = REPO_ROOT / "themes" / "default.nix"
 SELECTED_FILE = REPO_ROOT / "themes" / "selected.nix"
 LOCAL_SELECTED_FILE = REPO_ROOT / "themes" / "local-selected.nix"
+JSON_START = "builtins.fromJSON ''"
+JSON_END = "'';"
+
+
+def read_themes() -> dict[str, dict[str, object]]:
+    text = THEMES_FILE.read_text()
+    start = text.index(JSON_START) + len(JSON_START)
+    end = text.index(JSON_END, start)
+    return json.loads(text[start:end].strip())
 
 
 def theme_names() -> list[str]:
-    text = THEMES_FILE.read_text()
-    return sorted(set(re.findall(r"^\s{4}([a-z0-9-]+)\s*=\s*\{", text, re.MULTILINE)))
+    return sorted(read_themes())
 
 
 def selected_theme() -> str:
@@ -39,14 +47,9 @@ def print_themes() -> None:
 
 def print_wallpapers() -> None:
     current = selected_theme()
-    text = THEMES_FILE.read_text()
-    pattern = re.compile(
-        r"^\s{4}([a-z0-9-]+)\s*=\s*\{.*?wallpaper\s*=\s*(\.\./assets/wallpapers/[^;]+);",
-        re.MULTILINE | re.DOTALL,
-    )
-    for name, wallpaper in sorted(pattern.findall(text)):
+    for name, theme in sorted(read_themes().items()):
         marker = "*" if name == current else " "
-        print(f"{marker} {name} | {wallpaper}")
+        print(f"{marker} {name} | ../assets/wallpapers/{theme['wallpaper']}")
 
 
 def main() -> None:

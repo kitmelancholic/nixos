@@ -145,7 +145,7 @@ in
         "${mod}, mouse:273, resizewindow"
       ];
 
-      exec-once = [
+      exec_cmd = [
         "${pkgs.hyprpolkitagent}/bin/hyprpolkitagent"
         "wallpaper-apply"
         "waybar"
