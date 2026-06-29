@@ -18,6 +18,7 @@ in
     ../modules/home/desktop/vm.nix
     ../modules/home/desktop/wallpaper.nix
     ../modules/home/development.nix
+    ../modules/home/foundry.nix
     ../modules/home/media.nix
     ../modules/home/programs/terminal.nix
     ./packages.nix

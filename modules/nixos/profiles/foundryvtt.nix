@@ -24,4 +24,28 @@ in
   };
 
   networking.firewall.allowedTCPPorts = [ foundry.port ];
+
+  security.sudo.extraRules = [
+    {
+      users = [ constants.username ];
+      commands =
+        let
+          systemctl = "${pkgs.systemd}/bin/systemctl";
+        in
+        [
+          {
+            command = "${systemctl} start ${foundry.service}";
+            options = [ "NOPASSWD" ];
+          }
+          {
+            command = "${systemctl} stop ${foundry.service}";
+            options = [ "NOPASSWD" ];
+          }
+          {
+            command = "${systemctl} restart ${foundry.service}";
+            options = [ "NOPASSWD" ];
+          }
+        ];
+    }
+  ];
 }

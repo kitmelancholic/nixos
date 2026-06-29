@@ -86,6 +86,27 @@ Validate the configured Foundry version and local payload:
 just foundry-check
 ```
 
+After switching the system, Foundry runs as `foundryvtt.service` and is available at:
+
+```text
+http://127.0.0.1:30000
+```
+
+The Home Manager config also adds launcher entries and helper commands:
+
+```sh
+foundry          # start the service if needed, then open the web UI
+foundry-stop     # stop the service
+foundry-restart  # restart the service, then open the web UI
+foundry-status   # show service status
+```
+
+Launcher entries:
+
+- `Foundry VTT`
+- `Stop Foundry VTT`
+- `Restart Foundry VTT`
+
 ## Package Ownership
 
 System packages are kept for drivers, services, and rescue/debug basics. User-facing applications and daily CLI tools live in `home/packages.nix` and Home Manager modules.

@@ -4,4 +4,6 @@
   filename = "FoundryVTT-Linux-14.360.zip";
   hash = "sha256-UZl2wFXKus9tJLqhTyq5nR2PWWqd7ts0Y+uRdnGnK0c=";
   port = 30000;
+  service = "foundryvtt.service";
+  url = "http://127.0.0.1:30000";
 }
