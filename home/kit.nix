@@ -1,6 +1,5 @@
 {
   constants,
-  pkgs,
   ...
 }:
 
@@ -16,6 +15,7 @@ in
     ../modules/home/desktop/osd.nix
     ../modules/home/desktop/screenshots.nix
     ../modules/home/desktop/theme.nix
+    ../modules/home/desktop/vm.nix
     ../modules/home/desktop/wallpaper.nix
     ../modules/home/development.nix
     ../modules/home/media.nix
@@ -42,22 +42,5 @@ in
 
   home.sessionVariables = {
     NIXOS_OZONE_WL = "1";
-  };
-
-  systemd.user.services.spice-vdagent = {
-    Unit = {
-      Description = "SPICE vdagent user session";
-      After = [ "graphical-session.target" ];
-      PartOf = [ "graphical-session.target" ];
-    };
-
-    Service = {
-      ExecStart = "${pkgs.spice-vdagent}/bin/spice-vdagent";
-      Restart = "on-failure";
-    };
-
-    Install = {
-      WantedBy = [ "graphical-session.target" ];
-    };
   };
 }

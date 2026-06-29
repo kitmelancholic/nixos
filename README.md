@@ -8,6 +8,7 @@ Personal NixOS + Home Manager configuration for the `nixos` host and `kit` user.
 just fmt
 just check
 just hyprland-check
+just foundry-check
 ```
 
 Direct flake equivalents:
@@ -16,6 +17,7 @@ Direct flake equivalents:
 nix run .#fmt
 nix run .#check
 nix run .#hyprland-check
+nix run .#foundry-check
 ```
 
 Rebuild the system:
@@ -26,7 +28,8 @@ nix run .#switch
 
 ## Layout
 
-- `flake.nix`: inputs, outputs, repo commands, checks.
+- `flake.nix`: inputs and output wiring.
+- `lib/repo-apps.nix`: repo commands and checks.
 - `hosts/nixos/`: host-level wiring and hardware config.
 - `modules/nixos/core/`: boot, locale, Nix, user, base packages, `nix-ld`.
 - `modules/nixos/desktop/`: display manager, Hyprland system integration, PipeWire, fonts, portals, desktop plumbing.
@@ -76,6 +79,12 @@ Hyprland --verify-config --config <generated-file>
 FoundryVTT is configured through `nix-foundryvtt` in `modules/nixos/profiles/foundryvtt.nix`.
 
 The service listens on TCP `30000`, and the firewall opens that port. Foundry itself is proprietary, so follow the upstream `nix-foundryvtt` instructions for providing the required Foundry package payload/license material before rebuilding.
+
+Validate the configured Foundry version and local payload:
+
+```sh
+just foundry-check
+```
 
 ## Package Ownership
 

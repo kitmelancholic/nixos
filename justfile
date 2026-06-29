@@ -10,6 +10,9 @@ hyprland-check:
 theme-check:
     nix run .#theme-check
 
+foundry-check:
+    nix run .#foundry-check
+
 switch:
     nix run .#switch
 

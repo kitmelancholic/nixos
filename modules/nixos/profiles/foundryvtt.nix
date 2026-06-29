@@ -1,4 +1,13 @@
-{ inputs, pkgs, ... }:
+{
+  constants,
+  inputs,
+  pkgs,
+  ...
+}:
+
+let
+  inherit (constants) foundry;
+in
 
 {
   imports = [ inputs.foundryvtt.nixosModules.foundryvtt ];
@@ -9,10 +18,10 @@
     package =
       inputs.foundryvtt.packages.${pkgs.stdenv.hostPlatform.system}.foundryvtt_14.overrideAttrs
         (_: {
-          version = "14.0.0+360";
+          inherit (foundry) version;
         });
     upnp = false;
   };
 
-  networking.firewall.allowedTCPPorts = [ 30000 ];
+  networking.firewall.allowedTCPPorts = [ foundry.port ];
 }
