@@ -144,12 +144,8 @@
       };
       switchScript = pkgs.writeShellApplication {
         name = "repo-switch";
-        runtimeInputs = with pkgs; [
-          nixos-rebuild
-          sudo
-        ];
         text = ''
-          exec sudo nixos-rebuild switch --flake .#${constants.hostname} "$@"
+          exec /run/wrappers/bin/sudo ${pkgs.nixos-rebuild}/bin/nixos-rebuild switch --flake .#${constants.hostname} "$@"
         '';
       };
     in
