@@ -21,7 +21,7 @@ in
     ../modules/home/media.nix
     ../modules/home/programs/terminal.nix
     ./packages.nix
-    ./hyprland.nix
+    ./hyprland
     ./waybar.nix
     ./zed.nix
   ];

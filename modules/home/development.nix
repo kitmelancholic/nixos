@@ -7,6 +7,7 @@
   };
 
   home.packages = with pkgs; [
+    docker-compose # Compose CLI for Docker projects
     fd # Fast file finder for editor/tasks
     gh # GitHub CLI for development workflow
     jq # JSON CLI used by scripts and APIs

@@ -16,7 +16,6 @@
     fastfetch
     btop
 
-    spice-vdagent # VM clipboard/display integration
     xclip
     xsel
 
@@ -33,10 +32,8 @@
 
     unityhub
     mono # Unity/legacy .NET compatibility
-    #pkgs.zed-editor # zed-editor
     goose-cli
 
-    #steam via modules/nixos/profiles/gaming.nix
     prismlauncher
   ];
 }

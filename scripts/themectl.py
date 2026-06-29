@@ -3,22 +3,28 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-THEMES_FILE = REPO_ROOT / "themes" / "default.nix"
 SELECTED_FILE = REPO_ROOT / "themes" / "selected.nix"
-LOCAL_SELECTED_FILE = REPO_ROOT / "themes" / "local-selected.nix"
-JSON_START = "builtins.fromJSON ''"
-JSON_END = "'';"
 
 
 def read_themes() -> dict[str, dict[str, object]]:
-    text = THEMES_FILE.read_text()
-    start = text.index(JSON_START) + len(JSON_START)
-    end = text.index(JSON_END, start)
-    return json.loads(text[start:end].strip())
+    output = subprocess.check_output(
+        [
+            "nix",
+            "eval",
+            "--impure",
+            "--json",
+            "--expr",
+            "let themes = import ./themes/themes.nix; in builtins.mapAttrs (_: theme: theme // { wallpaper = toString theme.wallpaper; }) themes",
+        ],
+        cwd=REPO_ROOT,
+        text=True,
+    )
+    return json.loads(output)
 
 
 def theme_names() -> list[str]:
@@ -26,15 +32,14 @@ def theme_names() -> list[str]:
 
 
 def selected_theme() -> str:
-    selected_file = LOCAL_SELECTED_FILE if LOCAL_SELECTED_FILE.exists() else SELECTED_FILE
-    return selected_file.read_text().strip().strip('"')
+    return SELECTED_FILE.read_text().strip().strip('"')
 
 
 def select_theme(name: str) -> None:
     names = theme_names()
     if name not in names:
         raise SystemExit(f"Unknown theme '{name}'. Available: {', '.join(names)}")
-    LOCAL_SELECTED_FILE.write_text(f'"{name}"\n')
+    SELECTED_FILE.write_text(f'"{name}"\n')
     print(f"Selected theme: {name}")
 
 
@@ -49,7 +54,7 @@ def print_wallpapers() -> None:
     current = selected_theme()
     for name, theme in sorted(read_themes().items()):
         marker = "*" if name == current else " "
-        print(f"{marker} {name} | ../assets/wallpapers/{theme['wallpaper']}")
+        print(f"{marker} {name} | {Path(theme['wallpaper']).relative_to(REPO_ROOT)}")
 
 
 def main() -> None:

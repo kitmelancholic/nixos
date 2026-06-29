@@ -154,6 +154,26 @@
         "type": "github"
       }
     },
+    "foundryvtt": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1782645112,
+        "narHash": "sha256-y+HZBu/+rJSvyRUytE5nFbdkwD8wMVSu02nV2I9RpE4=",
+        "owner": "nix-foundryvtt",
+        "repo": "nix-foundryvtt",
+        "rev": "5f39c5cac7baa2ebfaf8960a85985919d202e86f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-foundryvtt",
+        "repo": "nix-foundryvtt",
+        "type": "github"
+      }
+    },
     "fromYaml": {
       "flake": false,
       "locked": {
@@ -663,6 +683,7 @@
     },
     "root": {
       "inputs": {
+        "foundryvtt": "foundryvtt",
         "home-manager": "home-manager",
         "hyprland": "hyprland",
         "nixpkgs": "nixpkgs_2",

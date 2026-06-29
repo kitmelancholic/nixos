@@ -7,6 +7,12 @@ check:
 hyprland-check:
     nix run .#hyprland-check
 
+theme-check:
+    nix run .#theme-check
+
+switch:
+    nix run .#switch
+
 packages:
     @if command -v python3 >/dev/null; then python3 scripts/list-packages.py; else nix develop -c python3 scripts/list-packages.py; fi
 
