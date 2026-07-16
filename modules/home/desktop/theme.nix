@@ -39,6 +39,7 @@ in
 
     targets = {
       hyprland.enable = false;
+      hyprlock.enable = false;
       waybar.enable = false;
       zed.enable = false;
     };

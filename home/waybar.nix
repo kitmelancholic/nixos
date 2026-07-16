@@ -28,6 +28,7 @@ in
           "backlight"
           "battery"
           "power-profiles-daemon"
+          "custom/power"
         ];
 
         "hyprland/workspaces" = {
@@ -86,6 +87,13 @@ in
             power-saver = "󰾆";
           };
         };
+
+        "custom/power" = {
+          format = "󰐥";
+          tooltip-format = "Power menu";
+          on-click = "power-menu";
+          on-click-right = "loginctl lock-session";
+        };
       };
     };
 
@@ -134,8 +142,18 @@ in
       #network,
       #backlight,
       #battery,
-      #power-profiles-daemon {
+      #power-profiles-daemon,
+      #custom-power {
         padding: 0 10px;
+      }
+
+      #custom-power {
+        color: #${colors.base08};
+      }
+
+      #custom-power:hover {
+        background: #${colors.base02};
+        color: #${colors.base05};
       }
     '';
   };

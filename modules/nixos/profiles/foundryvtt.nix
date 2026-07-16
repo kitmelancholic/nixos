@@ -16,7 +16,7 @@ in
     enable = true;
     minifyStaticFiles = true;
     package =
-      inputs.foundryvtt.packages.${pkgs.stdenv.hostPlatform.system}.foundryvtt_14.overrideAttrs
+      inputs.foundryvtt.packages.${pkgs.stdenv.hostPlatform.system}.foundryvtt_13.overrideAttrs
         (_: {
           inherit (foundry) version;
         });

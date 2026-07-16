@@ -11,4 +11,6 @@ in
     withUWSM = true;
     xwayland.enable = true;
   };
+
+  programs.hyprlock.enable = true;
 }

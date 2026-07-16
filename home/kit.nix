@@ -13,12 +13,14 @@ in
     ../modules/home/desktop/default-apps.nix
     ../modules/home/desktop/laptop.nix
     ../modules/home/desktop/osd.nix
+    ../modules/home/desktop/power.nix
     ../modules/home/desktop/screenshots.nix
     ../modules/home/desktop/theme.nix
     ../modules/home/desktop/vm.nix
     ../modules/home/desktop/wallpaper.nix
     ../modules/home/development.nix
     ../modules/home/foundry.nix
+    ../modules/home/graphify.nix
     ../modules/home/media.nix
     ../modules/home/programs/terminal.nix
     ./packages.nix

@@ -14,5 +14,6 @@
     just # Repo task runner
     ripgrep # Fast text search for editor/tasks
     unzip # Archive extraction for downloaded tooling
+    uv # Python package and project manager
   ];
 }

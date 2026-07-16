@@ -20,5 +20,7 @@
     gamescope # Nested compositor for Steam/game launch options
     mangohud # Gaming performance overlay
     protonup-qt # Proton-GE manager
+
+    discord
   ];
 }

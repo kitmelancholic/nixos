@@ -37,6 +37,7 @@
 
   environment.systemPackages = with pkgs; [
     bluez # Bluetooth CLI tools including bluetoothctl
+    bluetuith # Terminal Bluetooth manager
     blueman # Bluetooth GUI manager
     brightnessctl # Laptop backlight control
     hyprpolkitagent # Wayland polkit authentication agent

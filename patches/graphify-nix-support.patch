@@ -1,0 +1,193 @@
+diff --git a/graphify/detect.py b/graphify/detect.py
+--- a/graphify/detect.py
++++ b/graphify/detect.py
+@@ -30 +30 @@
+-CODE_EXTENSIONS = {'.py', '.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.ejs', '.ets', '.go', '.rs', '.java', '.groovy', '.gradle', '.cpp', '.cc', '.cxx', '.c', '.h', '.hpp', '.cu', '.cuh', '.metal', '.rb', '.rake', '.swift', '.kt', '.kts', '.cs', '.scala', '.php', '.lua', '.luau', '.toc', '.zig', '.ps1', '.psm1', '.psd1', '.ex', '.exs', '.m', '.mm', '.jl', '.vue', '.svelte', '.astro', '.dart', '.v', '.sv', '.svh', '.sql', '.r', '.f', '.F', '.f90', '.F90', '.f95', '.F95', '.f03', '.F03', '.f08', '.F08', '.pas', '.pp', '.dpr', '.dpk', '.lpr', '.inc', '.dfm', '.lfm', '.lpk', '.sh', '.bash', '.json', '.tf', '.tfvars', '.hcl', '.dm', '.dme', '.dmi', '.dmm', '.dmf', '.sln', '.slnx', '.csproj', '.fsproj', '.vbproj', '.xaml', '.razor', '.cshtml', '.cls', '.trigger'}
++CODE_EXTENSIONS = {'.py', '.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.ejs', '.ets', '.go', '.rs', '.java', '.groovy', '.gradle', '.cpp', '.cc', '.cxx', '.c', '.h', '.hpp', '.cu', '.cuh', '.metal', '.rb', '.rake', '.swift', '.kt', '.kts', '.cs', '.scala', '.php', '.lua', '.luau', '.toc', '.zig', '.ps1', '.psm1', '.psd1', '.ex', '.exs', '.m', '.mm', '.jl', '.vue', '.svelte', '.astro', '.dart', '.v', '.sv', '.svh', '.sql', '.r', '.f', '.F', '.f90', '.F90', '.f95', '.F95', '.f03', '.F03', '.f08', '.F08', '.pas', '.pp', '.dpr', '.dpk', '.lpr', '.inc', '.dfm', '.lfm', '.lpk', '.sh', '.bash', '.json', '.tf', '.tfvars', '.hcl', '.dm', '.dme', '.dmi', '.dmm', '.dmf', '.sln', '.slnx', '.csproj', '.fsproj', '.vbproj', '.xaml', '.razor', '.cshtml', '.cls', '.trigger', '.nix'}
+diff --git a/graphify/extract.py b/graphify/extract.py
+--- a/graphify/extract.py
++++ b/graphify/extract.py
+@@ -45 +45,2 @@
+ from graphify.extractors.markdown import extract_markdown  # noqa: F401
++from graphify.extractors.nix import extract_nix, resolve_nix_semantics  # noqa: F401
+@@ -2787,4 +2788,7 @@
+ register_language_resolver(
+     LanguageResolver("java_member_calls", frozenset({".java"}), _resolve_java_member_calls)
+ )
++register_language_resolver(
++    LanguageResolver("nix_semantics", frozenset({".nix"}), resolve_nix_semantics)
++)
+ # Pascal/Delphi cross-file inherited-method-call resolution: a call from a
+@@ -3870 +3874,2 @@
+     ".hcl": extract_terraform,
++    ".nix": extract_nix,
+diff --git a/graphify/cache.py b/graphify/cache.py
+--- a/graphify/cache.py
++++ b/graphify/cache.py
+@@ -30,2 +30,5 @@
+ except Exception:
+     _EXTRACTOR_VERSION = "unknown"
++# This integration adds post-release Nix facts and cross-file semantics.
++# Namespace the AST cache so pre-integration entries cannot mask those facts.
++_EXTRACTOR_VERSION += "+nix-v4"
+diff --git a/graphify/build.py b/graphify/build.py
+--- a/graphify/build.py
++++ b/graphify/build.py
+@@ -31,4 +31,5 @@
+ from .ids import make_id, normalize_id as _normalize_id
+ from .paths import default_graph_json as _default_graph_json
+ from .validate import validate_extraction
++from .extractors.nix import enrich_nix_documentation
+ 
+@@ -490 +491,3 @@
++    enrich_nix_documentation(extraction)
++
+     G: nx.Graph = nx.DiGraph() if directed else nx.Graph()
+diff --git a/graphify/extractors/__init__.py b/graphify/extractors/__init__.py
+--- a/graphify/extractors/__init__.py
++++ b/graphify/extractors/__init__.py
+@@ -23 +23,2 @@
+ from graphify.extractors.markdown import extract_markdown
++from graphify.extractors.nix import extract_nix
+@@ -52 +53,2 @@
+     "markdown": extract_markdown,
++    "nix": extract_nix,
+diff --git a/graphify/serve.py b/graphify/serve.py
+--- a/graphify/serve.py
++++ b/graphify/serve.py
+@@ -559,4 +559,32 @@ def _filter_graph_by_context(G: nx.Graph, context_filters: list[str] | None) ->
+     return H
+ 
+ 
++def _semantic_neighbors(G: nx.Graph, node: str) -> list[str]:
++    """Rank and bound noisy Nix occurrence edges without pruning the graph."""
++    ranked: list[tuple[float, float, float, str]] = []
++    for neighbor in G.neighbors(node):
++        raw = G[node][neighbor]
++        attrs = (
++            max(raw.values(), key=lambda item: float(item.get("weight", 1.0)))
++            if isinstance(G, (nx.MultiGraph, nx.MultiDiGraph))
++            else raw
++        )
++        ranked.append(
++            (
++                float(attrs.get("weight", 1.0)),
++                float(G.nodes[neighbor].get("semantic_rank", 0.0)),
++                float(G.degree(neighbor, weight="weight")),
++                neighbor,
++            )
++        )
++    ranked.sort(key=lambda item: (-item[0], -item[1], -item[2], str(item[3])))
++    neighbors = [item[3] for item in ranked]
++    is_nix = G.nodes[node].get("lang") == "nix" or any(
++        G.nodes[neighbor].get("lang") == "nix" for neighbor in neighbors
++    )
++    if is_nix and len(neighbors) > 32:
++        return neighbors[:32]
++    return neighbors
++
++
+ def _bfs(G: nx.Graph, start_nodes: list[str], depth: int) -> tuple[set[str], list[tuple]]:
+@@ -580,7 +608,7 @@ def _bfs(G: nx.Graph, start_nodes: list[str], depth: int) -> tuple[set[str], li
+             # is the starting node should still be explored).
+             if n not in seed_set and G.degree(n) >= hub_threshold:
+                 continue
+-            for neighbor in G.neighbors(n):
++            for neighbor in _semantic_neighbors(G, n):
+                 if neighbor not in visited:
+                     next_frontier.add(neighbor)
+                     edges_seen.append((n, neighbor))
+@@ -609,6 +637,6 @@ def _dfs(G: nx.Graph, start_nodes: list[str], depth: int) -> tuple[set[str], li
+         if node not in seed_set and G.degree(node) >= hub_threshold:
+             continue
+-        for neighbor in G.neighbors(node):
++        for neighbor in reversed(_semantic_neighbors(G, node)):
+             if neighbor not in visited:
+                 stack.append((neighbor, d + 1))
+                 edges_seen.append((node, neighbor))
+@@ -631 +659,9 @@ def _subgraph_to_text(G: nx.Graph, nodes: set[str], edges: list[tuple], token_b
+-              sorted(nodes - seed_set, key=lambda n: G.degree(n), reverse=True)
++              sorted(
++                  nodes - seed_set,
++                  key=lambda n: (
++                      -float(G.nodes[n].get("semantic_rank", 0.0)),
++                      -float(G.degree(n, weight="weight")),
++                      -G.degree(n),
++                      str(n),
++                  ),
++              )
+@@ -653,4 +689,9 @@ def _subgraph_to_text(G: nx.Graph, nodes: set[str], edges: list[tuple], token_b
+         )
+         lines.append(line)
+-    for u, v in edges:
++    def edge_weight(edge: tuple) -> float:
++        raw = G[edge[0]][edge[1]]
++        attrs = next(iter(raw.values()), {}) if isinstance(G, (nx.MultiGraph, nx.MultiDiGraph)) else raw
++        return float(attrs.get("weight", 1.0))
++
++    for u, v in sorted(edges, key=lambda edge: -edge_weight(edge)):
+         if u in nodes and v in nodes:
+@@ -708 +749 @@ def _query_graph_text(
+-    return header + _subgraph_to_text(traversal_graph, nodes, edges, token_budget)
++    return header + _subgraph_to_text(traversal_graph, nodes, edges, token_budget, seeds=start_nodes)
+diff --git a/graphify/serve.py b/graphify/serve.py
+--- a/graphify/serve.py
++++ b/graphify/serve.py
+@@ -600,4 +600,6 @@ def _bfs(G: nx.Graph, start_nodes: list[str], depth: int) -> tuple[set[str], li
+     seed_set = set(start_nodes)
+     visited: set[str] = set(start_nodes)
+     frontier = set(start_nodes)
++    semantic_graph = any(float(data.get("semantic_rank", 0.0)) > 0 for _, data in G.nodes(data=True))
++    node_limit = 96 if semantic_graph else None
+     edges_seen: list[tuple] = []
+@@ -613,3 +615,18 @@ def _bfs(G: nx.Graph, start_nodes: list[str], depth: int) -> tuple[set[str], li
+                     next_frontier.add(neighbor)
+                     edges_seen.append((n, neighbor))
++        if node_limit and len(visited) + len(next_frontier) > node_limit:
++            remaining = max(0, node_limit - len(visited))
++            ranked_frontier = sorted(
++                next_frontier,
++                key=lambda candidate: (
++                    -float(G.nodes[candidate].get("semantic_rank", 0.0)),
++                    -float(G.degree(candidate, weight="weight")),
++                    str(candidate),
++                ),
++            )
++            next_frontier = set(ranked_frontier[:remaining])
++            edges_seen = [
++                edge for edge in edges_seen
++                if edge[1] in visited or edge[1] in next_frontier
++            ]
+         visited.update(next_frontier)
+@@ -628,6 +645,10 @@ def _dfs(G: nx.Graph, start_nodes: list[str], depth: int) -> tuple[set[str], li
+     seed_set = set(start_nodes)
+     visited: set[str] = set()
+     edges_seen: list[tuple] = []
++    semantic_graph = any(float(data.get("semantic_rank", 0.0)) > 0 for _, data in G.nodes(data=True))
++    node_limit = 96 if semantic_graph else None
+     stack = [(n, 0) for n in reversed(start_nodes)]
+     while stack:
++        if node_limit and len(visited) >= node_limit:
++            break
+         node, d = stack.pop()
+diff --git a/graphify/serve.py b/graphify/serve.py
+--- a/graphify/serve.py
++++ b/graphify/serve.py
+@@ -456 +456,16 @@ def _pick_seeds(
+-    return seeds
++    if G is not None and any(
++        float(data.get("semantic_rank", 0.0)) > 0
++        for _, data in G.nodes(data=True)
++    ):
++        scores = {nid: score for score, nid in scored}
++
++        def semantic_seed_rank(nid: str) -> tuple[float, float, str]:
++            data = G.nodes[nid]
++            rank = float(data.get("semantic_rank", 0.0))
++            if not rank and data.get("file_type") in {"document", "concept", "rationale"}:
++                rank = 0.75
++            return (-rank, -scores.get(nid, 0.0), str(nid))
++
++        seeds.sort(key=semantic_seed_rank)
++        return seeds[:6]
++    return seeds

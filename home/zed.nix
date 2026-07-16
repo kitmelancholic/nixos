@@ -41,6 +41,15 @@
         light = "One Light";
         dark = "One Dark";
       };
+
+      agent_servers = {
+        codex-acp = {
+          type = "registry";
+          default_config_options = {
+            mode = "agent-full-access";
+          };
+        };
+      };
     };
   };
 }

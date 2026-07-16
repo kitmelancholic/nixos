@@ -28,11 +28,12 @@ in
   (mkModBind "E" "hl.dsp.exec_cmd(explorer)")
   (mkModBind "R" "hl.dsp.exec_cmd(launcher)")
   (mkModBind "B" "hl.dsp.exec_cmd(browser)")
-  (mkBind "CTRL + Z" ''hl.dsp.exec_cmd(terminal .. " -e btop")'')
+  (mkModBind "Z" ''hl.dsp.exec_cmd(terminal .. " -e btop")'')
   (mkBind "CTRL + B" "hl.dsp.exec_cmd(browser)")
 
   (mkModBind "W" "hl.dsp.window.close()")
-  (mkShiftModBind "W" ''hl.dsp.exec_cmd("uwsm stop")'')
+  (mkModBind "Escape" ''hl.dsp.exec_cmd("power-menu")'')
+  (mkShiftModBind "W" ''hl.dsp.exec_cmd("power-menu")'')
 
   (mkModBind "F" ''hl.dsp.window.fullscreen({ action = "toggle" })'')
   (mkModBind "Space" ''hl.dsp.window.float({ action = "toggle" })'')
