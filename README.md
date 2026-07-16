@@ -36,29 +36,38 @@ nix run .#switch
 - `hosts/nixos/desktop.nix`: display manager, Hyprland, PipeWire, fonts, portals, and desktop plumbing.
 - `hosts/nixos/workloads.nix` and `hosts/nixos/foundryvtt.nix`: gaming, streaming, Docker, and FoundryVTT ownership.
 - `home/`: user-owned Home Manager desktop/program modules, Hyprland, Waybar, Zed, packages, and entrypoint.
-- `themes/`: theme data and selected theme.
+- `themes/`: the fixed declarative Catppuccin theme.
 
 ## Themes
 
-List themes:
+The desktop uses one fixed dark Catppuccin (Mocha) theme. Theme, wallpaper,
+Hyprland, Waybar, Zed, user packages, and other `home/` changes belong to
+Home Manager; host services, drivers, and system policy belong to NixOS.
+
+Activate user-owned changes:
 
 ```sh
-just theme
+home-manager switch --flake .#kit
+just home-switch
+nix run .#home-switch
 ```
 
-Select a theme:
+Activate system-owned changes:
 
 ```sh
-just theme catppuccin
+sudo nixos-rebuild switch --flake .#nixos
+just switch
+nix run .#switch
 ```
 
-List wallpapers:
+For the first migration from the embedded configuration, activate standalone
+Home Manager first with `just home-switch`, then switch NixOS with
+`just switch`. If activation encounters a file collision, retry with
+`home-manager switch -b hm-backup --flake .#kit`.
 
 ```sh
-just wallpaper
+home-manager switch --flake .#kit
 ```
-
-Theme selection updates `themes/selected.nix`, which is intentional: Git flakes only see tracked files reliably during rebuilds.
 
 ## Hyprland
 

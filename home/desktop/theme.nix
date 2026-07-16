@@ -1,8 +1,7 @@
 { pkgs, ... }:
 
 let
-  themeSet = import ../../themes;
-  theme = themeSet.active;
+  theme = import ../../themes;
   inherit (theme) base16Scheme polarity;
 in
 {
@@ -40,6 +39,7 @@ in
     targets = {
       hyprland.enable = false;
       hyprlock.enable = false;
+      qt.enable = true;
       waybar.enable = false;
       zed.enable = false;
     };

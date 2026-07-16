@@ -1,5 +1,5 @@
 {
-  description = "kitOS v0.14";
+  description = "kitOS v0.15";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
@@ -72,9 +72,16 @@
       username = "kit";
       settings = import ./lib/settings.nix { inherit system username; };
       pkgs = nixpkgs.legacyPackages.${settings.system};
+      homePkgs = import nixpkgs {
+        inherit (settings) system;
+        config.allowUnfree = true;
+      };
+      homeManagerPackage = home-manager.packages.${settings.system}.default;
       pkgsUnstable = inputs.nixpkgs-unstable.legacyPackages.${settings.system};
       hyprlandPkg = inputs.hyprland.packages.${settings.system}.hyprland;
-      repoApps = import ./lib/repo-apps.nix { inherit settings pkgs; };
+      repoApps = import ./lib/repo-apps.nix {
+        inherit settings pkgs homeManagerPackage;
+      };
       nixosConfiguration = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = {
@@ -86,30 +93,24 @@
 
         modules = [
           ./hosts/nixos/configuration.nix
-
-          home-manager.nixosModules.default
           inputs.thyx.nixosModules.default
-
-          {
-            home-manager = {
-              useGlobalPkgs = true;
-              useUserPackages = true;
-              backupFileExtension = "hm-backup";
-              extraSpecialArgs = {
-                inherit
-                  inputs
-                  settings
-                  pkgsUnstable
-                  ;
-              };
-
-              users.${settings.username} = import ./home/kit.nix;
-              sharedModules = [ inputs.stylix.homeModules.stylix ];
-            };
-          }
         ];
       };
-      themeSet = import ./themes;
+      homeConfiguration = home-manager.lib.homeManagerConfiguration {
+        pkgs = homePkgs;
+        modules = [
+          inputs.stylix.homeModules.stylix
+          ./home/kit.nix
+        ];
+        extraSpecialArgs = {
+          inherit
+            inputs
+            settings
+            pkgsUnstable
+            ;
+        };
+      };
+      theme = import ./themes;
       requiredBase16Keys = [
         "base00"
         "base01"
@@ -129,17 +130,10 @@
         "base0F"
       ];
       themeCheck =
-        assert builtins.hasAttr themeSet.selected themeSet.themes;
-        assert builtins.all (name: builtins.pathExists themeSet.themes.${name}.wallpaper) (
-          builtins.attrNames themeSet.themes
-        );
-        assert builtins.all (
-          name:
-          builtins.all (key: builtins.hasAttr key themeSet.themes.${name}.base16Scheme) requiredBase16Keys
-        ) (builtins.attrNames themeSet.themes);
+        assert builtins.pathExists theme.wallpaper;
+        assert builtins.all (key: builtins.hasAttr key theme.base16Scheme) requiredBase16Keys;
         pkgs.runCommand "theme-check" { } "touch $out";
-      hyprlandLua =
-        nixosConfiguration.config.home-manager.users.${settings.username}.xdg.configFile."hypr/hyprland.lua".text;
+      hyprlandLua = homeConfiguration.config.xdg.configFile."hypr/hyprland.lua".text;
       hyprlandCheck =
         pkgs.runCommand "hyprland-check"
           {
@@ -160,6 +154,7 @@
     in
     {
       nixosConfigurations.${settings.hostname} = nixosConfiguration;
+      homeConfigurations.${settings.username} = homeConfiguration;
 
       formatter.${settings.system} = repoApps.scripts.fmt;
 
@@ -194,6 +189,7 @@
             '';
         theme = themeCheck;
         hyprland = hyprlandCheck;
+        home = homeConfiguration.activationPackage;
       };
 
       apps.${settings.system} = repoApps.apps;

@@ -1,6 +1,7 @@
 {
   settings,
   pkgs,
+  homeManagerPackage,
 }:
 
 let
@@ -125,6 +126,14 @@ let
     '';
   };
 
+  homeSwitchScript = pkgs.writeShellApplication {
+    name = "repo-home-switch";
+    runtimeInputs = [ homeManagerPackage ];
+    text = ''
+      exec home-manager switch --flake .#${settings.username} "$@"
+    '';
+  };
+
   scripts = {
     check = checkScript;
     fmt = fmtScript;
@@ -132,6 +141,7 @@ let
     hyprlandCheck = hyprlandCheckScript;
     switch = switchScript;
     themeCheck = themeCheckScript;
+    homeSwitch = homeSwitchScript;
   };
 in
 
@@ -145,5 +155,6 @@ in
     hyprland-check = mkApp "Validate the generated Hyprland Lua config" "${hyprlandCheckScript}/bin/repo-hyprland-check";
     theme-check = mkApp "Validate theme selection, wallpapers, and base16 schemes" "${themeCheckScript}/bin/repo-theme-check";
     switch = mkApp "Rebuild and switch the NixOS host configuration" "${switchScript}/bin/repo-switch";
+    home-switch = mkApp "Activate the standalone Home Manager configuration" "${homeSwitchScript}/bin/repo-home-switch";
   };
 }
