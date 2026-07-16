@@ -33,7 +33,6 @@ in
     # Desktop shell
     kitty # fallback terminal
     wofi
-    waybar
     dunst # notifications
 
     # Wayland utilities

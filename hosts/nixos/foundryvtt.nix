@@ -1,12 +1,12 @@
 {
-  constants,
+  settings,
   inputs,
   pkgs,
   ...
 }:
 
 let
-  inherit (constants) foundry;
+  inherit (settings) foundry;
 in
 
 {
@@ -27,7 +27,7 @@ in
 
   security.sudo.extraRules = [
     {
-      users = [ constants.username ];
+      users = [ settings.username ];
       commands =
         let
           systemctl = "${pkgs.systemd}/bin/systemctl";

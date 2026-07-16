@@ -1,7 +1,7 @@
 { pkgs, ... }:
 
 let
-  themeSet = import ../../../themes;
+  themeSet = import ../../themes;
   theme = themeSet.active;
   wallpaperApply = pkgs.writeShellApplication {
     name = "wallpaper-apply";

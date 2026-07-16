@@ -1,11 +1,10 @@
 {
-  constants,
-  hyprlandPkg,
+  settings,
   pkgs,
 }:
 
 let
-  inherit (constants) foundry;
+  inherit (settings) foundry;
 
   staticCheckCommand = ''
     treefmt --tree-root "$PWD" --ci --excludes hosts/nixos/hardware-configuration.nix .
@@ -33,71 +32,18 @@ let
   themeCheckScript = pkgs.writeShellApplication {
     name = "repo-theme-check";
     runtimeInputs = with pkgs; [
-      jq
       nix
     ];
     text = ''
-      # shellcheck disable=SC2016
-      report="$(
-        nix eval --impure --json --expr '
-          let
-            themeSet = import ./themes;
-            requiredBase16Keys = [
-              "base00" "base01" "base02" "base03"
-              "base04" "base05" "base06" "base07"
-              "base08" "base09" "base0A" "base0B"
-              "base0C" "base0D" "base0E" "base0F"
-            ];
-            names = builtins.attrNames themeSet.themes;
-          in
-          {
-            selected = themeSet.selected;
-            validSelected = builtins.hasAttr themeSet.selected themeSet.themes;
-            missingWallpapers = builtins.filter (
-              name: !(builtins.pathExists themeSet.themes.''${name}.wallpaper)
-            ) names;
-            missingBase16 = builtins.mapAttrs (
-              _: theme:
-              builtins.filter (
-                key: !(builtins.hasAttr key theme.base16Scheme)
-              ) requiredBase16Keys
-            ) themeSet.themes;
-          }
-        '
-      )"
-
-      if ! printf '%s\n' "$report" | jq -e '
-        .validSelected == true
-        and (.missingWallpapers | length == 0)
-        and ([.missingBase16[] | length] | all(. == 0))
-      ' >/dev/null; then
-        printf '%s\n' "$report" | jq .
-        exit 1
-      fi
-
-      printf '%s\n' "themes ok"
+      exec nix build .#checks.${settings.system}.theme --no-link --no-write-lock-file
     '';
   };
 
   hyprlandCheckScript = pkgs.writeShellApplication {
     name = "repo-hyprland-check";
-    runtimeInputs = with pkgs; [
-      coreutils
-      jq
-      lua5_4
-      nix
-      hyprlandPkg
-    ];
+    runtimeInputs = [ pkgs.nix ];
     text = ''
-      tmpdir="$(mktemp -d)"
-      trap 'rm -rf "$tmpdir"' EXIT
-      config="$tmpdir/hyprland.lua"
-
-      nix eval .#nixosConfigurations.${constants.hostname}.config.home-manager.users.${constants.username}.xdg.configFile --json --no-write-lock-file \
-        | jq -r '."hypr/hyprland.lua".text' > "$config"
-
-      luac -p "$config"
-      Hyprland --verify-config --config "$config"
+      exec nix build .#checks.${settings.system}.hyprland --no-link --no-write-lock-file
     '';
   };
 
@@ -113,7 +59,7 @@ let
             expected_hash='${foundry.hash}'
 
             actual_version="$(
-              nix eval .#nixosConfigurations.${constants.hostname}.config.services.foundryvtt.package.version --raw --no-write-lock-file
+              nix eval .#nixosConfigurations.${settings.hostname}.config.services.foundryvtt.package.version --raw --no-write-lock-file
             )"
 
             if [ "$actual_version" != "$expected_version" ]; then
@@ -166,24 +112,16 @@ let
 
   checkScript = pkgs.writeShellApplication {
     name = "repo-check";
-    runtimeInputs = with pkgs; [
-      deadnix
-      nix
-      nixfmt-tree
-      statix
-    ];
+    runtimeInputs = [ pkgs.nix ];
     text = ''
-      ${staticCheckCommand}
-      nix flake show --no-write-lock-file
-      ${themeCheckScript}/bin/repo-theme-check
-      ${hyprlandCheckScript}/bin/repo-hyprland-check
+      exec nix flake check --no-write-lock-file
     '';
   };
 
   switchScript = pkgs.writeShellApplication {
     name = "repo-switch";
     text = ''
-      exec /run/wrappers/bin/sudo ${pkgs.nixos-rebuild}/bin/nixos-rebuild switch --flake .#${constants.hostname} "$@"
+      exec /run/wrappers/bin/sudo ${pkgs.nixos-rebuild}/bin/nixos-rebuild switch --flake .#${settings.hostname} "$@"
     '';
   };
 

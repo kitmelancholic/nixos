@@ -1,46 +1,111 @@
 {
-  constants,
+  settings,
+  pkgs,
   ...
 }:
 
 {
   imports = [
-    ./hardware-configuration.nix
-    ../../modules/nixos/core/boot.nix
-    ../../modules/nixos/core/locale.nix
-    ../../modules/nixos/core/nix.nix
-    ../../modules/nixos/core/nix-ld.nix
-    ../../modules/nixos/core/packages.nix
-    ../../modules/nixos/core/user.nix
-    ../../modules/nixos/desktop/audio.nix
-    ../../modules/nixos/desktop/audio-routing.nix
-    ../../modules/nixos/desktop/display-manager.nix
-    ../../modules/nixos/desktop/fonts.nix
-    ../../modules/nixos/desktop/hyprland.nix
-    ../../modules/nixos/desktop/plumbing.nix
-    ../../modules/nixos/hardware/intel-graphics.nix
-    ../../modules/nixos/profiles/development.nix
-    ../../modules/nixos/profiles/foundryvtt.nix
-    ../../modules/nixos/profiles/gaming.nix
-    ../../modules/nixos/profiles/streaming.nix
+    ./hardware.nix
+    ./desktop.nix
+    ./workloads.nix
+    ./foundryvtt.nix
   ];
 
-  networking = {
-    hostName = constants.hostname;
-    networkmanager.enable = true;
+  boot = {
+    loader = {
+      systemd-boot.enable = true;
+      efi.canTouchEfiVariables = true;
+    };
+
+    kernelPackages = pkgs.linuxPackages_latest;
   };
 
-  services = {
-    thermald.enable = true;
-    xserver.xkb = {
-      layout = "us,ua";
-      options = "grp:alt_shift_toggle";
+  time.timeZone = "Europe/Kyiv";
+
+  i18n = {
+    defaultLocale = "uk_UA.UTF-8";
+    extraLocaleSettings = {
+      LC_ADDRESS = "uk_UA.UTF-8";
+      LC_IDENTIFICATION = "uk_UA.UTF-8";
+      LC_MEASUREMENT = "uk_UA.UTF-8";
+      LC_MONETARY = "uk_UA.UTF-8";
+      LC_NAME = "uk_UA.UTF-8";
+      LC_NUMERIC = "uk_UA.UTF-8";
+      LC_PAPER = "uk_UA.UTF-8";
+      LC_TELEPHONE = "uk_UA.UTF-8";
+      LC_TIME = "uk_UA.UTF-8";
     };
   };
 
-  nixpkgs.config.allowUnfree = true;
+  console.keyMap = "ua-utf";
 
-  programs.dconf.enable = true;
+  nix = {
+    settings = {
+      experimental-features = [
+        "nix-command"
+        "flakes"
+      ];
+      auto-optimise-store = true;
+      extra-substituters = [ "https://hyprland.cachix.org" ];
+      extra-trusted-public-keys = [
+        "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
+      ];
+    };
+
+    gc = {
+      automatic = true;
+      dates = "weekly";
+      options = "--delete-older-than 14d";
+    };
+  };
+
+  programs = {
+    nix-ld = {
+      enable = true;
+      libraries = with pkgs; [
+        stdenv.cc.cc
+        zlib
+        openssl
+        curl
+        libgcc
+      ];
+    };
+
+    fish.enable = true;
+  };
+
+  users.users.${settings.username} = {
+    isNormalUser = true;
+    description = settings.username;
+    shell = pkgs.fish;
+    extraGroups = [
+      "networkmanager"
+      "wheel"
+      "video"
+      "audio"
+    ];
+    packages = [ ];
+  };
+
+  environment.systemPackages = with pkgs; [
+    curl
+    git
+    neovim
+    wget
+  ];
+
+  networking = {
+    hostName = settings.hostname;
+    networkmanager.enable = true;
+  };
+
+  services.xserver.xkb = {
+    layout = "us,ua";
+    options = "grp:alt_shift_toggle";
+  };
+
+  nixpkgs.config.allowUnfree = true;
 
   system.stateVersion = "26.05";
 }

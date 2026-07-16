@@ -31,11 +31,11 @@ nix run .#switch
 - `flake.nix`: inputs and output wiring.
 - `lib/repo-apps.nix`: repo commands and checks.
 - `hosts/nixos/`: host-level wiring and hardware config.
-- `modules/nixos/core/`: boot, locale, Nix, user, base packages, `nix-ld`.
-- `modules/nixos/desktop/`: display manager, Hyprland system integration, PipeWire, fonts, portals, desktop plumbing.
-- `modules/nixos/profiles/`: normal personal workloads: development, gaming, streaming, FoundryVTT.
-- `home/`: user config for Hyprland, Waybar, Zed, packages, and Home Manager entrypoint.
-- `modules/home/`: reusable Home Manager desktop/program modules.
+- `hosts/nixos/configuration.nix`: host core policy and system identity.
+- `hosts/nixos/hardware.nix`: hand-written hardware policy around generated hardware configuration.
+- `hosts/nixos/desktop.nix`: display manager, Hyprland, PipeWire, fonts, portals, and desktop plumbing.
+- `hosts/nixos/workloads.nix` and `hosts/nixos/foundryvtt.nix`: gaming, streaming, Docker, and FoundryVTT ownership.
+- `home/`: user-owned Home Manager desktop/program modules, Hyprland, Waybar, Zed, packages, and entrypoint.
 - `themes/`: theme data and selected theme.
 
 ## Themes
@@ -68,7 +68,7 @@ The Home Manager Hyprland config generates Lua. Validate it before rebuilding:
 just hyprland-check
 ```
 
-That command generates the Home Manager `hyprland.lua`, runs `luac -p`, then runs:
+That command builds the authoritative flake Hyprland check, which generates the Home Manager `hyprland.lua`, runs `luac -p`, then runs:
 
 ```sh
 Hyprland --verify-config --config <generated-file>
@@ -76,7 +76,7 @@ Hyprland --verify-config --config <generated-file>
 
 ## FoundryVTT
 
-FoundryVTT is configured through `nix-foundryvtt` in `modules/nixos/profiles/foundryvtt.nix`.
+FoundryVTT is configured through `nix-foundryvtt` in `hosts/nixos/foundryvtt.nix`.
 
 The service listens on TCP `30000`, and the firewall opens that port. Foundry itself is proprietary, so follow the upstream `nix-foundryvtt` instructions for providing the required Foundry package payload/license material before rebuilding.
 
@@ -110,3 +110,5 @@ Launcher entries:
 ## Package Ownership
 
 System packages are kept for drivers, services, and rescue/debug basics. User-facing applications and daily CLI tools live in `home/packages.nix` and Home Manager modules.
+
+The Graphify Nix extractor remains maintained locally because no compatible pinned upstream or fork was established during the refactor. Its integration suite includes real-repository smoke coverage for `query`, `path`, and `explain`.

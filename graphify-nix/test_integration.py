@@ -5,12 +5,31 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+import subprocess
 
 from graphify.extract import extract
 from graphify.extractors.nix import enrich_nix_documentation
 
 
 class NixIntegrationTest(unittest.TestCase):
+    def test_real_repository_graphify_smoke(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        commands = [
+            ["query", "host imports", "--budget", "300"],
+            ["path", "configuration.nix", "desktop.nix", "--budget", "300"],
+            ["explain", "FoundryVTT", "--budget", "300"],
+        ]
+
+        for command in commands:
+            result = subprocess.run(
+                ["graphify", *command],
+                cwd=root,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            self.assertTrue(result.stdout.strip(), command)
+
     def test_documentation_bridges_named_concepts(self) -> None:
         extraction = {
             "nodes": [

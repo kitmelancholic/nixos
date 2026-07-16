@@ -1,7 +1,7 @@
 { pkgs, ... }:
 
 let
-  themeSet = import ../../../themes;
+  themeSet = import ../../themes;
   theme = themeSet.active;
   inherit (theme) base16Scheme polarity;
 in

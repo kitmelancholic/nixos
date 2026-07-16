@@ -1,35 +1,26 @@
 {
-  constants,
+  settings,
   ...
 }:
 
 let
-  inherit (constants) homeDirectory username;
+  inherit (settings) homeDirectory username;
 in
 
 {
   imports = [
-    ../modules/home/desktop/audio.nix
-    ../modules/home/desktop/default-apps.nix
-    ../modules/home/desktop/laptop.nix
-    ../modules/home/desktop/osd.nix
-    ../modules/home/desktop/power.nix
-    ../modules/home/desktop/screenshots.nix
-    ../modules/home/desktop/theme.nix
-    ../modules/home/desktop/vm.nix
-    ../modules/home/desktop/wallpaper.nix
-    ../modules/home/development.nix
-    ../modules/home/foundry.nix
-    ../modules/home/graphify.nix
-    ../modules/home/media.nix
-    ../modules/home/programs/terminal.nix
+    ./desktop.nix
+    ./foundry.nix
+    ./graphify.nix
+    ./osd.nix
+    ./power.nix
+    ./programs.nix
+    ./screenshots.nix
     ./packages.nix
     ./hyprland
     ./waybar.nix
     ./zed.nix
   ];
-
-  nixpkgs.config.allowUnfree = true;
 
   home = {
     inherit homeDirectory username;

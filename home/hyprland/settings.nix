@@ -1,6 +1,6 @@
 {
   config,
-  constants,
+  settings,
   lib,
   pkgs,
 }:
@@ -20,10 +20,10 @@ let
 in
 {
   mod._var = "SUPER";
-  terminal._var = constants.apps.terminal.command;
-  explorer._var = constants.apps.explorer.command;
-  launcher._var = constants.apps.launcher.command;
-  browser._var = constants.apps.browser.command;
+  terminal._var = settings.apps.terminal.command;
+  explorer._var = settings.apps.explorer.command;
+  launcher._var = settings.apps.launcher.command;
+  browser._var = settings.apps.browser.command;
 
   monitor = {
     output = "";

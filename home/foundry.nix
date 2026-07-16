@@ -1,7 +1,7 @@
-{ constants, pkgs, ... }:
+{ settings, pkgs, ... }:
 
 let
-  inherit (constants) foundry;
+  inherit (settings) foundry;
   systemctl = "${pkgs.systemd}/bin/systemctl";
 
   foundryStart = pkgs.writeShellApplication {

@@ -1,6 +1,16 @@
-{ pkgs, ... }:
+{
+  config,
+  lib,
+  modulesPath,
+  pkgs,
+  ...
+}:
 
 {
+  imports = [
+    ./hardware-configuration.nix
+  ];
+
   hardware.graphics = {
     enable = true;
     enable32Bit = true;
@@ -12,12 +22,12 @@
     ];
   };
 
-  environment.sessionVariables = {
-    LIBVA_DRIVER_NAME = "iHD";
-  };
+  environment.sessionVariables.LIBVA_DRIVER_NAME = "iHD";
 
   environment.systemPackages = with pkgs; [
     libva-utils # VAAPI diagnostics
     vulkan-tools # Vulkan diagnostics
   ];
+
+  services.thermald.enable = true;
 }

@@ -1,7 +1,7 @@
-{ constants, ... }:
+{ settings, ... }:
 
 let
-  inherit (constants.apps)
+  inherit (settings.apps)
     archiveManager
     browser
     fileManager

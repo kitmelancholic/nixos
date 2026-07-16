@@ -49,9 +49,9 @@ let
     graphifyy = prev.graphifyy.overrideAttrs (old: {
       version = graphifyVersion;
       __intentionallyOverridingVersion = true;
-      patches = [ ../../patches/graphify-nix-support.patch ];
+      patches = [ ../patches/graphify-nix-support.patch ];
       postPatch = (old.postPatch or "") + ''
-        cp ${../../graphify-nix/nix.py} graphify/extractors/nix.py
+        cp ${../graphify-nix/nix.py} graphify/extractors/nix.py
       '';
     });
   };
@@ -84,8 +84,8 @@ in
     packages = [ graphify ];
 
     file = {
-      ".codex/AGENTS.md".source = ../../graphify-nix/AGENTS.global.md;
-      ".codex/hooks.json".source = ../../.codex/hooks.json;
+      ".codex/AGENTS.md".source = ../graphify-nix/AGENTS.global.md;
+      ".codex/hooks.json".source = ../.codex/hooks.json;
       ".codex/skills/graphify".source = graphifySkill;
     };
   };
