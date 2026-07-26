@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, lib, ... }:
 
 let
   colors = config.lib.stylix.colors;
@@ -6,10 +6,10 @@ in
 
 {
   programs.waybar = {
-    enable = true;
-    systemd.enable = true;
+    enable = lib.mkDefault true;
+    systemd.enable = lib.mkDefault true;
 
-    settings = {
+    settings = lib.mkDefault {
       mainBar = {
         layer = "top";
         position = "top";
@@ -98,7 +98,7 @@ in
       };
     };
 
-    style = ''
+    style = lib.mkDefault ''
       * {
         font-family: "JetBrainsMono Nerd Font";
         font-size: 13px;

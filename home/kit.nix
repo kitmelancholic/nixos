@@ -9,6 +9,7 @@ in
 
 {
   imports = [
+    ./options.nix
     ./desktop.nix
     ./foundry.nix
     ./graphify.nix

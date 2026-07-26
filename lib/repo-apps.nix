@@ -1,7 +1,9 @@
 {
+  lib,
   settings,
   pkgs,
   homeManagerPackage,
+  themeModel,
 }:
 
 let
@@ -128,9 +130,29 @@ let
 
   homeSwitchScript = pkgs.writeShellApplication {
     name = "repo-home-switch";
-    runtimeInputs = [ homeManagerPackage ];
+    runtimeInputs = [
+      homeManagerPackage
+      pkgs.coreutils
+    ];
     text = ''
-      exec home-manager switch --flake .#${settings.username} "$@"
+            identity_file="''${XDG_CONFIG_HOME:-$HOME/.config}/kit/theme-id"
+            profile="${settings.username}"
+
+            if [ -e "$identity_file" ]; then
+              theme_id="$(<"$identity_file")"
+              case "$theme_id" in
+      ${
+        lib.concatMapStringsSep "\n" (
+          themeId: "          ${themeId}) profile=${themeModel.profileName themeId} ;;\n"
+        ) themeModel.ids
+      }          *)
+                  echo "home-switch: invalid generated theme identity in $identity_file" >&2
+                  exit 1
+                  ;;
+              esac
+            fi
+
+            exec home-manager switch --flake ".#$profile" "$@"
     '';
   };
 

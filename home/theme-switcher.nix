@@ -1,17 +1,19 @@
 {
+  config,
   lib,
   pkgs,
   settings,
   themeFlakeSource,
   homeManagerPackage,
   hyprlandPkg,
+  themeModel,
   ...
 }:
 
 let
-  themeSet = import ../themes;
-  themeIds = builtins.sort builtins.lessThan (builtins.attrNames themeSet.themes);
-  profileFor = themeId: if themeId == "kit-dark" then themeId else "${settings.username}-${themeId}";
+  inherit (themeModel) default ids profileName;
+  themeIds = ids;
+  profileFor = profileName;
   profileCases = lib.concatMapStringsSep "\n" (
     themeId: "    ${themeId}) profile=${profileFor themeId} ;;"
   ) themeIds;
@@ -29,9 +31,10 @@ let
               echo "usage: kit-theme list | current | switch <theme>" >&2
             }
 
+            config_home="''${XDG_CONFIG_HOME:-$HOME/.config}"
+            identity_file="$config_home/kit/theme-id"
             state_home="''${XDG_STATE_HOME:-$HOME/.local/state}"
             state_dir="$state_home/kit-theme"
-            state_file="$state_dir/current"
             theme_flake="''${KIT_THEME_FLAKE:-${themeFlakeSource}}"
 
             validate_theme() {
@@ -84,13 +87,13 @@ let
                 ;;
               current)
                 [ "$#" -eq 1 ] || { usage; exit 2; }
-                if [ ! -e "$state_file" ]; then
-                  echo "${themeSet.default}"
+                if [ ! -e "$identity_file" ]; then
+                  echo "${default}"
                   exit 0
                 fi
-                current="$(<"$state_file")"
+                current="$(<"$identity_file")"
                 validate_theme "$current" || {
-                  echo "kit-theme: invalid recorded theme in $state_file" >&2
+                  echo "kit-theme: invalid generated theme identity in $identity_file" >&2
                   exit 1
                 }
                 echo "$current"
@@ -121,17 +124,9 @@ let
 
                 echo "Activating Home Manager theme: $id"
                 if ! home-manager switch --flake "$theme_flake#$profile"; then
-                  echo "kit-theme: Home Manager activation failed; state unchanged" >&2
+                  echo "kit-theme: Home Manager activation failed; generated identity unchanged" >&2
                   exit 1
                 fi
-
-                umask 077
-                mkdir -p "$state_dir"
-                chmod 700 "$state_dir"
-                temporary="$state_file.tmp.$$"
-                printf '%s\n' "$id" > "$temporary"
-                chmod 600 "$temporary"
-                mv -f "$temporary" "$state_file"
 
                 if converge; then
                   echo "Theme active: $id"
@@ -149,5 +144,6 @@ let
   };
 in
 {
+  xdg.configFile."kit/theme-id".text = "${config.kit.theme.id}\n";
   home.packages = [ kitTheme ];
 }

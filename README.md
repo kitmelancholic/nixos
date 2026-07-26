@@ -41,9 +41,10 @@ nix run .#switch
 ## Themes
 
 The desktop has four immutable Home Manager profiles: `catppuccin` (the
-default), `tokyo-night`, `gruvbox`, and `kit-dark`. Theme, wallpaper,
-Hyprland, Waybar, Zed, user packages, and other `home/` changes belong to
-Home Manager; host services, drivers, and system policy belong to NixOS.
+default), `tokyo-night`, `gruvbox`, and `kit-dark`. Shared Home Manager
+defaults are composed with one selected module from `themes/<theme-id>/`.
+Theme modules may override appearance and user-owned desktop behavior;
+host services, drivers, and system policy belong to NixOS.
 
 Activate user-owned changes:
 
@@ -65,13 +66,13 @@ kit-theme switch gruvbox
 ```
 
 The available IDs are `catppuccin`, `tokyo-night`, `gruvbox`, and `kit-dark`.
-Missing state reports the default `catppuccin`; a malformed or unknown marker
-is an error. The marker is
-`$XDG_STATE_HOME/kit-theme/current`, falling back to
-`$HOME/.local/state/kit-theme/current`. Switching takes a nonblocking per-user
-lock at `$XDG_RUNTIME_DIR/kit-theme-switch.lock`, or in the private state
-directory when no runtime directory exists. The marker is replaced atomically
-only after Home Manager activation succeeds.
+Missing generated identity reports the default `catppuccin`; a malformed or
+unknown identity is an error. Every Home Manager generation writes its active
+theme to `$XDG_CONFIG_HOME/kit/theme-id` (falling back to
+`$HOME/.config/kit/theme-id`), so direct named-profile activation stays in
+sync with `kit-theme current`. Switching takes a nonblocking per-user lock at
+`$XDG_RUNTIME_DIR/kit-theme-switch.lock`, or in the private state directory
+when no runtime directory exists.
 
 Normal configuration changes still use `home-manager switch --flake .#kit`
 (default Catppuccin) or a named profile:
@@ -98,9 +99,11 @@ just switch
 nix run .#switch
 ```
 
-For the first migration from the embedded configuration, activate standalone
-Home Manager first with `just home-switch`, then switch NixOS with
-`just switch`. If activation encounters a file collision, retry with
+`just home-switch` rebuilds the currently active generated theme from the
+current checkout, using `.#kit` only as a first-activation bootstrap. For the
+first migration from the embedded configuration, activate standalone Home
+Manager first with `just home-switch`, then switch NixOS with `just switch`.
+If activation encounters a file collision, retry with
 `home-manager switch -b hm-backup --flake .#kit`.
 
 ```sh

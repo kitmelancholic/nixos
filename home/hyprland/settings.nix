@@ -1,6 +1,5 @@
 {
   config,
-  settings,
   lib,
   pkgs,
 }:
@@ -18,10 +17,10 @@ let
 in
 {
   mod._var = "SUPER";
-  terminal._var = settings.apps.terminal.command;
-  explorer._var = settings.apps.explorer.command;
-  launcher._var = settings.apps.launcher.command;
-  browser._var = settings.apps.browser.command;
+  terminal._var = config.kit.apps.terminal.command;
+  explorer._var = config.kit.apps.explorer.command;
+  launcher._var = config.kit.apps.launcher.command;
+  browser._var = config.kit.apps.browser.command;
 
   monitor = {
     output = "";
@@ -44,23 +43,23 @@ in
     };
 
     general = {
-      gaps_in = 4;
-      gaps_out = 8;
-      border_size = 2;
-      layout = "dwindle";
+      gaps_in = lib.mkDefault 4;
+      gaps_out = lib.mkDefault 8;
+      border_size = lib.mkDefault 2;
+      layout = lib.mkDefault "dwindle";
       "col.active_border" = color "base0D";
       "col.inactive_border" = color "base03";
     };
 
-    decoration.rounding = 8;
+    decoration.rounding = lib.mkDefault 8;
 
     group = {
       "col.border_active" = color "base0D";
       "col.border_inactive" = color "base03";
     };
 
-    animations.enabled = true;
-    dwindle.preserve_split = true;
+    animations.enabled = lib.mkDefault true;
+    dwindle.preserve_split = lib.mkDefault true;
 
     misc = {
       disable_hyprland_logo = true;
@@ -68,7 +67,7 @@ in
     };
   };
 
-  bind = import ./binds.nix { inherit lib; };
+  bind = lib.mkDefault (import ./binds.nix { inherit lib; });
 
   on = {
     _args = [

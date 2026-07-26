@@ -1,6 +1,7 @@
 {
   pkgs,
   pkgsUnstable,
+  lib,
   ...
 }:
 
@@ -39,7 +40,7 @@
       theme = {
         mode = "system";
         light = "One Light";
-        dark = "One Dark";
+        dark = lib.mkDefault "One Dark";
       };
 
       agent_servers = {

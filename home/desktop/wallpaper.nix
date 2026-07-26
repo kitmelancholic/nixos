@@ -1,8 +1,6 @@
 { config, pkgs, ... }:
 
 let
-  themeSet = import ../../themes;
-  theme = themeSet.themes.${config.kit.theme.active};
   wallpaperApply = pkgs.writeShellApplication {
     name = "wallpaper-apply";
     runtimeInputs = with pkgs; [
@@ -16,7 +14,7 @@ let
       attempt=0
       while [ "$attempt" -lt 10 ]; do
         attempt=$((attempt + 1))
-        if awww img "${theme.wallpaper}" --transition-type fade --transition-duration 1; then
+        if awww img "${config.kit.theme.wallpaper}" --transition-type fade --transition-duration 1; then
           exit 0
         fi
         sleep 0.2

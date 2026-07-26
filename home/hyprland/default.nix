@@ -1,6 +1,5 @@
 {
   config,
-  settings,
   lib,
   pkgs,
   ...
@@ -15,7 +14,6 @@
     settings = import ./settings.nix {
       inherit
         config
-        settings
         lib
         pkgs
         ;

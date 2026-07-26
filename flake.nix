@@ -81,7 +81,13 @@
       pkgsUnstable = inputs.nixpkgs-unstable.legacyPackages.${settings.system};
       hyprlandPkg = inputs.hyprland.packages.${settings.system}.hyprland;
       repoApps = import ./lib/repo-apps.nix {
-        inherit settings pkgs homeManagerPackage;
+        inherit
+          lib
+          settings
+          pkgs
+          homeManagerPackage
+          themeModel
+          ;
       };
       nixosConfiguration = nixpkgs.lib.nixosSystem {
         inherit system;
@@ -97,65 +103,50 @@
           inputs.thyx.nixosModules.default
         ];
       };
-      themeSet = import ./themes;
-      themeIds = builtins.sort builtins.lessThan (builtins.attrNames themeSet.themes);
-      defaultTheme = themeSet.default;
-      profileName = themeId: if themeId == "kit-dark" then themeId else "${settings.username}-${themeId}";
-      mkHomeConfiguration =
-        themeId:
-        home-manager.lib.homeManagerConfiguration {
-          pkgs = homePkgs;
-          modules = [
-            inputs.stylix.homeModules.stylix
-            ./home/kit.nix
-            {
-              kit.theme.active = themeId;
-            }
-          ];
-          extraSpecialArgs = {
-            inherit
-              inputs
-              settings
-              pkgsUnstable
-              homeManagerPackage
-              hyprlandPkg
-              ;
-            themeFlakeSource = self.outPath;
-          };
-        };
-      homeConfigurations = {
-        ${settings.username} = mkHomeConfiguration defaultTheme;
-      }
-      // lib.listToAttrs (
+      themeModel = import ./lib/theme-model.nix { inherit lib settings; };
+      inherit (themeModel) default ids;
+      themeIds = ids;
+      defaultTheme = default;
+      inherit (themeModel) profileName;
+      mkHomeConfiguration = import ./lib/mk-home.nix {
+        inherit
+          home-manager
+          homePkgs
+          inputs
+          settings
+          pkgsUnstable
+          homeManagerPackage
+          hyprlandPkg
+          themeModel
+          ;
+        themeFlakeSource = self.outPath;
+      };
+      themeHomes = lib.listToAttrs (
         map (themeId: lib.nameValuePair (profileName themeId) (mkHomeConfiguration themeId)) themeIds
       );
-      requiredBase16Keys = [
-        "base00"
-        "base01"
-        "base02"
-        "base03"
-        "base04"
-        "base05"
-        "base06"
-        "base07"
-        "base08"
-        "base09"
-        "base0A"
-        "base0B"
-        "base0C"
-        "base0D"
-        "base0E"
-        "base0F"
-      ];
+      homeConfigurations = themeHomes // {
+        ${settings.username} = themeHomes.${profileName defaultTheme};
+      };
+      themeOverrideCanary = themeHomes.${profileName defaultTheme}.extendModules {
+        modules = [
+          {
+            kit.apps.launcher.command = "fuzzel";
+            wayland.windowManager.hyprland.settings.config.general.layout = "master";
+          }
+        ];
+      };
+      themeOverrideCheck =
+        assert themeOverrideCanary.config.kit.apps.launcher.command == "fuzzel";
+        assert
+          themeOverrideCanary.config.wayland.windowManager.hyprland.settings.config.general.layout
+          == "master";
+        pkgs.runCommand "theme-override-check" { } "touch $out";
       themeCheck =
         assert builtins.elem defaultTheme themeIds;
+        assert builtins.all (themeId: builtins.pathExists (themeModel.moduleFor themeId)) themeIds;
+        assert lib.length (lib.unique (map profileName themeIds)) == lib.length themeIds;
         assert builtins.all (
-          themeId:
-          let
-            theme = themeSet.themes.${themeId};
-          in
-          builtins.pathExists theme.wallpaper
-          && builtins.all (key: builtins.hasAttr key theme.base16Scheme) requiredBase16Keys
+          themeId: themeHomes.${profileName themeId}.config.kit.theme.id == themeId
         ) themeIds;
         pkgs.runCommand "theme-check" { } "touch $out";
       hyprlandCheck =
@@ -216,12 +207,13 @@
               touch $out
             '';
         theme = themeCheck;
+        theme-override = themeOverrideCheck;
         hyprland = hyprlandCheck defaultTheme;
         home = homeConfigurations.${settings.username}.activationPackage;
       }
       // lib.mergeAttrsList (
         map (themeId: {
-          "home-${themeId}" = homeConfigurations."${profileName themeId}".activationPackage;
+          "home-${themeId}" = themeHomes."${profileName themeId}".activationPackage;
           "hyprland-${themeId}" = hyprlandCheck themeId;
         }) themeIds
       );

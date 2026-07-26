@@ -1,7 +1,7 @@
-{ settings, ... }:
+{ config, ... }:
 
 let
-  inherit (settings.apps)
+  inherit (config.kit.apps)
     archiveManager
     browser
     fileManager
