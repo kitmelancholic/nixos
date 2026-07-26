@@ -68,6 +68,7 @@
       ...
     }@inputs:
     let
+      inherit (nixpkgs) lib;
       system = "x86_64-linux";
       username = "kit";
       settings = import ./lib/settings.nix { inherit system username; };
@@ -96,21 +97,38 @@
           inputs.thyx.nixosModules.default
         ];
       };
-      homeConfiguration = home-manager.lib.homeManagerConfiguration {
-        pkgs = homePkgs;
-        modules = [
-          inputs.stylix.homeModules.stylix
-          ./home/kit.nix
-        ];
-        extraSpecialArgs = {
-          inherit
-            inputs
-            settings
-            pkgsUnstable
-            ;
+      themeSet = import ./themes;
+      themeIds = builtins.sort builtins.lessThan (builtins.attrNames themeSet.themes);
+      defaultTheme = themeSet.default;
+      profileName = themeId: if themeId == "kit-dark" then themeId else "${settings.username}-${themeId}";
+      mkHomeConfiguration =
+        themeId:
+        home-manager.lib.homeManagerConfiguration {
+          pkgs = homePkgs;
+          modules = [
+            inputs.stylix.homeModules.stylix
+            ./home/kit.nix
+            {
+              kit.theme.active = themeId;
+            }
+          ];
+          extraSpecialArgs = {
+            inherit
+              inputs
+              settings
+              pkgsUnstable
+              homeManagerPackage
+              hyprlandPkg
+              ;
+            themeFlakeSource = self.outPath;
+          };
         };
-      };
-      theme = import ./themes;
+      homeConfigurations = {
+        ${settings.username} = mkHomeConfiguration defaultTheme;
+      }
+      // lib.listToAttrs (
+        map (themeId: lib.nameValuePair (profileName themeId) (mkHomeConfiguration themeId)) themeIds
+      );
       requiredBase16Keys = [
         "base00"
         "base01"
@@ -130,12 +148,22 @@
         "base0F"
       ];
       themeCheck =
-        assert builtins.pathExists theme.wallpaper;
-        assert builtins.all (key: builtins.hasAttr key theme.base16Scheme) requiredBase16Keys;
+        assert builtins.elem defaultTheme themeIds;
+        assert builtins.all (
+          themeId:
+          let
+            theme = themeSet.themes.${themeId};
+          in
+          builtins.pathExists theme.wallpaper
+          && builtins.all (key: builtins.hasAttr key theme.base16Scheme) requiredBase16Keys
+        ) themeIds;
         pkgs.runCommand "theme-check" { } "touch $out";
-      hyprlandLua = homeConfiguration.config.xdg.configFile."hypr/hyprland.lua".text;
       hyprlandCheck =
-        pkgs.runCommand "hyprland-check"
+        themeId:
+        let
+          hyprlandLua = (mkHomeConfiguration themeId).config.xdg.configFile."hypr/hyprland.lua".text;
+        in
+        pkgs.runCommand "hyprland-check-${themeId}"
           {
             nativeBuildInputs = [
               pkgs.lua5_4
@@ -154,7 +182,7 @@
     in
     {
       nixosConfigurations.${settings.hostname} = nixosConfiguration;
-      homeConfigurations.${settings.username} = homeConfiguration;
+      inherit homeConfigurations;
 
       formatter.${settings.system} = repoApps.scripts.fmt;
 
@@ -182,15 +210,21 @@
               ];
             }
             ''
-              cp -r ${self} repo
+              cp -r --no-preserve=mode ${self} repo
               cd repo
               ${repoApps.staticCheckCommand}
               touch $out
             '';
         theme = themeCheck;
-        hyprland = hyprlandCheck;
-        home = homeConfiguration.activationPackage;
-      };
+        hyprland = hyprlandCheck defaultTheme;
+        home = homeConfigurations.${settings.username}.activationPackage;
+      }
+      // lib.mergeAttrsList (
+        map (themeId: {
+          "home-${themeId}" = homeConfigurations."${profileName themeId}".activationPackage;
+          "hyprland-${themeId}" = hyprlandCheck themeId;
+        }) themeIds
+      );
 
       apps.${settings.system} = repoApps.apps;
     };

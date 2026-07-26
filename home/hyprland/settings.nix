@@ -14,8 +14,6 @@ let
   startupCommands = [
     "${pkgs.hyprpolkitagent}/bin/hyprpolkitagent"
     "wallpaper-apply"
-    "waybar"
-    "dunst"
   ];
 in
 {

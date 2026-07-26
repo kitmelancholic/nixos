@@ -17,6 +17,7 @@ in
     ./programs.nix
     ./screenshots.nix
     ./packages.nix
+    ./theme-switcher.nix
     ./hyprland
     ./waybar.nix
     ./zed.nix

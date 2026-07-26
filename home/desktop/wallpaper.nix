@@ -1,25 +1,35 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 
 let
-  theme = import ../../themes;
+  themeSet = import ../../themes;
+  theme = themeSet.themes.${config.kit.theme.active};
   wallpaperApply = pkgs.writeShellApplication {
     name = "wallpaper-apply";
     runtimeInputs = with pkgs; [
       awww # Wayland wallpaper daemon
       coreutils
-      procps # Detect running wallpaper daemon
+      systemd # Start the Home Manager-owned daemon
     ];
     text = ''
-      if ! pgrep -x awww-daemon >/dev/null; then
-        awww-daemon >/dev/null 2>&1 &
-        sleep 0.2
-      fi
+      systemctl --user start awww.service
 
-      awww img "${theme.wallpaper}" --transition-type fade --transition-duration 1
+      attempt=0
+      while [ "$attempt" -lt 10 ]; do
+        attempt=$((attempt + 1))
+        if awww img "${theme.wallpaper}" --transition-type fade --transition-duration 1; then
+          exit 0
+        fi
+        sleep 0.2
+      done
+
+      echo "wallpaper-apply: awww did not accept the wallpaper" >&2
+      exit 1
     '';
   };
 in
 {
+  services.awww.enable = true;
+
   home.packages = [
     pkgs.awww # Wayland wallpaper daemon
     wallpaperApply

@@ -33,7 +33,6 @@ in
     # Desktop shell
     kitty # fallback terminal
     wofi
-    dunst # notifications
 
     # Wayland utilities
     grim

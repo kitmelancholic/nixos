@@ -36,11 +36,12 @@ nix run .#switch
 - `hosts/nixos/desktop.nix`: display manager, Hyprland, PipeWire, fonts, portals, and desktop plumbing.
 - `hosts/nixos/workloads.nix` and `hosts/nixos/foundryvtt.nix`: gaming, streaming, Docker, and FoundryVTT ownership.
 - `home/`: user-owned Home Manager desktop/program modules, Hyprland, Waybar, Zed, packages, and entrypoint.
-- `themes/`: the fixed declarative Catppuccin theme.
+- `themes/`: the declarative Catppuccin, Tokyo Night, Gruvbox, and Kit Dark profiles.
 
 ## Themes
 
-The desktop uses one fixed dark Catppuccin (Mocha) theme. Theme, wallpaper,
+The desktop has four immutable Home Manager profiles: `catppuccin` (the
+default), `tokyo-night`, `gruvbox`, and `kit-dark`. Theme, wallpaper,
 Hyprland, Waybar, Zed, user packages, and other `home/` changes belong to
 Home Manager; host services, drivers, and system policy belong to NixOS.
 
@@ -51,6 +52,43 @@ home-manager switch --flake .#kit
 just home-switch
 nix run .#home-switch
 ```
+
+### Terminal theme switching
+
+`kit-theme` selects among the profiles embedded in the installed flake
+revision. It can be run from any directory:
+
+```sh
+kit-theme list
+kit-theme current
+kit-theme switch gruvbox
+```
+
+The available IDs are `catppuccin`, `tokyo-night`, `gruvbox`, and `kit-dark`.
+Missing state reports the default `catppuccin`; a malformed or unknown marker
+is an error. The marker is
+`$XDG_STATE_HOME/kit-theme/current`, falling back to
+`$HOME/.local/state/kit-theme/current`. Switching takes a nonblocking per-user
+lock at `$XDG_RUNTIME_DIR/kit-theme-switch.lock`, or in the private state
+directory when no runtime directory exists. The marker is replaced atomically
+only after Home Manager activation succeeds.
+
+Normal configuration changes still use `home-manager switch --flake .#kit`
+(default Catppuccin) or a named profile:
+
+```sh
+home-manager switch --flake .#kit-catppuccin
+home-manager switch --flake .#kit-tokyo-night
+home-manager switch --flake .#kit-gruvbox
+home-manager switch --flake .#kit-dark
+```
+
+After activation, `kit-theme` reloads live Hyprland, Waybar, Dunst, SwayOSD,
+and the wallpaper service. From a TTY or without a graphical session it skips
+inactive graphical components; a successful Home Manager activation still
+records the new marker. `KIT_THEME_FLAKE` may override the baked flake source
+for testing a newer checkout. Theme switching never runs NixOS activation or
+changes the system boot generation.
 
 Activate system-owned changes:
 
