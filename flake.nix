@@ -1,5 +1,5 @@
 {
-  description = "kitOS v0.15";
+  description = "kitOS v0.16.3";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
@@ -121,17 +121,17 @@
           ;
         themeFlakeSource = self.outPath;
       };
-      themeHomes = lib.listToAttrs (
-        map (themeId: lib.nameValuePair (profileName themeId) (mkHomeConfiguration themeId)) themeIds
-      );
-      homeConfigurations = themeHomes // {
-        ${settings.username} = themeHomes.${profileName defaultTheme};
-      };
-      themeOverrideCanary = themeHomes.${profileName defaultTheme}.extendModules {
+      themeHomes = lib.genAttrs themeIds mkHomeConfiguration;
+      homeConfigurations = {
+        ${settings.username} = themeHomes.${defaultTheme};
+      }
+      // lib.mapAttrs' (themeId: home: lib.nameValuePair (profileName themeId) home) themeHomes;
+      themeOverrideCanary = themeHomes.${defaultTheme}.extendModules {
         modules = [
           {
             kit.apps.launcher.command = "fuzzel";
             wayland.windowManager.hyprland.settings.config.general.layout = "master";
+            programs.waybar.settings.mainBar.position = "bottom";
           }
         ];
       };
@@ -140,19 +140,17 @@
         assert
           themeOverrideCanary.config.wayland.windowManager.hyprland.settings.config.general.layout
           == "master";
+        assert themeOverrideCanary.config.programs.waybar.settings.mainBar.position == "bottom";
+        assert themeOverrideCanary.config.programs.waybar.settings.mainBar.height == 30;
+        assert themeOverrideCanary.config.programs.waybar.settings.mainBar.layer == "top";
+        assert themeOverrideCanary.config.programs.waybar.settings.mainBar.clock.format != null;
+        assert themeOverrideCanary.config.programs.waybar.settings.mainBar.modules-right != [ ];
         pkgs.runCommand "theme-override-check" { } "touch $out";
-      themeCheck =
-        assert builtins.elem defaultTheme themeIds;
-        assert builtins.all (themeId: builtins.pathExists (themeModel.moduleFor themeId)) themeIds;
-        assert lib.length (lib.unique (map profileName themeIds)) == lib.length themeIds;
-        assert builtins.all (
-          themeId: themeHomes.${profileName themeId}.config.kit.theme.id == themeId
-        ) themeIds;
-        pkgs.runCommand "theme-check" { } "touch $out";
+      homeChecks = lib.genAttrs themeIds (themeId: themeHomes.${themeId}.activationPackage);
       hyprlandCheck =
-        themeId:
+        themeId: home:
         let
-          hyprlandLua = (mkHomeConfiguration themeId).config.xdg.configFile."hypr/hyprland.lua".text;
+          hyprlandLua = home.config.xdg.configFile."hypr/hyprland.lua".text;
         in
         pkgs.runCommand "hyprland-check-${themeId}"
           {
@@ -170,6 +168,23 @@
               Hyprland --verify-config --config "$config"
               touch "$out"
           '';
+      hyprlandChecks = lib.genAttrs themeIds (themeId: hyprlandCheck themeId themeHomes.${themeId});
+      themeCheck =
+        assert builtins.elem defaultTheme themeIds;
+        assert builtins.all (themeId: builtins.pathExists (themeModel.moduleFor themeId)) themeIds;
+        assert lib.length (lib.unique (map profileName themeIds)) == lib.length themeIds;
+        assert builtins.all (themeId: themeHomes.${themeId}.config.kit.theme.id == themeId) themeIds;
+        assert builtins.all (
+          themeId:
+          let
+            metadata = themeHomes.${themeId}.config.kit.theme;
+          in
+          metadata.name != "" && builtins.pathExists metadata.wallpaper
+        ) themeIds;
+        pkgs.runCommand "theme-check" {
+          buildInputs =
+            (builtins.attrValues homeChecks) ++ (builtins.attrValues hyprlandChecks) ++ [ themeOverrideCheck ];
+        } "touch $out";
     in
     {
       nixosConfigurations.${settings.hostname} = nixosConfiguration;
@@ -208,13 +223,13 @@
             '';
         theme = themeCheck;
         theme-override = themeOverrideCheck;
-        hyprland = hyprlandCheck defaultTheme;
+        hyprland = hyprlandChecks.${defaultTheme};
         home = homeConfigurations.${settings.username}.activationPackage;
       }
       // lib.mergeAttrsList (
         map (themeId: {
-          "home-${themeId}" = themeHomes."${profileName themeId}".activationPackage;
-          "hyprland-${themeId}" = hyprlandCheck themeId;
+          "home-${themeId}" = homeChecks.${themeId};
+          "hyprland-${themeId}" = hyprlandChecks.${themeId};
         }) themeIds
       );
 

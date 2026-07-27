@@ -67,12 +67,14 @@ kit-theme switch gruvbox
 
 The available IDs are `catppuccin`, `tokyo-night`, `gruvbox`, and `kit-dark`.
 Missing generated identity reports the default `catppuccin`; a malformed or
-unknown identity is an error. Every Home Manager generation writes its active
-theme to `$XDG_CONFIG_HOME/kit/theme-id` (falling back to
-`$HOME/.config/kit/theme-id`), so direct named-profile activation stays in
-sync with `kit-theme current`. Switching takes a nonblocking per-user lock at
-`$XDG_RUNTIME_DIR/kit-theme-switch.lock`, or in the private state directory
-when no runtime directory exists.
+unknown identity is an error. Every Home Manager generation writes its
+generated theme identity to `$XDG_CONFIG_HOME/kit/theme-id` (falling back to
+`$HOME/.config/kit/theme-id`). `kit-theme current` derives its answer from the
+currently activated Home Manager generation. Switching and `just home-switch`
+take the same nonblocking per-user activation lock at
+`$XDG_RUNTIME_DIR/kit-home-activation.lock`, or at
+`$XDG_STATE_HOME/kit/home-activation.lock` (falling back to
+`$HOME/.local/state/kit/home-activation.lock`).
 
 Normal configuration changes still use `home-manager switch --flake .#kit`
 (default Catppuccin) or a named profile:
@@ -86,8 +88,8 @@ home-manager switch --flake .#kit-dark
 
 After activation, `kit-theme` reloads live Hyprland, Waybar, Dunst, SwayOSD,
 and the wallpaper service. From a TTY or without a graphical session it skips
-inactive graphical components; a successful Home Manager activation still
-records the new marker. `KIT_THEME_FLAKE` may override the baked flake source
+inactive graphical components; a successful Home Manager activation writes the
+generated theme identity. `KIT_THEME_FLAKE` may override the baked flake source
 for testing a newer checkout. Theme switching never runs NixOS activation or
 changes the system boot generation.
 
@@ -99,8 +101,9 @@ just switch
 nix run .#switch
 ```
 
-`just home-switch` rebuilds the currently active generated theme from the
-current checkout, using `.#kit` only as a first-activation bootstrap. For the
+`just home-switch` preserves the currently active generated theme while
+rebuilding it from the current checkout, using `.#kit` only as a first-activation
+bootstrap. For the
 first migration from the embedded configuration, activate standalone Home
 Manager first with `just home-switch`, then switch NixOS with `just switch`.
 If activation encounters a file collision, retry with

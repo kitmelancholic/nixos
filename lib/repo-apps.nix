@@ -133,6 +133,7 @@ let
     runtimeInputs = [
       homeManagerPackage
       pkgs.coreutils
+      pkgs.util-linux
     ];
     text = ''
             identity_file="''${XDG_CONFIG_HOME:-$HOME/.config}/kit/theme-id"
@@ -152,7 +153,22 @@ let
               esac
             fi
 
-            exec home-manager switch --flake ".#$profile" "$@"
+      if [ -n "''${XDG_RUNTIME_DIR:-}" ]; then
+        lock_file="$XDG_RUNTIME_DIR/kit-home-activation.lock"
+      else
+        activation_state_dir="''${XDG_STATE_HOME:-$HOME/.local/state}/kit"
+        umask 077
+        mkdir -p "$activation_state_dir"
+        chmod 700 "$activation_state_dir"
+        lock_file="$activation_state_dir/home-activation.lock"
+      fi
+
+      exec 9>"$lock_file"
+      if ! flock -n 9; then
+        echo "home-switch: another managed Home Manager activation is already running" >&2
+        exit 1
+      fi
+      exec home-manager switch --flake ".#$profile" "$@"
     '';
   };
 
@@ -175,7 +191,7 @@ in
     fmt = mkApp "Format repository files" "${fmtScript}/bin/repo-fmt";
     foundry-check = mkApp "Validate the configured FoundryVTT payload" "${foundryCheckScript}/bin/repo-foundry-check";
     hyprland-check = mkApp "Validate the generated Hyprland Lua config" "${hyprlandCheckScript}/bin/repo-hyprland-check";
-    theme-check = mkApp "Validate theme selection, wallpapers, and base16 schemes" "${themeCheckScript}/bin/repo-theme-check";
+    theme-check = mkApp "Validate all registered theme profiles and Hyprland outputs" "${themeCheckScript}/bin/repo-theme-check";
     switch = mkApp "Rebuild and switch the NixOS host configuration" "${switchScript}/bin/repo-switch";
     home-switch = mkApp "Activate the standalone Home Manager configuration" "${homeSwitchScript}/bin/repo-home-switch";
   };

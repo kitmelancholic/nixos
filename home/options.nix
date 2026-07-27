@@ -11,13 +11,11 @@
 
       name = lib.mkOption {
         type = lib.types.str;
-        default = "Catppuccin";
         description = "Human-readable name of the active theme.";
       };
 
       wallpaper = lib.mkOption {
         type = lib.types.path;
-        default = ../assets/wallpapers/catppuccin.png;
         description = "Wallpaper used by the active theme.";
       };
     };

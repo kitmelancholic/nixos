@@ -9,92 +9,90 @@ in
     enable = lib.mkDefault true;
     systemd.enable = lib.mkDefault true;
 
-    settings = lib.mkDefault {
-      mainBar = {
-        layer = "top";
-        position = "top";
-        height = 30;
+    settings.mainBar = {
+      layer = lib.mkDefault "top";
+      position = lib.mkDefault "top";
+      height = lib.mkDefault 30;
 
-        modules-left = [
-          "hyprland/workspaces"
+      modules-left = lib.mkDefault [
+        "hyprland/workspaces"
+      ];
+
+      modules-center = lib.mkDefault [
+        "clock"
+      ];
+
+      modules-right = lib.mkDefault [
+        "pulseaudio"
+        "network"
+        "backlight"
+        "battery"
+        "power-profiles-daemon"
+        "custom/power"
+      ];
+
+      "hyprland/workspaces" = {
+        format = lib.mkDefault "{id}";
+        on-click = lib.mkDefault "activate";
+        sort-by-number = lib.mkDefault true;
+        all-outputs = lib.mkDefault true;
+
+        persistent-workspaces = {
+          "*" = lib.mkDefault 5;
+        };
+      };
+
+      clock = {
+        format = lib.mkDefault "{:%H:%M  %d.%m.%Y}";
+      };
+
+      pulseaudio = {
+        format = lib.mkDefault "  {volume}%";
+        format-muted = lib.mkDefault "󰝟 muted";
+      };
+
+      network = {
+        format-wifi = lib.mkDefault "  {essid}";
+        format-ethernet = lib.mkDefault "󰈀  Ethernet";
+        format-disconnected = lib.mkDefault "󰖪  Offline";
+      };
+
+      backlight = {
+        format = lib.mkDefault "󰃠  {percent}%";
+      };
+
+      battery = {
+        format = lib.mkDefault "{icon}  {capacity}%";
+        format-charging = lib.mkDefault "󰂄  {capacity}%";
+        format-icons = lib.mkDefault [
+          "󰁺"
+          "󰁻"
+          "󰁼"
+          "󰁽"
+          "󰁾"
+          "󰁿"
+          "󰂀"
+          "󰂁"
+          "󰂂"
+          "󰁹"
         ];
+      };
 
-        modules-center = [
-          "clock"
-        ];
-
-        modules-right = [
-          "pulseaudio"
-          "network"
-          "backlight"
-          "battery"
-          "power-profiles-daemon"
-          "custom/power"
-        ];
-
-        "hyprland/workspaces" = {
-          format = "{id}";
-          on-click = "activate";
-          sort-by-number = true;
-          all-outputs = true;
-
-          persistent-workspaces = {
-            "*" = 5;
-          };
+      power-profiles-daemon = {
+        format = lib.mkDefault "{icon}";
+        tooltip-format = lib.mkDefault "Power profile: {profile}";
+        format-icons = {
+          performance = lib.mkDefault "󰓅";
+          balanced = lib.mkDefault "󰾅";
+          power-saver = lib.mkDefault "󰾆";
         };
+      };
 
-        clock = {
-          format = "{:%H:%M  %d.%m.%Y}";
-        };
-
-        pulseaudio = {
-          format = "  {volume}%";
-          format-muted = "󰝟 muted";
-        };
-
-        network = {
-          format-wifi = "  {essid}";
-          format-ethernet = "󰈀  Ethernet";
-          format-disconnected = "󰖪  Offline";
-        };
-
-        backlight = {
-          format = "󰃠  {percent}%";
-        };
-
-        battery = {
-          format = "{icon}  {capacity}%";
-          format-charging = "󰂄  {capacity}%";
-          format-icons = [
-            "󰁺"
-            "󰁻"
-            "󰁼"
-            "󰁽"
-            "󰁾"
-            "󰁿"
-            "󰂀"
-            "󰂁"
-            "󰂂"
-            "󰁹"
-          ];
-        };
-
-        power-profiles-daemon = {
-          format = "{icon}";
-          tooltip-format = "Power profile: {profile}";
-          format-icons = {
-            performance = "󰓅";
-            balanced = "󰾅";
-            power-saver = "󰾆";
-          };
-        };
-
-        "custom/power" = {
-          format = "󰐥";
-          tooltip-format = "Power menu";
-          on-click = "power-menu";
-          on-click-right = "loginctl lock-session";
-        };
+      "custom/power" = {
+        format = lib.mkDefault "󰐥";
+        tooltip-format = lib.mkDefault "Power menu";
+        on-click = lib.mkDefault "power-menu";
+        on-click-right = lib.mkDefault "loginctl lock-session";
       };
     };
 

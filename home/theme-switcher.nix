@@ -2,7 +2,6 @@
   config,
   lib,
   pkgs,
-  settings,
   themeFlakeSource,
   homeManagerPackage,
   hyprlandPkg,
@@ -33,8 +32,6 @@ let
 
             config_home="''${XDG_CONFIG_HOME:-$HOME/.config}"
             identity_file="$config_home/kit/theme-id"
-            state_home="''${XDG_STATE_HOME:-$HOME/.local/state}"
-            state_dir="$state_home/kit-theme"
             theme_flake="''${KIT_THEME_FLAKE:-${themeFlakeSource}}"
 
             validate_theme() {
@@ -99,24 +96,25 @@ let
                 echo "$current"
                 ;;
               switch)
-                [ "$#" -eq 2 ] || { usage; exit 2; }
-                id="$2"
-                validate_theme "$id"
+              [ "$#" -eq 2 ] || { usage; exit 2; }
+              id="$2"
+              validate_theme "$id"
 
-                if [ -n "''${XDG_RUNTIME_DIR:-}" ]; then
-                  lock_file="$XDG_RUNTIME_DIR/kit-theme-switch.lock"
-                else
-                  umask 077
-                  mkdir -p "$state_dir"
-                  chmod 700 "$state_dir"
-                  lock_file="$state_dir/switch.lock"
-                fi
+        if [ -n "''${XDG_RUNTIME_DIR:-}" ]; then
+          lock_file="$XDG_RUNTIME_DIR/kit-home-activation.lock"
+        else
+          activation_state_dir="''${XDG_STATE_HOME:-$HOME/.local/state}/kit"
+          umask 077
+          mkdir -p "$activation_state_dir"
+          chmod 700 "$activation_state_dir"
+          lock_file="$activation_state_dir/home-activation.lock"
+        fi
 
-                exec 9>"$lock_file"
-                if ! flock -n 9; then
-                  echo "kit-theme: another theme switch is already running" >&2
-                  exit 1
-                fi
+        exec 9>"$lock_file"
+        if ! flock -n 9; then
+          echo "kit-theme: another managed Home Manager activation is already running" >&2
+          exit 1
+        fi
 
                 case "$id" in
       ${profileCases}
