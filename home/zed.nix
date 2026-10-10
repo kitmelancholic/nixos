@@ -45,7 +45,9 @@
 
       agent_servers = {
         codex-acp = {
-          type = "registry";
+          type = "custom";
+          command = lib.getExe pkgsUnstable.codex-acp;
+          args = [ ];
           default_config_options = {
             mode = "agent-full-access";
           };
