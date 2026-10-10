@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ inputs, pkgs, ... }:
 
 let
   kindlegen = pkgs.stdenvNoCC.mkDerivation {
@@ -32,7 +32,6 @@ in
   home.packages = with pkgs; [
     # Desktop shell
     kitty # fallback terminal
-    wofi
 
     # Wayland utilities
     grim
@@ -56,6 +55,7 @@ in
     loupe
 
     # Internet and communication
+    inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.zen-browser
     vivaldi # browser
     vivaldi-ffmpeg-codecs # Extra media codecs for Vivaldi
     qbittorrent

@@ -3,7 +3,7 @@
   settings,
   pkgs,
   homeManagerPackage,
-  themeModel,
+  profileRegistry,
 }:
 
 let
@@ -136,18 +136,18 @@ let
       pkgs.util-linux
     ];
     text = ''
-            identity_file="''${XDG_CONFIG_HOME:-$HOME/.config}/kit/theme-id"
+            identity_file="''${XDG_CONFIG_HOME:-$HOME/.config}/kit/profile-id"
             profile="${settings.username}"
 
             if [ -e "$identity_file" ]; then
-              theme_id="$(<"$identity_file")"
-              case "$theme_id" in
+              profile_id="$(<"$identity_file")"
+              case "$profile_id" in
       ${
         lib.concatMapStringsSep "\n" (
-          themeId: "          ${themeId}) profile=${themeModel.profileName themeId} ;;\n"
-        ) themeModel.ids
+          profileId: "          ${profileId}) profile=${settings.username}-${profileId} ;;\n"
+        ) (builtins.attrNames profileRegistry.profiles)
       }          *)
-                  echo "home-switch: invalid generated theme identity in $identity_file" >&2
+                  echo "home-switch: invalid generated profile identity in $identity_file" >&2
                   exit 1
                   ;;
               esac

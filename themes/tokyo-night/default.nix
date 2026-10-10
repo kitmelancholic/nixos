@@ -1,5 +1,7 @@
 {
-  kit.theme = {
+  imports = [ ../../profiles/classic ];
+
+  kit.classic = {
     name = "Tokyo Night";
     wallpaper = ../../assets/wallpapers/tokyo-night.png;
   };

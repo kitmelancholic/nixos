@@ -34,5 +34,6 @@
     mangohud # Gaming performance overlay
     protonup-qt # Proton-GE manager
     discord
+    vesktop # Wayland window sharing with application audio
   ];
 }

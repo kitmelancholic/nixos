@@ -35,16 +35,22 @@ nix run .#switch
 - `hosts/nixos/hardware.nix`: hand-written hardware policy around generated hardware configuration.
 - `hosts/nixos/desktop.nix`: display manager, Hyprland, PipeWire, fonts, portals, and desktop plumbing.
 - `hosts/nixos/workloads.nix` and `hosts/nixos/foundryvtt.nix`: gaming, streaming, Docker, and FoundryVTT ownership.
-- `home/`: user-owned Home Manager desktop/program modules, Hyprland, Waybar, Zed, packages, and entrypoint.
-- `themes/`: the declarative Catppuccin, Tokyo Night, Gruvbox, and Kit Dark profiles.
+- `home/`: invariant Home Manager modules and the Hyprland substrate.
+- `profiles/`: the explicit profile registry, classic family, and external-shell adapters.
+- `themes/`: the four classic palette variants.
 
-## Themes
+## Desktop profiles
 
-The desktop has four immutable Home Manager profiles: `catppuccin` (the
-default), `tokyo-night`, `gruvbox`, and `kit-dark`. Shared Home Manager
-defaults are composed with one selected module from `themes/<theme-id>/`.
-Theme modules may override appearance and user-owned desktop behavior;
-host services, drivers, and system policy belong to NixOS.
+The desktop is one invariant Home Manager environment plus exactly one
+ordinary selected profile module. The registry currently provides
+`catppuccin` (default), `tokyo-night`, `gruvbox`, `kit-dark`, `dms`,
+`noctalia`, and `caelestia`.
+
+The four classic palettes share one profile family, including Waybar, Dunst,
+SwayOSD, awww, Hyprlock, Hypridle, Wlogout, screenshots, and classic binds.
+External shells are isolated adapters with their own Home Manager/systemd
+lifecycle. NixOS owns invariant host capabilities; profile switching does not
+rebuild the host.
 
 Activate user-owned changes:
 
@@ -54,24 +60,26 @@ just home-switch
 nix run .#home-switch
 ```
 
-### Terminal theme switching
+### Terminal profile switching
 
-`kit-theme` selects among the profiles embedded in the installed flake
-revision. It can be run from any directory:
+`kit-profile` selects among the profiles embedded in the installed flake
+revision. `kit-theme` remains a compatibility alias. Both can be run from any
+directory:
 
 ```sh
-kit-theme list
-kit-theme current
-kit-theme switch gruvbox
+kit-profile list
+kit-profile list --json
+kit-profile current
+kit-profile switch gruvbox
 ```
 
-The available IDs are `catppuccin`, `tokyo-night`, `gruvbox`, and `kit-dark`.
+The available IDs are `catppuccin`, `tokyo-night`, `gruvbox`, `kit-dark`, `dms`,
+`noctalia`, and `caelestia`.
 Missing generated identity reports the default `catppuccin`; a malformed or
 unknown identity is an error. Every Home Manager generation writes its
-generated theme identity to `$XDG_CONFIG_HOME/kit/theme-id` (falling back to
-`$HOME/.config/kit/theme-id`). `kit-theme current` derives its answer from the
-currently activated Home Manager generation. Switching and `just home-switch`
-take the same nonblocking per-user activation lock at
+declarative identity to `$XDG_CONFIG_HOME/kit/profile-id` and a migration-
+compatible `$XDG_CONFIG_HOME/kit/theme-id` (falling back to `$HOME/.config/kit/`).
+Switching and `just home-switch` take the same nonblocking per-user activation lock at
 `$XDG_RUNTIME_DIR/kit-home-activation.lock`, or at
 `$XDG_STATE_HOME/kit/home-activation.lock` (falling back to
 `$HOME/.local/state/kit/home-activation.lock`).
@@ -84,14 +92,17 @@ home-manager switch --flake .#kit-catppuccin
 home-manager switch --flake .#kit-tokyo-night
 home-manager switch --flake .#kit-gruvbox
 home-manager switch --flake .#kit-dark
+home-manager switch --flake .#kit-dms
+home-manager switch --flake .#kit-noctalia
+home-manager switch --flake .#kit-caelestia
 ```
 
-After activation, `kit-theme` reloads live Hyprland, Waybar, Dunst, SwayOSD,
-and the wallpaper service. From a TTY or without a graphical session it skips
-inactive graphical components; a successful Home Manager activation writes the
-generated theme identity. `KIT_THEME_FLAKE` may override the baked flake source
-for testing a newer checkout. Theme switching never runs NixOS activation or
-changes the system boot generation.
+Home Manager's normal `sd-switch` lifecycle starts and stops profile-owned
+services. The selector does not know provider names and performs no service
+convergence. `KIT_PROFILE_FLAKE` is the canonical flake override;
+`KIT_THEME_FLAKE` remains a compatibility fallback. Profile-local shell state
+may persist while inactive; shared GTK, Qt, terminal, editor, and browser state
+is not imperatively rewritten.
 
 Activate system-owned changes:
 
@@ -101,7 +112,7 @@ just switch
 nix run .#switch
 ```
 
-`just home-switch` preserves the currently active generated theme while
+`just home-switch` preserves the currently active generated profile while
 rebuilding it from the current checkout, using `.#kit` only as a first-activation
 bootstrap. For the
 first migration from the embedded configuration, activate standalone Home

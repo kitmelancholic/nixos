@@ -28,6 +28,7 @@ in
   (mkModBind "E" "hl.dsp.exec_cmd(explorer)")
   (mkModBind "R" "hl.dsp.exec_cmd(launcher)")
   (mkModBind "B" "hl.dsp.exec_cmd(browser)")
+  (mkModBind "N" ''hl.dsp.exec_cmd(terminal .. " -e nvim")'')
   (mkModBind "Z" ''hl.dsp.exec_cmd(terminal .. " -e btop")'')
   (mkBind "CTRL + B" "hl.dsp.exec_cmd(browser)")
 

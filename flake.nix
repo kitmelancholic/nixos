@@ -5,6 +5,11 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
+    zen-browser = {
+      url = "github:youwen5/zen-browser-flake";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     home-manager = {
       url = "github:nix-community/home-manager/release-26.05";
       inputs = {
@@ -58,6 +63,10 @@
     };
 
     thyx.url = "github:rccyx/thyx";
+
+    dms.url = "github:AvengeMedia/DankMaterialShell/stable";
+    noctalia.url = "github:noctalia-dev/noctalia";
+    caelestia.url = "github:caelestia-dots/shell";
   };
 
   outputs =
@@ -86,7 +95,7 @@
           settings
           pkgs
           homeManagerPackage
-          themeModel
+          profileRegistry
           ;
       };
       nixosConfiguration = nixpkgs.lib.nixosSystem {
@@ -103,11 +112,10 @@
           inputs.thyx.nixosModules.default
         ];
       };
-      themeModel = import ./lib/theme-model.nix { inherit lib settings; };
-      inherit (themeModel) default ids;
-      themeIds = ids;
-      defaultTheme = default;
-      inherit (themeModel) profileName;
+      profileRegistry = import ./profiles;
+      profileIds = builtins.sort builtins.lessThan (builtins.attrNames profileRegistry.profiles);
+      defaultProfile = profileRegistry.default;
+      profileName = profileId: "${settings.username}-${profileId}";
       mkHomeConfiguration = import ./lib/mk-home.nix {
         inherit
           home-manager
@@ -117,16 +125,16 @@
           pkgsUnstable
           homeManagerPackage
           hyprlandPkg
-          themeModel
+          profileRegistry
           ;
-        themeFlakeSource = self.outPath;
+        profileFlakeSource = self.outPath;
       };
-      themeHomes = lib.genAttrs themeIds mkHomeConfiguration;
+      profileHomes = lib.genAttrs profileIds mkHomeConfiguration;
       homeConfigurations = {
-        ${settings.username} = themeHomes.${defaultTheme};
+        ${settings.username} = profileHomes.${defaultProfile};
       }
-      // lib.mapAttrs' (themeId: home: lib.nameValuePair (profileName themeId) home) themeHomes;
-      themeOverrideCanary = themeHomes.${defaultTheme}.extendModules {
+      // lib.mapAttrs' (profileId: home: lib.nameValuePair (profileName profileId) home) profileHomes;
+      themeOverrideCanary = profileHomes.${defaultProfile}.extendModules {
         modules = [
           {
             kit.apps.launcher.command = "fuzzel";
@@ -146,7 +154,7 @@
         assert themeOverrideCanary.config.programs.waybar.settings.mainBar.clock.format != null;
         assert themeOverrideCanary.config.programs.waybar.settings.mainBar.modules-right != [ ];
         pkgs.runCommand "theme-override-check" { } "touch $out";
-      homeChecks = lib.genAttrs themeIds (themeId: themeHomes.${themeId}.activationPackage);
+      homeChecks = lib.genAttrs profileIds (profileId: profileHomes.${profileId}.activationPackage);
       hyprlandCheck =
         themeId: home:
         let
@@ -168,23 +176,50 @@
               Hyprland --verify-config --config "$config"
               touch "$out"
           '';
-      hyprlandChecks = lib.genAttrs themeIds (themeId: hyprlandCheck themeId themeHomes.${themeId});
-      themeCheck =
-        assert builtins.elem defaultTheme themeIds;
-        assert builtins.all (themeId: builtins.pathExists (themeModel.moduleFor themeId)) themeIds;
-        assert lib.length (lib.unique (map profileName themeIds)) == lib.length themeIds;
-        assert builtins.all (themeId: themeHomes.${themeId}.config.kit.theme.id == themeId) themeIds;
+      hyprlandChecks = lib.genAttrs profileIds (
+        profileId: hyprlandCheck profileId profileHomes.${profileId}
+      );
+      profileCheck =
+        assert builtins.elem defaultProfile profileIds;
         assert builtins.all (
-          themeId:
-          let
-            metadata = themeHomes.${themeId}.config.kit.theme;
-          in
-          metadata.name != "" && builtins.pathExists metadata.wallpaper
-        ) themeIds;
-        pkgs.runCommand "theme-check" {
+          profileId: builtins.pathExists profileRegistry.profiles.${profileId}.module
+        ) profileIds;
+        assert lib.length (lib.unique (map profileName profileIds)) == lib.length profileIds;
+        assert builtins.all (
+          profileId: profileHomes.${profileId}.config.kit.profile.id == profileId
+        ) profileIds;
+        pkgs.runCommand "profile-check" {
           buildInputs =
             (builtins.attrValues homeChecks) ++ (builtins.attrValues hyprlandChecks) ++ [ themeOverrideCheck ];
         } "touch $out";
+      selectorSource = builtins.readFile ./home/theme-switcher.nix;
+      selectorArchitectureCheck =
+        assert builtins.all (needle: !(lib.hasInfix needle selectorSource)) [
+          "waybar.service"
+          "dunst.service"
+          "swayosd.service"
+          "wallpaper-apply"
+          "dms.service"
+          "noctalia.service"
+          "caelestia.service"
+        ];
+        assert !(lib.hasInfix "hyprland.start" (builtins.readFile ./home/hyprland/settings.nix));
+        pkgs.runCommand "profile-selector-check" { } "touch $out";
+      profileOwnershipCheck =
+        assert profileHomes.catppuccin.config.programs.waybar.enable;
+        assert profileHomes.catppuccin.config.services.dunst.enable;
+        assert profileHomes.dms.config.programs.dank-material-shell.enable;
+        assert profileHomes.dms.config.programs.dank-material-shell.systemd.enable;
+        assert !profileHomes.dms.config.programs.waybar.enable;
+        assert !profileHomes.dms.config.services.dunst.enable;
+        assert profileHomes.noctalia.config.programs.noctalia.enable;
+        assert profileHomes.noctalia.config.programs.noctalia.systemd.enable;
+        assert
+          profileHomes.noctalia.config.programs.noctalia.settings.shell.launch_apps_as_systemd_services;
+        assert profileHomes.caelestia.config.programs.caelestia.enable;
+        assert profileHomes.caelestia.config.programs.caelestia.systemd.enable;
+        assert profileHomes.caelestia.config.programs.caelestia.cli.enable;
+        pkgs.runCommand "profile-ownership-check" { } "touch $out";
     in
     {
       nixosConfigurations.${settings.hostname} = nixosConfiguration;
@@ -221,16 +256,19 @@
               ${repoApps.staticCheckCommand}
               touch $out
             '';
-        theme = themeCheck;
+        profile = profileCheck;
+        profile-selector = selectorArchitectureCheck;
+        profile-ownership = profileOwnershipCheck;
+        theme = profileCheck;
         theme-override = themeOverrideCheck;
-        hyprland = hyprlandChecks.${defaultTheme};
+        hyprland = hyprlandChecks.${defaultProfile};
         home = homeConfigurations.${settings.username}.activationPackage;
       }
       // lib.mergeAttrsList (
-        map (themeId: {
-          "home-${themeId}" = homeChecks.${themeId};
-          "hyprland-${themeId}" = hyprlandChecks.${themeId};
-        }) themeIds
+        map (profileId: {
+          "home-${profileId}" = homeChecks.${profileId};
+          "hyprland-${profileId}" = hyprlandChecks.${profileId};
+        }) profileIds
       );
 
       apps.${settings.system} = repoApps.apps;

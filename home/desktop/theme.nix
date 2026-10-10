@@ -5,12 +5,10 @@
 }:
 
 {
-  services.dunst.enable = true;
-
   stylix = {
     enable = true;
     autoEnable = true;
-    image = config.kit.theme.wallpaper;
+    image = config.kit.classic.wallpaper;
 
     cursor = {
       package = pkgs.bibata-cursors; # Stylix-managed cursor theme

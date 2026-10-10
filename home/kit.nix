@@ -13,14 +13,10 @@ in
     ./desktop.nix
     ./foundry.nix
     ./graphify.nix
-    ./osd.nix
-    ./power.nix
     ./programs.nix
-    ./screenshots.nix
     ./packages.nix
     ./theme-switcher.nix
     ./hyprland
-    ./waybar.nix
     ./zed.nix
   ];
 

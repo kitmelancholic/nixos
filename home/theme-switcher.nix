@@ -2,74 +2,55 @@
   config,
   lib,
   pkgs,
-  themeFlakeSource,
+  settings,
+  profileFlakeSource,
   homeManagerPackage,
-  hyprlandPkg,
-  themeModel,
+  profileRegistry,
   ...
 }:
 
 let
-  inherit (themeModel) default ids profileName;
-  themeIds = ids;
-  profileFor = profileName;
+  inherit (profileRegistry) default profiles;
+  profileIds = builtins.sort builtins.lessThan (builtins.attrNames profiles);
+  profileOutputs = lib.concatMapStringsSep "\n" (
+    profileId: "          ${profileId}) profile=${settings.username}-${profileId} ;;"
+  ) profileIds;
   profileCases = lib.concatMapStringsSep "\n" (
-    themeId: "    ${themeId}) profile=${profileFor themeId} ;;"
-  ) themeIds;
-  kitTheme = pkgs.writeShellApplication {
-    name = "kit-theme";
+    profileId: "          ${profileId}) return 0;;"
+  ) profileIds;
+  profileMetadata = lib.concatMapStringsSep "\n" (
+    profileId:
+    ''${profileId}) name="${profiles.${profileId}.name}"; description="${
+      profiles.${profileId}.description
+    }"; default=${if profileId == default then "true" else "false"} ;;''
+  ) profileIds;
+  kitProfile = pkgs.writeShellApplication {
+    name = "kit-profile";
     runtimeInputs = [
       homeManagerPackage
-      hyprlandPkg
       pkgs.coreutils
       pkgs.systemd
       pkgs.util-linux
     ];
     text = ''
             usage() {
-              echo "usage: kit-theme list | current | switch <theme>" >&2
+              echo "usage: kit-profile list [--json] | current | switch <id>" >&2
             }
 
             config_home="''${XDG_CONFIG_HOME:-$HOME/.config}"
-            identity_file="$config_home/kit/theme-id"
-            theme_flake="''${KIT_THEME_FLAKE:-${themeFlakeSource}}"
+            identity_file="$config_home/kit/profile-id"
+            profile_flake="''${KIT_PROFILE_FLAKE:-''${KIT_THEME_FLAKE:-${profileFlakeSource}}}"
+            current_id="$(cat "$identity_file" 2>/dev/null || true)"
 
-            validate_theme() {
+            validate_profile() {
               case "$1" in
-      ${lib.concatMapStringsSep "\n" (themeId: "          ${themeId}) return 0;;") themeIds}
+      ${profileCases}
                 *)
-                  echo "kit-theme: unknown theme '$1'" >&2
-                  echo "available themes: ${lib.concatStringsSep ", " themeIds}" >&2
+                  echo "kit-profile: unknown profile '$1'" >&2
+                  echo "available profiles: ${lib.concatStringsSep ", " profileIds}" >&2
                   return 1
                   ;;
               esac
-            }
-
-            converge() {
-              failures=""
-              report_failure() {
-                failures="''${failures} $1"
-                echo "kit-theme: failed to converge $1" >&2
-              }
-
-              if [ -n "''${WAYLAND_DISPLAY:-}" ]; then
-                if hyprctl instances >/dev/null 2>&1; then
-                  hyprctl reload >/dev/null 2>&1 || report_failure "Hyprland"
-                fi
-
-                systemctl --user reload-or-restart waybar.service >/dev/null 2>&1 || report_failure "Waybar"
-                systemctl --user reload-or-restart dunst.service >/dev/null 2>&1 || report_failure "Dunst"
-
-                if systemctl --user is-active --quiet swayosd.service; then
-                  systemctl --user try-restart swayosd.service >/dev/null 2>&1 || report_failure "SwayOSD"
-                fi
-
-                wallpaper-apply >/dev/null 2>&1 || report_failure "wallpaper"
-              fi
-
-              if [ -n "$failures" ]; then
-                return 1
-              fi
             }
 
             if [ "$#" -eq 0 ]; then
@@ -79,8 +60,25 @@ let
 
             case "$1" in
               list)
-                [ "$#" -eq 1 ] || { usage; exit 2; }
-                printf '%s\n' ${lib.concatStringsSep " " themeIds}
+                if [ "''${2:-}" = "--json" ] && [ "$#" -eq 2 ]; then
+                  first=true
+                  printf '['
+                  for profile_id in ${lib.concatStringsSep " " profileIds}; do
+                    case "$profile_id" in
+      ${profileMetadata}
+                    esac
+                    active=false
+                    [ "$current_id" = "$profile_id" ] && active=true
+                    if [ "$first" = true ]; then first=false; else printf ','; fi
+                    printf '{"id":"%s","name":"%s","description":"%s","default":%s,"active":%s}' \
+                      "$profile_id" "$name" "$description" "$default" "$active"
+                  done
+                  printf ']\n'
+                elif [ "$#" -eq 1 ]; then
+                  printf '%s\n' ${lib.concatStringsSep " " profileIds}
+                else
+                  usage; exit 2
+                fi
                 ;;
               current)
                 [ "$#" -eq 1 ] || { usage; exit 2; }
@@ -89,8 +87,8 @@ let
                   exit 0
                 fi
                 current="$(<"$identity_file")"
-                validate_theme "$current" || {
-                  echo "kit-theme: invalid generated theme identity in $identity_file" >&2
+                validate_profile "$current" || {
+                  echo "kit-profile: invalid generated profile identity in $identity_file" >&2
                   exit 1
                 }
                 echo "$current"
@@ -98,7 +96,7 @@ let
               switch)
               [ "$#" -eq 2 ] || { usage; exit 2; }
               id="$2"
-              validate_theme "$id"
+              validate_profile "$id"
 
         if [ -n "''${XDG_RUNTIME_DIR:-}" ]; then
           lock_file="$XDG_RUNTIME_DIR/kit-home-activation.lock"
@@ -112,26 +110,20 @@ let
 
         exec 9>"$lock_file"
         if ! flock -n 9; then
-          echo "kit-theme: another managed Home Manager activation is already running" >&2
+          echo "kit-profile: another managed Home Manager activation is already running" >&2
           exit 1
         fi
 
                 case "$id" in
-      ${profileCases}
+      ${profileOutputs}
                 esac
 
-                echo "Activating Home Manager theme: $id"
-                if ! home-manager switch --flake "$theme_flake#$profile"; then
-                  echo "kit-theme: Home Manager activation failed; generated identity unchanged" >&2
+                echo "Activating Home Manager profile: $id"
+                if ! home-manager switch --flake "$profile_flake#$profile"; then
+                  echo "kit-profile: Home Manager activation failed; generated identity unchanged" >&2
                   exit 1
                 fi
-
-                if converge; then
-                  echo "Theme active: $id"
-                else
-                  echo "Theme active: $id (desktop convergence incomplete)" >&2
-                  exit 1
-                fi
+                echo "Profile active: $id"
                 ;;
               *)
                 usage
@@ -142,6 +134,11 @@ let
   };
 in
 {
-  xdg.configFile."kit/theme-id".text = "${config.kit.theme.id}\n";
-  home.packages = [ kitTheme ];
+  xdg.configFile."kit/profile-id".text = "${config.kit.profile.id}\n";
+  xdg.configFile."kit/theme-id".text = "${config.kit.profile.id}\n";
+  home.packages = [ kitProfile ];
+  home.file.".local/bin/kit-theme" = {
+    executable = true;
+    text = ''exec kit-profile "$@"'';
+  };
 }

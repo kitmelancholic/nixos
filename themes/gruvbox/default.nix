@@ -1,5 +1,7 @@
 {
-  kit.theme = {
+  imports = [ ../../profiles/classic ];
+
+  kit.classic = {
     name = "Gruvbox";
     wallpaper = ../../assets/wallpapers/gruvbox.png;
   };

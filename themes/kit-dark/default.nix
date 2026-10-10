@@ -1,5 +1,7 @@
 {
-  kit.theme = {
+  imports = [ ../../profiles/classic ];
+
+  kit.classic = {
     name = "Kit Dark";
     wallpaper = ../../assets/wallpapers/kit-dark.png;
   };

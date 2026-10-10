@@ -6,20 +6,20 @@
   pkgsUnstable,
   homeManagerPackage,
   hyprlandPkg,
-  themeFlakeSource,
-  themeModel,
+  profileFlakeSource,
+  profileRegistry,
 }:
 
-themeId:
-assert builtins.elem themeId themeModel.ids;
+profileId:
+assert builtins.elem profileId (builtins.attrNames profileRegistry.profiles);
 home-manager.lib.homeManagerConfiguration {
   pkgs = homePkgs;
   modules = [
     inputs.stylix.homeModules.stylix
     ../home/kit.nix
-    (themeModel.moduleFor themeId)
+    profileRegistry.profiles.${profileId}.module
     {
-      kit.theme.id = themeId;
+      kit.profile.id = profileId;
     }
   ];
   extraSpecialArgs = {
@@ -29,8 +29,8 @@ home-manager.lib.homeManagerConfiguration {
       pkgsUnstable
       homeManagerPackage
       hyprlandPkg
-      themeModel
+      profileRegistry
       ;
-    inherit themeFlakeSource;
+    inherit profileFlakeSource;
   };
 }

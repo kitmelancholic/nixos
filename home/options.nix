@@ -2,34 +2,22 @@
 
 {
   options.kit = {
-    theme = {
-      id = lib.mkOption {
-        type = lib.types.strMatching "[a-z0-9][a-z0-9-]*";
-        readOnly = true;
-        description = "Stable identifier of the Home Manager theme profile.";
-      };
-
-      name = lib.mkOption {
-        type = lib.types.str;
-        description = "Human-readable name of the active theme.";
-      };
-
-      wallpaper = lib.mkOption {
-        type = lib.types.path;
-        description = "Wallpaper used by the active theme.";
-      };
+    profile.id = lib.mkOption {
+      type = lib.types.strMatching "[a-z0-9][a-z0-9-]*";
+      readOnly = true;
+      description = "Stable identifier of the selected Home Manager desktop profile.";
     };
 
     apps = {
       browser = {
         command = lib.mkOption {
           type = lib.types.str;
-          default = "vivaldi";
+          default = "zen";
           description = "Command used to launch the web browser.";
         };
         desktop = lib.mkOption {
           type = lib.types.str;
-          default = "vivaldi-stable.desktop";
+          default = "zen.desktop";
           description = "Desktop entry used for browser associations.";
         };
       };

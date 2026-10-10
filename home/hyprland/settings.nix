@@ -1,19 +1,11 @@
 {
   config,
   lib,
-  pkgs,
 }:
 
 let
-  helpers = import ./lua-helpers.nix { inherit lib; };
-  inherit (helpers) lua mkEnv;
-
   colors = config.lib.stylix.colors;
   color = name: "rgb(${colors.${name}})";
-  startupCommands = [
-    "${pkgs.hyprpolkitagent}/bin/hyprpolkitagent"
-    "wallpaper-apply"
-  ];
 in
 {
   mod._var = "SUPER";
@@ -21,18 +13,6 @@ in
   explorer._var = config.kit.apps.explorer.command;
   launcher._var = config.kit.apps.launcher.command;
   browser._var = config.kit.apps.browser.command;
-
-  monitor = {
-    output = "";
-    mode = "preferred";
-    position = "auto";
-    scale = 1;
-  };
-
-  env = [
-    (mkEnv "XCURSOR_SIZE" "24")
-    (mkEnv "NIXOS_OZONE_WL" "1")
-  ];
 
   config = {
     input = {
@@ -69,14 +49,4 @@ in
 
   bind = lib.mkDefault (import ./binds.nix { inherit lib; });
 
-  on = {
-    _args = [
-      "hyprland.start"
-      (lua ''
-        function()
-          ${lib.concatMapStringsSep "\n  " (command: ''hl.exec_cmd("${command}")'') startupCommands}
-        end
-      '')
-    ];
-  };
 }

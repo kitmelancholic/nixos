@@ -11,7 +11,7 @@
     configType = "lua";
     package = null;
     portalPackage = null;
-    settings = import ./settings.nix {
+    settings = import ./invariant-settings.nix {
       inherit
         config
         lib
