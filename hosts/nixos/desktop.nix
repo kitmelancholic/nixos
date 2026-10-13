@@ -1,4 +1,9 @@
-{ inputs, pkgs, ... }:
+{
+  inputs,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   hyprlandPackages = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system};
@@ -6,6 +11,11 @@ in
 {
   services = {
     pulseaudio.enable = false;
+
+    # programs.hyprlock force-enables a system-wide hypridle unit, but it has no
+    # config and crashes. Idle is handled per profile instead: Home Manager's
+    # services.hypridle (classic) or the shell's built-in idle manager.
+    hypridle.enable = lib.mkForce false;
 
     pipewire = {
       enable = true;

@@ -28,6 +28,7 @@ in
 [
   (mkModBind "Return" "hl.dsp.exec_cmd(terminal)")
   (mkModBind "E" "hl.dsp.exec_cmd(explorer)")
+  (mkModBind "A" ''hl.dsp.exec_cmd("claude-desktop")'')
   (mkModBind "R" (noctalia "panel-toggle launcher"))
   (mkModBind "S" (noctalia "panel-toggle control-center"))
   (mkModBind "comma" (noctalia "settings-toggle"))

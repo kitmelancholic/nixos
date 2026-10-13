@@ -26,6 +26,7 @@ in
 [
   (mkModBind "Return" "hl.dsp.exec_cmd(terminal)")
   (mkModBind "E" "hl.dsp.exec_cmd(explorer)")
+  (mkModBind "A" ''hl.dsp.exec_cmd("claude-desktop")'')
   (mkModBind "R" "hl.dsp.exec_cmd(launcher)")
   (mkModBind "B" "hl.dsp.exec_cmd(browser)")
   (mkModBind "N" ''hl.dsp.exec_cmd(terminal .. " -e nvim")'')

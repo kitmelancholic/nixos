@@ -47,7 +47,6 @@ in
     xsel
 
     # Files and documents
-    nnn # explorer
     nautilus
     file-roller
     evince
@@ -61,6 +60,7 @@ in
     qbittorrent
     anki
     telegram-desktop
+    inputs.claude-desktop-extra.packages.${pkgs.stdenv.hostPlatform.system}.claude-desktop-extra
 
     # Development adjacent
     unityhub

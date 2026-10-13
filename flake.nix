@@ -5,6 +5,12 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
+    # Needs electron_44, which nixos-26.05 does not ship yet.
+    claude-desktop-extra = {
+      url = "github:patrickjaja/claude-desktop-extra";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
+    };
+
     zen-browser = {
       url = "github:youwen5/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";

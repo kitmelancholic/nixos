@@ -18,6 +18,7 @@ in
       "x-scheme-handler/http" = browser.desktop;
       "x-scheme-handler/https" = browser.desktop;
       "x-scheme-handler/mailto" = browser.desktop;
+      "x-scheme-handler/claude" = "com.anthropic.Claude.desktop";
 
       "inode/directory" = fileManager.desktop;
       "application/pdf" = pdfViewer.desktop;

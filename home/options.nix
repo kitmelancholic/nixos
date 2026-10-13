@@ -30,7 +30,7 @@
 
       explorer.command = lib.mkOption {
         type = lib.types.str;
-        default = "ghostty -e nnn -Q";
+        default = "nautilus";
         description = "Command used to launch the file explorer.";
       };
 

@@ -18,6 +18,9 @@ in
     ./theme-switcher.nix
     ./hyprland
     ./zed.nix
+    ./claude-desktop.nix
+    ./openmpi.nix
+    ./pdf2md.nix
   ];
 
   home = {
