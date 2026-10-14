@@ -93,7 +93,10 @@
         config.allowUnfree = true;
       };
       homeManagerPackage = home-manager.packages.${settings.system}.default;
-      pkgsUnstable = inputs.nixpkgs-unstable.legacyPackages.${settings.system};
+      pkgsUnstable = import inputs.nixpkgs-unstable {
+        inherit (settings) system;
+        config.allowUnfree = true;
+      };
       hyprlandPkg = inputs.hyprland.packages.${settings.system}.hyprland;
       repoApps = import ./lib/repo-apps.nix {
         inherit

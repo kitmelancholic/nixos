@@ -1,4 +1,9 @@
-{ inputs, pkgs, ... }:
+{
+  inputs,
+  pkgs,
+  pkgsUnstable,
+  ...
+}:
 
 let
   kindlegen = pkgs.stdenvNoCC.mkDerivation {
@@ -66,6 +71,7 @@ in
     unityhub
     mono # Unity/legacy .NET compatibility
     goose-cli
+    pkgsUnstable.claude-code # unstable: tracks upstream releases closely
     kccWithKindlegen
     kindlegen # enables KCC MOBI conversion
 
