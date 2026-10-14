@@ -3,3 +3,4 @@
 
 # Python bytecode generated while developing the Graphify Nix integration.
 /graphify-nix/__pycache__/
+.claude/settings.local.json
