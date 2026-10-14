@@ -1,12 +1,75 @@
 #!/usr/bin/env bash
-# Run stages until one needs me.
+# Run stages until one needs me. Stops on a failed run, on a run that left
+# no new committed journal entry, and after max_runs runs.
 set -uo pipefail
-cd "$(git rev-parse --show-toplevel)"
-while true; do
-  claude -p "/next-stage" --permission-mode acceptEdits > /dev/null
-  last=$(grep -E '^## stage' docs/progress.md | tail -n 1)
+cd "$(git rev-parse --show-toplevel)" || exit 1
+journal=docs/progress.md
+max_runs=25
+log_dir=$(mktemp -d -t run-stages.XXXXXX)
+
+plan=docs/redesign-plan.md
+
+entries() { git show HEAD:"$journal" 2>/dev/null | grep -cE '^## stage' || true; }
+# The stage the next run works on: after `done` the next one, else the same
+# (your uncommitted entries count, so read the working-tree journal).
+next_stage() {
+  local last n
+  last=$(grep -E '^## stage [0-9]+' "$journal" | tail -n 1)
+  [[ -n $last ]] || {
+    echo 0
+    return
+  }
+  n=$(sed -E 's/^## stage ([0-9]+).*/\1/' <<<"$last")
   case "$last" in
-    *"— done"*) continue ;;
-    *) notify-send "kitOS redesign" "$last"; echo "$last"; break ;;
+  *"— done"*) echo $((n + 1)) ;;
+  *) echo "$n" ;;
+  esac
+}
+# The Effort column of the plan's execution table; medium if absent.
+effort_for() {
+  local e
+  e=$(awk -F'|' -v n="$1" '
+    /^Execution table\./ { t = 1 }
+    /^#### Stage 0/ { t = 0 }
+    t && $2 ~ "^ *" n " *$" { gsub(/[ *]/, "", $6); print $6; exit }
+  ' "$plan")
+  case "$e" in
+  low | medium | high | xhigh | max) echo "$e" ;;
+  *) echo medium ;;
+  esac
+}
+stop() {
+  notify-send "kitOS redesign" "$1" 2>/dev/null || true
+  echo "$1"
+  echo "logs: $log_dir"
+  exit "${2:-0}"
+}
+
+last=$(grep -E '^## stage' "$journal" | tail -n 1)
+case "$last" in
+*"— needs-human"* | *"— blocked"*) stop "waiting for you: $last" ;;
+esac
+
+for ((run = 1; run <= max_runs; run++)); do
+  before=$(entries)
+  head_before=$(git rev-parse HEAD)
+  stage=$(next_stage)
+  effort=$(effort_for "$stage")
+  echo "run $run: stage $stage, effort $effort"
+  if ! claude -p "/next-stage" --permission-mode acceptEdits --effort "$effort" >"$log_dir/run-$run.log" 2>&1; then
+    stop "run $run: claude exited non-zero" 1
+  fi
+  # The entry must be committed (journal rule), so read it from HEAD.
+  if [[ $(git rev-parse HEAD) == "$head_before" || $(entries) -le $before ]]; then
+    stop "run $run: no new committed journal entry; stopping" 1
+  fi
+  if [[ -n $(git status --porcelain --untracked-files=no) ]]; then
+    stop "run $run: uncommitted changes left behind; stopping" 1
+  fi
+  last=$(git show HEAD:"$journal" | grep -E '^## stage' | tail -n 1)
+  case "$last" in
+  *"— done"*) continue ;;
+  *) stop "$last" ;;
   esac
 done
+stop "reached $max_runs runs; stopping" 1

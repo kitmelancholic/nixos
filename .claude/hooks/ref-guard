@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Git hook, installed in stage 0 as .git/hooks/reference-transaction and
+# .git/hooks/pre-push. Git runs it for every ref update, however the git
+# command was spelled. Inside Claude Code (CLAUDECODE=1) only branch
+# `redesign` and the redesign tags may change, and nothing may be pushed.
+# Outside Claude Code (your own terminal) it does nothing.
+set -uo pipefail
+[[ ${CLAUDECODE:-} == 1 ]] || exit 0
+case "$(basename "$0")" in
+pre-push)
+  echo "ref-guard: push denied inside Claude Code" >&2
+  exit 1
+  ;;
+reference-transaction)
+  [[ ${1:-} == prepared ]] || exit 0
+  status=0
+  while read -r _old _new ref; do
+    case "$ref" in
+    refs/heads/redesign | refs/tags/checkpoint-* | refs/tags/redesign-baseline | refs/tags/last-multi-theme) ;;
+    refs/heads/* | refs/tags/*)
+      echo "ref-guard: $ref may not change inside Claude Code" >&2
+      status=1
+      ;;
+    esac
+  done
+  exit "$status"
+  ;;
+esac
+exit 0

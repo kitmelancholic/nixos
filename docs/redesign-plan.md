@@ -6,7 +6,7 @@ document is implemented yet. The plan is a **rolling wave**: phase 1 (stages
 clipboard, search, Caelestia, cleanups, Plymouth) has goals, decisions and
 known risks only, and its stages are written after phase 1, from what phase 1
 teaches. There are no further full-plan reviews; each stage gets its own
-verification and your review of its diff.
+verification, and you review the work at checkpoints (§4).
 
 Terminology: a **theme** is one complete desktop presentation (a family plus
 variant, see §2). The code calls it a "profile" until stage 17 renames it;
@@ -56,7 +56,7 @@ none happens outside its stage:
 |---|---|---|---|
 | 1 | Themes in use | **Noctalia, plus Caelestia as an experimental second theme** | Retire `dms` and the classic family (catppuccin, tokyo-night, gruvbox, kit-dark), each in its own revertable commit. Caelestia stays as the second implementation the contract is tested against (P2.3). |
 | 2 | Vocabulary | **"Theme"** (revised 2026-10-14) | One word for a whole desktop presentation: the command is `dango theme`, as in your draft, and the code moves from "profile" to "theme" in stage 17. A shell's palette is not a dango theme; it stays the shell's runtime state, even where the shell's own settings call it "theme" (Noctalia does). Noctalia is a temporary theme, so its palette is not declared. |
-| 3 | `dango switch` | **One transaction: host first, then home** (revised twice) | One lock around the whole mutation: `state.json` edit, build, activation and recovery. Build both first. Activate the host (sudo) only when its closure differs from `/run/current-system`, then always activate home. On failure, restore `state.json` and re-activate the previous host and home generations; no step-by-step undo. `dango switch` refuses to run if `$USER` is not the configured user. |
+| 3 | `dango switch` | **One transaction: host first, then home** (revised twice) | One lock around the whole mutation: `state.json` edit, build, activation and recovery. Build both first. Activate the host (sudo) only when its closure differs from `/run/current-system`, then always activate home. On failure, `state.json` is restored (guaranteed) and the previous host and home generations are re-activated (best effort: side effects such as restarted services or written files stay); no step-by-step undo. Firmware updates and clipboard deletion are irreversible operations, not transactions. `dango switch` refuses to run if `$USER` is not the configured user. |
 | 4 | May dango edit the repo | **Yes, one tracked file; you commit** | Every choice a command can make lives in a tracked `state.json`: the selected theme, and Foundry `enable` + `version` only. The payload filename and hash come from nix-foundryvtt's own version table. dango edits the file, shows the diff, and never commits. A gitignored file was rejected: flakes only see git-tracked files, so it would need `--override-input` on every command, and a fresh install would lose the choices. `dango update` additionally rewrites `flake.lock`. |
 | 5 | Battery | **Automatic, one user-level service** (revised) | Keep power-profiles-daemon (ppd). One user service tied to the graphical session applies power-saver on battery and balanced on AC, and turns animations and blur off on battery. The `dango power` override lives in `$XDG_RUNTIME_DIR`, so it resets on reboot (P2.6). |
 | 6 | Updates | **flake.lock pins, `dango update` gates** (revised) | No `?rev=` pins in `flake.nix`. `flake.lock` pins everything. `dango update` skips a held list (`hyprland`, `noctalia`, `caelestia`) unless an input is named explicitly, and reports held inputs. The gate is `dango check`, which builds the **host toplevel** as well as every theme. It restores the old lock byte-for-byte if checks fail, and never switches. These promises are tested for real in a temporary worktree (stage 13). Possible exception: the `claude-md-management` plugin, if Claude Code cannot stop it from auto-updating (§6). |
@@ -68,7 +68,7 @@ none happens outside its stage:
 | 12 | Core owns data, themes own UI | **Clipboard and search** | One clipboard history service and the search data sources live in the invariant layer and survive theme switches. A theme only provides the UI on top of them. A theme's private store is disabled; if its UI cannot read the core store, the core default UI is used instead. |
 | 13 | Kernel | **Keep `linuxPackages_latest`** | Kernel updates arrive only through the gated `dango update`, and that gate builds the host, so a kernel that fails to build never lands. |
 | 14 | Noctalia runtime state | **`settings.toml` wins; dango sets named keys only** (2026-10-14) | Noctalia applies `~/.local/state/noctalia/settings.toml` last, so declarations in `config.toml` cannot enforce runtime keys. A small activation step writes only a named list of keys into `settings.toml` (telemetry off in stage 14; the private clipboard store in P2.4; the wallpaper in P2.9) and leaves every other key, including the palette, untouched. Verification never deletes the sidecar. |
-| 15 | Planning | **Rolling wave** (2026-10-14) | Phase 1 (stages 0-20) is detailed. Phase 2 is goals, decisions and risks; its stages are written after stage 20. No more full-plan reviews; each stage is verified and you review its diff. |
+| 15 | Planning | **Rolling wave** (2026-10-14) | Phase 1 (stages 0-20) is detailed. Phase 2 is goals, decisions and risks; its stages are written after stage 20. No more full-plan reviews; each stage is verified, and you review at checkpoints by merging the `redesign` pull request on GitHub (a merge commit, not squash or rebase, so the checkpoint tags stay on `main`) (§4). |
 
 ## 1. Current state
 
@@ -358,7 +358,7 @@ from its own commands and is the work of P2.3.
 6. **Builds:** the host toplevel (`host` check, stage 11), each theme's activation package, and `Hyprland --verify-config`.
 7. **Command table (stage 13):**
    - every dango subcommand appears in the table;
-   - every command has both `effect` and `agent`, and every command whose `effect` is not `read` supports `--dry`;
+   - every command has `effect` and `agent`, and every `state`/`host` command also has its kind (configuration transaction or irreversible, §3); every command whose `effect` is not `read` supports `--dry`;
    - the committed `.claude/settings.json` permission block equals the one generated from the table and the registry.
 
 Checks 1-7 are static. Their runtime counterpart is **`dango doctor`** (stage 18, `read`/`allow`): for the active theme it checks one owner of `org.freedesktop.Notifications` (and that it is the declared provider), a registered polkit agent, a running idle provider, and a single clipboard history writer. Every stage that touches roles runs it after its switch.
@@ -399,8 +399,9 @@ dango commands                            read     allow  every command with des
                                                           (--json: the agent/frontend API)
 dango switch [--home|--host] [--backup]   host     ask    one transaction: build host + home from the checkout, show the
                                                           diff (nvd), activate the host (sudo, only if changed), then home
-dango check [--fast]                      read     allow  full: nix flake check (static, host toplevel, every theme's
-                                                          build, Hyprland verify, contract); --fast: evaluation only
+dango check [--fast|--vm]                 read     allow  full: nix flake check (static, host toplevel, every theme's
+                                                          build, Hyprland verify, contract); --fast: evaluation only;
+                                                          --vm: only the transaction VM tests (stage 13)
 dango doctor                              read     allow  runtime role checks for the active theme (stage 18)
 dango update [input...]                   state    ask    nix flake update for all inputs except the held list (unless
                                                           named), then dango check; on failure restore flake.lock
@@ -478,40 +479,37 @@ where the effect alone is not the right answer. Re-checked command by command:
 - Edits to `state.json` go through `jq` to a temp file and an atomic rename, and are shown as a `git diff` afterwards.
 - `apps.default` is dango, so the bootstrap command is `nix run ~/nixos -- switch`.
 
-**Transactions.** Every command whose effect is `state` or `host` runs as one transaction:
+**Two kinds of mutation.** Every command whose effect is `state` or `host` takes the dango lock, so no two of them overlap. Only **configuration transactions** have a rollback:
+
+| Kind | Commands | What is promised |
+|---|---|---|
+| configuration transaction | `switch`, `theme <id>`, `update`, `foundry version <zip>` (when the version changes), `foundry enable\|disable` | the steps and recovery below |
+| irreversible operation | `firmware update`, `clipboard clear` (P2.4), the store import + GC root of `foundry version <zip>` | lock, `--dry`, an explicit `ask`; **no rollback**. dango says so before acting, and the JSON result has `reversible: false`. |
+
+The command table records the kind per command, and check 7 requires it.
+
+**Configuration transaction steps.** `theme <id>` and the Foundry commands use only their side (home only, host only); `switch` uses both unless `--home`/`--host` restricts it.
 
 1. Refuse unless `$USER` is the configured user (`kit`).
 2. Take the dango lock with `flock -n`. Until stage 17 the file is the existing `$XDG_RUNTIME_DIR/kit-home-activation.lock`, so dango, `kit-profile` and `just home-switch` exclude each other; from stage 17 it is `$XDG_RUNTIME_DIR/dango.lock`. A second mutating command fails at once with "another dango command is running" and changes nothing. The lock is held until the command exits, recovery included.
-3. Snapshot: `state.json` (and `flake.lock` for `update`, with its sha256), the current host generation (`readlink -f /run/current-system`) and the current home generation (`readlink -f ~/.local/state/nix/profiles/home-manager`).
-4. Preflight: if Foundry is enabled (after the planned edit), its payload must be in the store; otherwise stop with a message naming `dango foundry version <zip>` (or `dango foundry disable`).
+3. Snapshot: `state.json` (and `flake.lock` for `update`, with its sha256), the current host generation (`readlink -f /run/current-system`) and the current home generation (`readlink -f "$HM_PROFILE_DIR/home-manager"`, where `$HM_PROFILE_DIR` is `${XDG_STATE_HOME:-~/.local/state}/nix/profiles`). On a first install there is no home generation; the snapshot records "none".
+4. Preflight: if Foundry is enabled (after the planned edit) and the host side is involved, its payload must be in the store; otherwise stop with a message naming `dango foundry version <zip>` (or `dango foundry disable`).
 5. Edit `state.json`.
-6. Build the host toplevel and the selected theme's activation package in one `nix build`.
-7. Show the nvd diff for both.
-8. Host, only if the result differs from `/run/current-system`: `sudo nix-env -p /nix/var/nix/profiles/system --set <path> && sudo <path>/bin/switch-to-configuration switch`. This is what `nixos-rebuild` does internally.
-9. Home: `<activationPackage>/activate`. `--backup` sets `HOME_MANAGER_BACKUP_EXT=hm-backup`.
+6. Build the involved sides (host toplevel, the selected theme's activation package) in one `nix build`.
+7. Show the nvd diff.
+8. Host, only if involved and different from `/run/current-system`: `sudo nix-env -p /nix/var/nix/profiles/system --set <path> && sudo <path>/bin/switch-to-configuration switch`. This is what `nixos-rebuild` does internally.
+9. Home, with explicit profile management, as `home-manager switch` does it in the locked Home Manager: `mkdir -p "$HM_PROFILE_DIR" && nix-env --profile "$HM_PROFILE_DIR/home-manager" --set <gen> && <gen>/activate --driver-version 1`. Driver version 1 means the activation script does not touch the profile itself (the legacy version-0 mode does, at `writeBoundary`), so dango alone decides which generation the profile points to. `--backup` sets `HOME_MANAGER_BACKUP_EXT=hm-backup`.
 10. Release the lock and show the `git diff` of the repo files it changed.
 
-**Recovery.** A failure in steps 4-7 restores the snapshot files; nothing was
-activated. A failure in step 8 or 9 restores the snapshot files, then
-re-activates the snapshotted host generation (if step 8 activated a new one)
-and the snapshotted home generation (if step 9 started), the same way steps 8
-and 9 activate. Home Manager links files before later activation steps can
-fail, so re-activating the previous generation is the only sound undo; there
-is no step-by-step undo. The JSON result reports `failedStep` and `recovered`.
-If recovery itself fails, dango exits 3 and prints the exact commands that
-finish it by hand.
+Steps 8 and 9 are what the internal helper `dango-activate <host-path|-> <home-path|->` does, with steps 2-3 and recovery around them. `dango` builds and then calls it; the VM test (stage 13) calls it directly with prebuilt closures.
 
-`--host` and `--home` restrict a switch to one side. `--dry` never takes the
-lock or writes anything: it prints the planned `state.json` diff and, for
-`switch`, stops after step 7. `dango update` runs steps 1-3, then
-`nix flake update` for the non-held (or named) inputs and `dango check`; on
-failure it copies the snapshot back and asserts the sha256 matches.
-`dango foundry version <zip>` validates before step 1 (version from the ZIP's
-`resources/app/package.json`, which must be in nix-foundryvtt's table; the
-ZIP's hash must match the table), then imports it with
-`nix-store --add-fixed sha256` and a GC root under `~/FoundryVTT/gcroots`. If
-the version equals `state.json`'s, it stops there (no state change, no
-switch); otherwise it runs steps 1-10 for the host only.
+**What is guaranteed, and what is best effort.**
+
+- **Guaranteed:** a failure leaves `state.json` and `flake.lock` byte-identical to the snapshot; the lock is always released; a build failure (steps 4-7) activates nothing; a `theme` command never runs step 8; the result reports `failedStep`, `recovered` and `reversible`.
+- **Best effort:** after a failure in step 8 or 9, dango points the profiles back at the snapshotted generations and re-activates them (host if step 8 activated a new one; home if step 9 started), the same way steps 8 and 9 activate. Home Manager links files before later activation steps can fail, so re-activating the previous generation is the only sound undo; there is no step-by-step undo. A re-activation restores the *configuration*, not every side effect: services that were restarted, files written by activation scripts or by services, data migrations, the bootloader entry list, and Noctalia's runtime keys (stage 14) stay as the failed activation left them. If there was no previous home generation (first install), there is nothing to go back to: dango leaves the profile as it is, reports `recovered: false`, and prints the next step.
+- If recovery itself fails, dango exits 3 and prints the exact commands that finish it by hand.
+
+`--dry` never takes the lock or writes anything: it prints the planned `state.json` diff and the involved sides and, for `switch`, stops after step 7. `dango update` runs steps 1-3, then `nix flake update` for the non-held (or named) inputs and `dango check`; on failure it copies the snapshot back and asserts the sha256 matches. `dango foundry version <zip>` validates before step 1 (version from the ZIP's `resources/app/package.json`, which must be in nix-foundryvtt's table; the ZIP's hash must match the table), then imports it with `nix-store --add-fixed sha256` and a GC root under `~/FoundryVTT/gcroots` (irreversible, harmless). If the version equals `state.json`'s, it stops there (no state change, no switch); otherwise it runs steps 1-10 for the host only.
 
 **Fresh install becomes:**
 
@@ -528,10 +526,16 @@ nix --extra-experimental-features 'nix-command flakes' run ~/nixos -- switch
 
 Rules for every stage:
 
-- One commit per stage, after your review. Each stage ends with its verification; then I stop and show you the diff and the verification output, and commit only after you approve. Stage files explicitly (`git add <paths>`; `git rm` for deletions), never `git commit -a`. New files must be staged before checking, because flakes ignore untracked files.
+- **Branch and approval.** All redesign work happens on branch `redesign` (created in stage 0); `main` only receives pull-request merges (GitHub requires a PR for `main`). Each stage ends with its verification and one commit `stage N: <title>` on `redesign`, made by the agent without waiting; the body lists the changed derivations. You approve at checkpoints (table below): the agent tags the checkpoint and stops with a reviewer's findings, and you approve by merging the `redesign` pull request on GitHub (a merge commit, not squash or rebase, so the checkpoint tags stay on `main`). Stage 0 is the exception: its summary comes first and nothing is committed or tagged before your OK. Commits and tags on any other branch, and every push, are blocked (see "Git guards" below). Stage files explicitly (`git add <paths>`; `git rm` for deletions), never `git commit -a`. New files must be staged before checking, because flakes ignore untracked files.
 - `nix flake check --no-write-lock-file` passes before committing; from stage 13 that is `dango check`, which includes the host build.
 - `hosts/nixos/hardware-configuration.nix` is never touched.
-- **Temporary worktrees.** Tests that change `state.json`, `flake.lock` or Nix code on purpose never run in your checkout. They use `wt=$(mktemp -d) && git worktree add --detach "$wt" "$(git stash create)"`, which snapshots the stage's staged and unstaged work without committing to any branch, and `dango --flake "$wt" …`. The worktree is removed afterwards (`git worktree remove --force "$wt"`), and `git status` in the checkout is unchanged by the test.
+- **Git guards.** Three layers; none is a hard boundary against an agent running as your user, so the hard boundary for `main` is on GitHub (§6, open question 1).
+  - *Ref guard (the real local check).* `.claude/hooks/ref-guard`, installed in stage 0 as `.git/hooks/reference-transaction` and `.git/hooks/pre-push`. Git runs it for every ref update, however the command was spelled (`-C`, `cd`, `bash -c`, aliases, worktrees). When `CLAUDECODE=1` (set in every Claude Code shell), it rejects creating, moving or deleting any `refs/heads/*` other than `refs/heads/redesign`, any `refs/tags/*` other than `checkpoint-*`, `redesign-baseline` and `last-multi-theme`, and every push. In your own terminal the variable is unset, so you can push `redesign` for the PR and fast-forward your local `main` after the merge (`git switch main && git pull --ff-only`); do both there, not through Claude.
+  - *Command tripwire.* `.claude/hooks/git-guard` (PreToolUse on Bash, `… || exit 2`) refuses `git push`, `--no-verify`, and any `git commit`/`git tag` combined with `-C`, `--git-dir`, `--work-tree`, `GIT_DIR`, `cd`, a branch change or a shell wrapper; otherwise it resolves the target repository from the hook's `cwd` and requires it to be this checkout on `redesign`. It catches mistakes early; it is regex, not security.
+  - *Permissions.* Deny Edit/Write of `.git/**` and `.claude/hooks/**`.
+- **Journal.** Every agent entry in `docs/progress.md` is committed. A stage's `done` or `needs-human` entry is appended **before** the stage commit and is part of it, so the entry is inside the commit and any checkpoint tag. A `blocked` entry is committed alone as `journal: stage N blocked`. Your entries (`approved`, or `done` after a `needs-human`/`blocked`) are the only uncommitted change the next run accepts: it commits them alone as `journal: stage N <status>` before doing anything else; any other uncommitted change makes it stop with `blocked`. Discarding a failed attempt restores only the paths the stage touched (`git restore --source=HEAD --staged --worktree -- <paths>`, and deleting files it created); never `git clean`, `git reset --hard` or `git checkout .`, and never `docs/progress.md`.
+- **Temporary worktrees isolate source, not the system.** Tests that change `state.json`, `flake.lock` or Nix code on purpose never run in your checkout. They snapshot the stage's work and fall back to `HEAD` on a clean tree: `snap=$(git stash create); wt=$(mktemp -d); git worktree add --detach "$wt" "${snap:-HEAD}"`. `git stash create` only records tracked files, so the stage's new files must be staged first; the snapshot stops with `blocked` if `git ls-files --others --exclude-standard` lists anything. Tests then use `dango --flake "$wt" …`. The worktree is removed afterwards (`git worktree remove --force "$wt"`), and `git status` in the checkout is unchanged by the test. A worktree does **not** protect the running system, services or `$HOME`: anything that activates is real.
+- **Destructive tests run in a VM.** Injected activation failures, recovery and first-install cases never run on this machine. They are NixOS VM tests (`pkgs.testers.runNixOSTest`; `/dev/kvm` and the `kvm`/`nixos-test` system features are present), exposed as `vmTests.<system>.dango-transactions`, **not** in `checks`, so `nix flake check` and `dango check` stay fast. They run with `dango check --vm`, required in every stage that changes `dango-activate` or the transaction code. On the real machine, stages run only what a normal switch would do.
 - **Oracle:**
   - From stage 3 onward, every stage whose expected diff is "none" must pass `scripts/closure-diff --assert-same HEAD` (with `--removed <id>…` where the stage removes themes).
   - Every stage with a non-empty expected diff runs `scripts/closure-diff HEAD`. The changed derivations it reports must match the stage's list exactly. Anything extra means stop and investigate.
@@ -566,7 +570,10 @@ be restored with `git checkout last-multi-theme -- profiles themes …`.
 
 Execution table. **Checkpoint**: after the stage's commit, a reviewer
 subagent reviews the diff since the previous checkpoint tag, and the commit
-is tagged `checkpoint-<N>` (stage 0 keeps its tag `redesign-baseline`).
+is tagged `checkpoint-<N>` (stage 0 keeps its tag `redesign-baseline`); the
+stage then ends `needs-human` with the findings, written into the stage
+commit before tagging. You approve by merging the `redesign` pull request on GitHub (a merge commit, not squash or rebase, so the checkpoint tags stay on `main`), then append `## stage N — done`; the next run commits that
+entry alone.
 **Needs you**: the stage ends `needs-human` because it needs a switch, sudo,
 a reboot or a manual check. **Effort**: the reasoning effort the stage runs
 at; every stage not marked high runs at medium.
@@ -599,27 +606,29 @@ No stage needs a reboot; stage 10's suspend/resume is the closest.
 
 #### Stage 0: Baseline
 
-- **Changes.** None by me. First I show you a summary of the uncommitted work and wait for your approval:
+- **State.** The baseline work is already on main as `804b792` ("v0.17.1 fixes"); the plan, the routine files (`CLAUDE.md`, `docs/progress.md`, `.claude/commands/next-stage.md`, `.claude/hooks/git-guard`, `scripts/run-stages`), the `AGENTS.md` deletion and the `.gitignore` entry `.claude/settings.local.json` follow as `ff258ef`.
+- **First run (`needs-human`).** No commit, no tag. The entry carries a summary of `804b792` against its parent:
   - `flake.nix`: `pkgsUnstable` is imported with `config.allowUnfree = true`;
   - `home/packages.nix`: `pkgsUnstable.claude-code` and the `pkgsUnstable` argument;
   - `flake.lock`: every input whose revision changed, old → new revision and date, with nixpkgs and the held inputs (`hyprland`, `noctalia`, `caelestia`) called out;
   - `patches/graphify-nix-support.patch`: what changed, and whether the new `graphify` lock entry needs it to build;
-  - `AGENTS.md`: deleted;
-  - left out: the empty untracked `CLAUDE.md` (stage 5 writes it) and this plan (stage 1).
-- **Verify (before the commit).** `nix flake check --no-write-lock-file`; `nix build .#nixosConfigurations.nixos.config.system.build.toplevel`; then activate with today's commands (`just switch`, then `just home-switch`) and use the desktop for a while, so any regression from the input update is found here and not blamed on a refactor stage.
-- **After your approval.** `git add flake.nix flake.lock home/packages.nix patches/graphify-nix-support.patch`, `git rm AGENTS.md`, commit, and tag `redesign-baseline`. `git show --stat HEAD` lists exactly those five paths.
-- **Expected diff.** Whatever the summary shows; nothing else.
+  - plus the verification below, and the exact commands for your part of it.
+- **Verify (before your OK).** `nix flake check --no-write-lock-file`; `nix build .#nixosConfigurations.nixos.config.system.build.toplevel`; then you activate with today's commands (`just switch`, then `just home-switch`) and use the desktop for a while, so any regression from the input update is found here and not blamed on a refactor stage.
+- **Your OK.** Append `## stage 0 — approved` to `docs/progress.md`.
+- **Branch.** `redesign` already exists: it was created from main's head (`ff258ef`) on 2026-10-14, and its first commit, `routine: review fixes`, holds the routine changes made since `ff258ef` (stage table, commit model, journal rules, guards, VM tests). Stage 0 runs on `redesign`, never on main.
+- **Second run (after the OK).** Commit the two stage-0 journal entries (the agent's `needs-human` and your `approved`) alone as `journal: stage 0 approved`; tag `804b792` as `redesign-baseline`; install the ref guard (`ln -s ../../.claude/hooks/ref-guard .git/hooks/reference-transaction`, and the same for `.git/hooks/pre-push`) and check it: under `CLAUDECODE=1`, `git branch dango-test` and `git tag dango-test` fail, and an empty commit on `redesign` works (then dropped with `git reset --soft HEAD~1`, which only moves `redesign`). `git show --stat HEAD` lists only `docs/progress.md`.
+- **Expected diff.** `804b792`: whatever the summary shows; nothing else. `routine: review fixes` and the journal commit: home (every theme) only the embedded repo `source` path, as in stage 1. Host: none.
 
 #### Stage 1: Plan
 
-- **Changes.** `git add docs/redesign-plan.md`, commit.
-- **Verify.** `nix flake check --no-write-lock-file`; `git show --stat HEAD` lists only the plan.
+- **Changes.** None left: the plan was committed in `ff258ef`, together with the routine files. The run only verifies; its commit contains just its `done` entry (journal rule).
+- **Verify.** `nix flake check --no-write-lock-file`; `scripts/closure-diff` does not exist yet, so the expected diff below is stated, not checked.
 - **Expected diff.** Home (every theme): only the embedded repo `source` path, which every commit changes until stage 2. Host: none.
 
 #### Stage 2: Stop embedding the flake source
 
 - **Changes.** Remove `profileFlakeSource` (`flake.nix:139`, `lib/mk-home.nix:9,34`). `kit-profile` reads the flake **and** the theme list from the checkout: `$KIT_PROFILE_FLAKE`, else `~/nixos`, via `nix eval <flake>#lib.themes --json`. It no longer bakes registry case tables into its script, and a missing checkout is a clear error. Add the flake output `lib.themes` (the registry). `KIT_THEME_FLAKE` fallback kept until stage 16.
-- **Verify.** For every theme, `nix build .#checks.x86_64-linux.home-<id>` twice, once clean and once with an uncommitted README edit, gives the same out path; `nix path-info -r` of each activation package contains no copy of the repo; `kit-profile list` and `kit-profile switch noctalia` work from `/tmp`; with `KIT_PROFILE_FLAKE` pointing at a copy, that copy is used.
+- **Verify.** For every theme, `nix build .#checks.x86_64-linux.home-<id>` in the checkout and `nix build "$wt#checks.x86_64-linux.home-<id>"` in a temporary worktree whose `README.md` has an uncommitted edit (`printf '\n' >> "$wt/README.md"`; a tracked file, so the flake sees it without `git add`) give the same out path; the checkout's `README.md` is never edited. `nix path-info -r` of each activation package contains no copy of the repo; `kit-profile list` and `kit-profile switch noctalia` work from `/tmp`; with `KIT_PROFILE_FLAKE="$wt"`, `kit-profile list` reads that worktree. Then `git worktree remove --force "$wt"`.
 - **Expected diff.** Home (every theme): `kit-profile`; − the repo `source` path from the closure. Host: none.
 
 #### Stage 3: Output oracle
@@ -643,8 +652,8 @@ Lands right after Graphify removal, so old and new agent tooling never coexist.
 - **mcp-nixos.** Pinned `pkgs.mcp-nixos` 2.4.3; a committed project `.mcp.json` (`{"mcpServers":{"nixos":{"command":"mcp-nixos"}}}`); pre-approved with `enabledMcpjsonServers: ["nixos"]`.
 - **Plugin.** Only `claude-md-management`, via `extraKnownMarketplaces` (`claude-plugins-official`) and `enabledPlugins` in the committed `.claude/settings.json`, with marketplace auto-update off if supported (otherwise the recorded exception, §6). If the keys are unsupported, the one-time install goes into the manual-steps table. No hookify, no formatting hook.
 - **Guards.** *Deny* Edit/Write of `hosts/nixos/hardware-configuration.nix`. One *PreToolUse hook on Bash* blocks any command whose text mentions `hardware-configuration.nix`. The script is a `writeShellApplication` whose dependencies are declared in Nix. Home Manager places it at a fixed path, `~/.config/dango/hooks/bash-guard` (`xdg.configFile`, executable), not in a profile `bin` directory. Claude Code blocks only on exit code 2: a missing file (127) or any other failure is a non-blocking hook error, and the command would run. So the hook command in `settings.json` is `"$HOME/.config/dango/hooks/bash-guard" || exit 2`, which turns every failure into a block: a missing or wrong path, a crash, or a missing dependency. Inside the script, any internal error also exits 2. The path uses `~/.config/dango/` from the start, like other new things (stage 17 renames only existing `kit` paths). It is a strong guard, not a guarantee: a command can reach the file without naming it (globs, variables, scripts), so the final check is your review of the diff.
-- **Permissions (hand-written until stage 13).** *Ask* for `sudo`, `nixos-rebuild`, `home-manager switch`, `nix flake update`, `nix flake lock`, `just switch`, `just home-switch`, `nix run .#switch`, `nix run .#home-switch`, `kit-profile switch`, `kit-theme switch`, `foundry`, `foundry-stop`, `foundry-restart`; *allow* `nix build`, `nix eval`, `nix flake check`, `nix fmt`, `foundry-status`, `scripts/closure-diff`. Add `.claude/settings.local.json` to `.gitignore`.
-- **Verify.** `nix flake check --no-write-lock-file`; `scripts/closure-diff HEAD`; `readlink -f "$(command -v claude)"` points into `/nix/store` and its wrapper sets `DISABLE_AUTOUPDATER=1`; no `claude` remains in `~/.local/bin`; `claude mcp list` shows `nixos` connected; an Edit of `hardware-configuration.nix` is refused; `cat hosts/nixos/hardware-configuration.nix` through Bash is blocked (reading through the Read tool still works); **negative tests:** the hook blocks when run with `env -i` (stripped PATH); with `~/.config/dango/hooks/bash-guard` removed, every Bash command is blocked (restored by the next `just home-switch`); `nix flake check` runs without a prompt; `sudo true` asks; `/plugin` lists only `claude-md-management`.
+- **Permissions (hand-written until stage 13).** *Ask* for `sudo`, `nixos-rebuild`, `home-manager switch`, `nix flake update`, `nix flake lock`, `just switch`, `just home-switch`, `nix run .#switch`, `nix run .#home-switch`, `kit-profile switch`, `kit-theme switch`, `foundry`, `foundry-stop`, `foundry-restart`; *allow* `nix build`, `nix eval`, `nix flake check`, `nix fmt`, `foundry-status`, `scripts/closure-diff`. `.claude/settings.local.json` is already gitignored (`ff258ef`). The temporary git rules move into the committed `.claude/settings.json` as hand-written non-dango rules: *allow* `git commit`, `git tag`; *deny* `git push`, Edit/Write of `.git/**` and `.claude/hooks/**`; and the PreToolUse hook `"$CLAUDE_PROJECT_DIR/.claude/hooks/git-guard" || exit 2`. The ref guard from stage 0 stays the actual check. Then delete `.claude/settings.local.json` (untracked, so this is a local `rm`), because the committed file has taken over.
+- **Verify.** `nix flake check --no-write-lock-file`; `scripts/closure-diff HEAD`; `readlink -f "$(command -v claude)"` points into `/nix/store` and its wrapper sets `DISABLE_AUTOUPDATER=1`; no `claude` remains in `~/.local/bin`; `claude mcp list` shows `nixos` connected; an Edit of `hardware-configuration.nix` is refused; `cat hosts/nixos/hardware-configuration.nix` through Bash is blocked (reading through the Read tool still works); **negative tests:** the hook blocks when run with `env -i` (stripped PATH); with `~/.config/dango/hooks/bash-guard` removed, every Bash command is blocked (restored by the next `just home-switch`); `nix flake check` runs without a prompt; `sudo true` asks; `/plugin` lists only `claude-md-management`; `.claude/settings.local.json` is gone, and `git commit` on `redesign` still runs without a prompt while `git push` is denied; `git -C /tmp/x commit`, `cd /tmp && git commit` and `bash -c 'git push'` are refused by the tripwire, and `git checkout -b x` is refused by the ref guard.
 - **Expected diff.** Home (every theme): + `mcp-nixos`, + `bash-guard` (the script), + `hm_.configdangohooksbash-guard`; a `claude-code` wrapper only if the nixpkgs one lacks `DISABLE_AUTOUPDATER`. Host: none.
 
 #### Stage 6: Default theme = noctalia
@@ -699,17 +708,23 @@ Lands right after Graphify removal, so old and new agent tooling never coexist.
 - **Changes.**
   - Add `lib/dango/` (command table with `effect` and `agent`, `dango.sh`) and `home/dango.nix`; `apps.default = dango`. Option `kit.repo` (default `~/nixos`; renamed in stage 17).
   - Subcommands: `switch`, `check` (includes the `host` check), `update` (held list from `lib/settings.nix`, reports held inputs), `theme`, `foundry` (`status/logs/check`, `start/stop/restart/open`, `version`, `enable`/`disable`), and `commands`. Every command supports `--json`, and every non-`read` command supports `--dry`.
-  - Every `state`/`host` command runs as the transaction in §3: one lock (the existing `kit-home-activation.lock`) around snapshot, preflight, `state.json` edit, build, host activation, home activation and recovery.
+  - Every configuration transaction runs as in §3: one lock (the existing `kit-home-activation.lock`) around snapshot, preflight, `state.json` edit, build, host activation, home activation (`--driver-version 1`) and best-effort recovery, with the activation half in the internal `dango-activate`. Irreversible operations take the lock but promise no rollback. The command table records each command's kind.
+  - Add the VM test `vmTests.<system>.dango-transactions` (`pkgs.testers.runNixOSTest`, run by `dango check --vm`): one node with the user `kit`, Home Manager, `dango-activate`, and prebuilt variants in `system.extraDependencies`: host *ok* (+ `/etc/dango-test`), host *fail* (`system.activationScripts.dangoFail = "exit 1";`), home *ok*, home *fail* (writes `~/.config/dango-test`, then a `home.activation` step after `linkGeneration` exits 1).
   - `dango foundry version <zip>` validates against the nix-foundryvtt table; `dango switch` preflights the payload.
   - Generate the `.claude/settings.json` permission block from the command table's `agent` field plus the registry (per-id ask rules) plus `allow dango --dry …` plus the hand-written non-dango rules from stage 5, and add check 7. Old commands keep working.
   - **CLAUDE.md:** the loop becomes `edit → nix fmt → dango check --fast → dango check → closure-diff`, command discovery is `dango commands --json`, and the `agent` field (allow/ask) gets one line.
 - **Verify, basics (in the checkout).** `dango check`; `dango theme` marks noctalia; `dango theme noctalia` leaves `git diff` empty; `dango --dry switch` on a clean tree reports no change for host and home; `dango switch` reports "host unchanged"; `sudo -u nobody dango switch` refuses; for every command in `dango commands --json`, `read` ones run with `--json` and the rest with `dango --dry --json …`, without any permission prompt, and each output passes `jq -e .`; check 7 fails after a hand edit of the permission block.
-- **Verify, transactions (temporary worktree, `dango --flake "$wt"`).**
-  1. *Changed host:* an uncommitted harmless host change (`environment.etc."dango-test".text = "1";`), then `switch`: `/etc/dango-test` exists; the JSON `steps` are `host` before `home`, and the `/nix/var/nix/profiles/system` link is older than the home-manager profile link.
-  2. *Host activation failure:* add `system.activationScripts.dangoFail = "exit 1";` and run `theme caelestia`: the command fails with `failedStep: "host"`, `recovered: true`; `/run/current-system`, the home generation and the worktree's `state.json` equal their pre-test values.
-  3. *Home failure after linking:* together with the host change from 1, add `xdg.configFile."dango-test".text = "1";` and a `home.activation` step after `linkGeneration` that exits 1: the command fails with `failedStep: "home"`, `recovered: true`; `~/.config/dango-test` is gone, and both `/run/current-system` and the home generation equal their pre-test values.
-  4. *Competing commands:* start `theme caelestia`, and while it builds run `foundry disable` and `kit-profile switch noctalia`: both fail at once with "another … is running" and change nothing; `state.json` shows only the theme change.
-  5. Afterwards `dango switch` from the checkout restores the normal system, and `git -C ~/nixos status` is unchanged.
+- **Verify, transactions (VM test, never on this machine).** `dango check --vm` passes, and covers:
+  1. *Changed host:* host *ok* + home *ok*: `/etc/dango-test` exists; the result's `steps` are `host` before `home`; the system profile link is older than the home-manager profile link.
+  2. *Host activation failure:* host *fail* + home *ok*: `failedStep: "host"`, `recovered: true`; `/run/current-system`, the system profile and the home profile point at their pre-test generations; the home side never ran.
+  3. *Home failure after linking:* host *ok* + home *fail*: `failedStep: "home"`, `recovered: true`; `~/.config/dango-test` is gone; both profiles and `/run/current-system` point at their pre-test generations.
+  4. *First install:* a fresh user with no home generation, home *fail*: `recovered: false`, the lock is released, and the message names the next step.
+  5. *Competing commands:* a second `dango-activate` while the first holds the lock fails at once and changes nothing.
+  6. *Recovery failure:* with the previous home generation made unactivatable, the exit code is 3 and the printed commands are present.
+- **Verify, transactions (this machine, non-destructive only).**
+  1. *Theme never touches the host:* in a temporary worktree with a pending host change, `dango --flake "$wt" --dry --json theme caelestia` lists only `home` as involved, and `dango --flake "$wt" --dry --json switch` lists both.
+  2. *Competing commands:* while `dango switch` (unchanged tree) is building, `dango foundry disable` and `kit-profile switch noctalia` both fail at once with "another … is running" and change nothing.
+  3. A normal `dango switch` from the checkout leaves `git status` unchanged.
 - **Verify, update (temporary worktree).**
   1. `dango --flake "$wt" --json update`: `jq '.nodes.<held>.locked'` is byte-identical before and after for `hyprland`, `noctalia`, `caelestia`; the JSON `held` lists them.
   2. Reset the lock (`git -C "$wt" checkout flake.lock`), then `update hyprland`: the JSON `updated` contains `hyprland`, and no other top-level input changed.
@@ -721,7 +736,7 @@ Lands right after Graphify removal, so old and new agent tooling never coexist.
   3. *Same version:* importing the current ZIP again changes nothing and does not switch.
   4. *Round trip:* `foundry disable` removes `foundryvtt.service` (`systemctl cat` fails); `foundry enable` brings it back; `git -C "$wt" diff state.json` is empty and the host toplevel equals the pre-test one.
   5. A successful version change is tested when a newer supported ZIP is available; until then it is covered by 1-3.
-- **Expected diff.** Home (every theme): + `dango` (+ its fish completion file `hm_.configfishcompletionsdango.fish`). Host: none.
+- **Expected diff.** Home (every theme): + `dango` (with `dango-activate`; + its fish completion file `hm_.configfishcompletionsdango.fish`). Host: none. (`vmTests.<system>.dango-transactions` is a test, not a compared output.)
 
 #### Stage 14: Noctalia runtime keys
 
@@ -732,7 +747,7 @@ Lands right after Graphify removal, so old and new agent tooling never coexist.
 
 #### Stage 15: Firmware
 
-- **Changes.** `services.fwupd.enable = true` in the host. Turn off fwupd's metadata-refresh timer, so nothing happens in the background. `dango firmware [--json]` (`read`, `allow`) refreshes metadata itself (`fwupdmgr refresh`) only if it is older than 24 hours, then lists devices and available updates; `--refresh` forces it. `dango firmware update` (`host`, `ask`, takes the dango lock) runs `fwupdmgr update`, which is interactive and may ask to reboot. Never automatic.
+- **Changes.** `services.fwupd.enable = true` in the host. Turn off fwupd's metadata-refresh timer, so nothing happens in the background. `dango firmware [--json]` (`read`, `allow`) refreshes metadata itself (`fwupdmgr refresh`) only if it is older than 24 hours, then lists devices and available updates; `--refresh` forces it. `dango firmware update` (`host`, `ask`, irreversible) takes the dango lock, says that a firmware update cannot be rolled back by dango, and runs `fwupdmgr update`, which is interactive and may ask to reboot. Never automatic.
 - **Verify.** Build the host, `dango switch`; a first `dango firmware` refreshes, then lists the ThinkPad UEFI/EC devices; a second run within 24 hours does not refresh; `--refresh` does; `systemctl list-timers` shows no fwupd refresh timer; the regenerated permissions ask for `dango firmware update` but not for `dango firmware`.
 - **Expected diff.** Host: + `fwupd` (in `system-path`), + `unit-fwupd.service`, + its D-Bus/polkit files in `etc`. Home: `dango`.
 
@@ -785,7 +800,7 @@ final docs (P2.12) come second to last and Plymouth (P2.13) is last.
 | P2.1 Cheatsheet | SUPER+F1 shows every bind; `dango keys [--json]` | `keybindings` frontend role with a core default UI; `~/.config/dango/keys.json` from the same Nix list as `hyprland.lua`; a check asserts they match; SUPER+F1 added to the fixture; works under UA and EN layouts | choice of the core default UI |
 | P2.2 Zoom and scale | screen zoom and monitor scale from the keyboard | core binds, runtime only, never persisted, reset by `hyprctl reload`; free keys only; `dango.textSize` stays deferred | Hyprland option names change between releases (a held input) |
 | P2.3 Caelestia up to the contract | the contract's first real test; Caelestia gets every core and role bind | delete the warning mode; add the exact-assertion guard check (§2); roles through Caelestia's own IPC/CLI, verified against the locked revision; `coreBinds` on; `palette` and `toolkit` declared (`toolkit` probably `"none"`); fixture updated; revising `themes/contract.nix` is expected but must keep Noctalia identical; `dango doctor` passes in Caelestia | Caelestia's IPC churns; Caelestia may bundle providers that collide with "exactly one" |
-| P2.4 Clipboard history | one history that survives theme switches | core store (e.g. cliphist + `wl-paste --watch`, text and images); `clipboard` frontend role; each theme declares its private store, which is disabled (Noctalia's through the named-key step); `dango clipboard [list\|pick\|clear]`, all `ask`; `clipboard-store` exactly one in check 3 and `dango doctor`; negative test: Noctalia's private store declared active fails check 3 | Noctalia's existing history is lost; its UI may not read the core store, so the core picker is used |
+| P2.4 Clipboard history | one history that survives theme switches | core store (e.g. cliphist + `wl-paste --watch`, text and images); `clipboard` frontend role; each theme declares its private store, which is disabled (Noctalia's through the named-key step); `dango clipboard [list\|pick\|clear]`, all `ask` (`clear` is irreversible); `clipboard-store` exactly one in check 3 and `dango doctor`; negative test: Noctalia's private store declared active fails check 3 | Noctalia's existing history is lost; its UI may not read the core store, so the core picker is used |
 | P2.5 Search on SUPER+R | a Spotlight-style search on the existing key | the `launcher` role becomes the `search` frontend; core sources: apps, dango commands with `effect` `read`/`runtime`, calculator, files; `state`/`host` commands never appear; SUPER+Space untouched | backend choice (e.g. Walker, Vicinae) by packaging, cadence and idle cost on battery; replacing a theme launcher changes SUPER+R's fixture entry |
 | P2.6 Power automation | power-saver and no animations/blur on battery, automatically | one user service `dango-power`: UPower `OnBattery`, Hyprland `configreloaded`, logind resume, applies state at startup; override in `$XDG_RUNTIME_DIR/dango/power-override`; ppd via `powerprofilesctl`; `dango power`; dependencies in Nix. **Lifetime:** `WantedBy=`, `PartOf=` and `After=graphical-session.target`; when the Hyprland socket closes the service exits, and systemd restarts it in the new session. **Tests:** logout and login, Hyprland restart, boot on battery then login, suspend on AC + unplug + resume, override across unplug/replug and gone after reboot, visuals stay off after `dango switch` on battery | ppd's polkit policy for the active user (else a host polkit rule); a shell or ppd that already switches on battery (must be turned off: one writer); the user manager's `HYPRLAND_INSTANCE_SIGNATURE` must be fresh after a compositor restart |
 | P2.7 Foundry and Docker on demand | no Node and no Docker daemon running all day | `systemd.services.foundryvtt.wantedBy = lib.mkForce [ ]`, started by `dango foundry start/open`; `virtualisation.docker.enableOnBoot = false`, `docker.socket` stays | containers with a `restart:` policy no longer come back after reboot until Docker starts |
@@ -914,6 +929,25 @@ Nothing else. The README is for you; `CLAUDE.md` is for agents. Neither repeats 
 - **Providers:** required exclusive roles need exactly one enabled provider, with a negative test that disables the real one; `dango doctor` checks the same at runtime and runs after every switch in role stages.
 - **Power lifetime:** `PartOf=`/`After=graphical-session.target`; exits when the Hyprland socket closes and is restarted in the new session; tested across logout/login, Hyprland restart and boot on battery (P2.6).
 - **Rolling wave:** phase 1 detailed (stages 0-20), phase 2 as goals; no more full-plan reviews.
+
+2026-10-14 (execution):
+
+- **Autonomous commits:** `/next-stage` commits each stage on branch `redesign` without waiting; commits and tags elsewhere, and pushes, are blocked. You approve at checkpoints (stages 0, 10, 13, 20) by merging the `redesign` pull request on GitHub (a merge commit, not squash or rebase, so the checkpoint tags stay on `main`). Stage 0 stays `needs-human`: summary first, tag and branch only after your OK.
+- **Temporary permissions:** `.claude/settings.local.json` holds the git rules until stage 5 moves them into `.claude/settings.json` and deletes it.
+- **Baseline already on main:** `804b792` is the baseline and is tagged after your OK; `ff258ef` already holds the plan and the routine files, so stage 1 only verifies.
 - **Corrections found while revising:** the stage-1 plan commit (and the baseline) change the home out path while the repo is still embedded, so their expected diff is not "none"; the oracle's simulated rename moves `profiles/` to `shells/`, because `themes/` still exists at stage 3; the README loses its removed commands in stage 16 instead of waiting for the final docs.
+
+2026-10-14 (after the third review):
+
+- **Tests:** worktrees isolate source, not the system; injected activation failures, recovery and first install run only in the VM test `vmTests.<system>.dango-transactions` (`dango check --vm`, separate from `dango check`). The host-failure test uses `switch`; a separate test shows `theme` never involves the host.
+- **Guarantees:** `state.json`/`flake.lock` restoration and lock release are guaranteed; generation re-activation is best effort; firmware updates, clipboard clear and the Foundry store import are irreversible operations with no rollback claim.
+- **Home activation:** explicit profile management (`nix-env --set`, then `activate --driver-version 1`), as the locked `home-manager switch` does; first install has no previous generation and reports `recovered: false`.
+- **Worktree snapshot:** falls back to `HEAD` on a clean tree; untracked files stop the test.
+- **Journal:** agent entries are committed (inside the stage commit, or alone for `blocked`); your entries are committed alone by the next run; failed attempts restore only the stage's paths.
+- **Git guards:** the reference-transaction/pre-push ref guard is the local check; the Bash hook is a tripwire; neither is a boundary against an agent running as you.
+- **Routine:** `scripts/run-stages` stops on a non-zero exit, on a run without a new committed journal entry, and after 25 runs; `/next-stage` may read every section the stage references.
+
+- **GitHub:** `main` is protected (2026-10-14, via `gh api`): pull requests only (no required approvals, since you are the only reviewer), no force pushes, no deletion, enforced for admins too. You and the agent share credentials, so this binds both; the agent never pushes anyway (ref guard).
+- **Effort:** `scripts/run-stages` passes the execution table's Effort to `claude --effort` for the stage the next run works on (medium if absent).
 
 Open questions: none.
