@@ -12,3 +12,8 @@
 ## Git
 
 - Commit and tag only on branch `redesign`; never push.
+- Commit subjects follow Conventional Commits: `<type>(<quest id>)[!]: …`
+  (types and `!` per quest in `docs/tasks.md`); `!` needs a
+  `BREAKING CHANGE:` line in the body.
+- Versions are SemVer git tags `vX.Y.Z`, set only at a long rest from
+  `scripts/next-version`.

@@ -15,7 +15,8 @@ Run exactly one quest, then stop. Argument: $ARGUMENTS
    decision the GM appended under it.
 4. Check *Preconditions*. If one fails or its outcome is not covered by the
    section, append `## <id> — провалений кидок` (max 5 lines: what, why,
-   what you need from the GM), commit only `docs/progress.md`, stop.
+   what you need from the GM), commit only `docs/progress.md` as
+   `chore(<id>): провалений кидок`, stop.
 5. Do *Steps*. Loop: edit → `nix fmt` → fast check → fix. Respect *Do not*.
    Line numbers in the section are hints; re-locate code with grep.
    Stage new files with `git add` before any check (flakes ignore untracked
@@ -27,8 +28,9 @@ Run exactly one quest, then stop. Argument: $ARGUMENTS
    Opus with the quest section and `git diff --staged`; ask it for concrete
    defects only. Fix what it finds, rerun step 6.
 8. Update `CLAUDE.md` if the section's *CLAUDE.md* item says so.
-9. Commit on branch `redesign` with the message from *Commit*, listing the
-   changed derivations from the verify output in the body. Append to
+9. Commit on branch `redesign` with the Conventional Commits subject from
+   *Commit*, listing the changed derivations from the verify output in the
+   body, plus a `BREAKING CHANGE:` line if the subject has `!`. Append to
    `docs/progress.md` in the same commit:
    - `## <id> — хід майстра` + the section's *GM's turn* checklist with exact
      commands, if it has one;
@@ -36,7 +38,8 @@ Run exactly one quest, then stop. Argument: $ARGUMENTS
 10. If the quest ends an act (`rest=<tag>` in the meta line): run the Opus
     reviewer on `git diff <previous rest tag>..HEAD` (skip for `c1r0`, which
     has no previous tag), put its findings and the long-rest steps in a
-    `хід майстра` entry, tag the commit with `<tag>`, stop.
+    `хід майстра` entry, tag the commit with `<tag>` and with the version
+    from `scripts/next-version` (`c1r3`: `v1.0.0`), stop.
 
 Never print full build logs (tail -n 40 or grep errors). Never push.
 Never edit `docs/tasks.md`. Before committing, check the branch is

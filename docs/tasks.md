@@ -19,7 +19,7 @@ Steps          numbered and concrete; line numbers are hints (re-locate with rg)
 Do not         the traps for this quest.
 Verify         checks beyond scripts/quest-verify, with expected results.
 CLAUDE.md      what to change in it, or "no change".
-Commit         the commit subject.
+Commit         the Conventional Commits subject (type, quest id as scope, `!` if breaking).
 GM's turn      checklist for the GM with exact commands (omitted if none).
 ```
 
@@ -27,6 +27,10 @@ GM's turn      checklist for the GM with exact commands (omitted if none).
 - `baseline` / `source-only` — no oracle yet (before c1q03); only `nix flake check`.
 - `none` — `scripts/closure-diff --assert-same HEAD`, plus `--removed` for each id in `removed=`.
 - `leaves` — `scripts/closure-diff --names HEAD`: every changed leaf derivation must match a glob in `leaves=` (prefix `+` added, `-` removed, `~` changed); a glob ending in `?` is optional, every other glob must match at least once. Wrapper derivations (`home-manager-files`, `home-manager-path`, `home-manager-generation`, `etc`, `system-path`, `system-units`, `nixos-system-*`) are never listed.
+
+**Commits** follow [Conventional Commits](https://www.conventionalcommits.org): `<type>(<quest id>)[!]: <subject>`, with the type and `!` given in each section's *Commit*. `!` marks a change the GM notices as a removal or an incompatible change; the body then has a `BREAKING CHANGE:` line saying what. Journal-only commits are `chore(<quest id>): <state>`; commits outside quests use a normal scope (`docs: …`, `fix(scripts): …`).
+
+**Versions** follow [Semantic Versioning](https://semver.org) as git tags `vX.Y.Z`, set only at a long rest by `scripts/next-version` from the commits since the previous version: while `0.x`, a breaking change or `feat` bumps the minor, anything else the patch. `c1r3` releases `v1.0.0`.
 
 **Shared rules.** Tests that change `state.json`, `flake.lock` or Nix code on purpose run in a temporary worktree: `wt=$(mktemp -d) && git worktree add --detach "$wt" "$(git stash create)"`, then `git worktree remove --force "$wt"`; `git status` in the checkout must be unchanged afterwards. `hosts/nixos/hardware-configuration.nix` is never touched.
 
@@ -56,7 +60,7 @@ meta: model=sonnet effort=medium boss=no diff=baseline rest=c1r0
 
 **CLAUDE.md.** No change.
 
-**Commit.** `c1q00: baseline`
+**Commit.** `chore(c1q00): baseline`
 
 **GM's turn.**
 - Read the summary.
@@ -85,7 +89,7 @@ meta: model=sonnet effort=medium boss=no diff=source-only
 
 **CLAUDE.md.** No change.
 
-**Commit.** `c1q01: map check`
+**Commit.** `chore(c1q01): map check`
 
 ---
 
@@ -112,7 +116,7 @@ meta: model=sonnet effort=medium boss=no diff=source-only
 
 **CLAUDE.md.** No change.
 
-**Commit.** `c1q02: stop embedding the flake source`
+**Commit.** `fix(c1q02): stop embedding the flake source`
 
 **GM's turn.**
 - `kit-profile switch noctalia`; the desktop comes back as before.
@@ -147,7 +151,7 @@ meta: model=sonnet effort=high boss=yes diff=none
 
 **CLAUDE.md.** No change (c1q05 writes it).
 
-**Commit.** `c1q03: output oracle`
+**Commit.** `test(c1q03): output oracle`
 
 ---
 
@@ -172,7 +176,7 @@ meta: model=sonnet effort=medium boss=no diff=leaves leaves=-graphify-*,-graphif
 
 **CLAUDE.md.** No change.
 
-**Commit.** `c1q04: drop Graphify and Codex tooling`
+**Commit.** `refactor(c1q04)!: drop Graphify and Codex tooling`
 
 ---
 
@@ -191,7 +195,7 @@ meta: model=sonnet effort=medium boss=no diff=leaves leaves=+mcp-nixos*,+bash-gu
 3. `pkgs.mcp-nixos` in home packages; committed `.mcp.json` `{"mcpServers":{"nixos":{"command":"mcp-nixos"}}}`; `enabledMcpjsonServers: ["nixos"]`.
 4. Plugin `claude-md-management` only, via `extraKnownMarketplaces` (`claude-plugins-official`) and `enabledPlugins` in `.claude/settings.json`; marketplace auto-update off if the key exists.
 5. Guard: a `writeShellApplication` `bash-guard` (deps in Nix, any internal error exits 2) that blocks any Bash command whose text mentions `hardware-configuration.nix`, installed by HM at `~/.config/dangonix/hooks/bash-guard` (`xdg.configFile`, executable). Hook command: `"$HOME/.config/dangonix/hooks/bash-guard" || exit 2`. Deny Edit/Write of `hosts/nixos/hardware-configuration.nix`, `.git/**`, `.claude/hooks/**`.
-6. Permissions in `.claude/settings.json`: ask for `sudo`, `nixos-rebuild`, `home-manager switch`, `nix flake update`, `nix flake lock`, `just switch`, `just home-switch`, `nix run .#switch`, `nix run .#home-switch`, `kit-profile switch`, `kit-theme switch`, `foundry`, `foundry-stop`, `foundry-restart`; allow `nix build`, `nix eval`, `nix flake check`, `nix fmt`, `foundry-status`, `scripts/closure-diff`, `scripts/quest-verify`. Move the existing `.claude/hooks/git-guard` PreToolUse(Bash) hook from `.claude/settings.local.json` into `.claude/settings.json` (still `… || exit 2`), then delete `.claude/settings.local.json` and add it to `.gitignore`.
+6. Permissions in `.claude/settings.json`: ask for `sudo`, `nixos-rebuild`, `home-manager switch`, `nix flake update`, `nix flake lock`, `just switch`, `just home-switch`, `nix run .#switch`, `nix run .#home-switch`, `kit-profile switch`, `kit-theme switch`, `foundry`, `foundry-stop`, `foundry-restart`; allow `nix build`, `nix eval`, `nix flake check`, `nix fmt`, `foundry-status`, `scripts/closure-diff`, `scripts/quest-verify`, `scripts/next-version`. Move the existing `.claude/hooks/git-guard` PreToolUse(Bash) hook from `.claude/settings.local.json` into `.claude/settings.json` (still `… || exit 2`), then delete `.claude/settings.local.json` and add it to `.gitignore`.
 
 **Do not.** Add hookify or a formatting hook. Put the hook in a profile `bin` directory.
 
@@ -199,7 +203,7 @@ meta: model=sonnet effort=medium boss=no diff=leaves leaves=+mcp-nixos*,+bash-gu
 
 **CLAUDE.md.** Written in this quest.
 
-**Commit.** `c1q05: CLAUDE.md and agent tooling`
+**Commit.** `feat(c1q05): CLAUDE.md and agent tooling`
 
 **GM's turn.**
 - `just home-switch`; remove any `~/.local/bin/claude` / `~/.npm-global` copy the agent listed.
@@ -230,7 +234,7 @@ meta: model=sonnet effort=medium boss=no diff=none
 
 **CLAUDE.md.** No change.
 
-**Commit.** `c1q06: default theme noctalia`
+**Commit.** `feat(c1q06)!: default theme noctalia`
 
 ---
 
@@ -255,7 +259,7 @@ meta: model=sonnet effort=medium boss=no diff=none removed=dms
 
 **CLAUDE.md.** No change.
 
-**Commit.** `c1q07: retire DMS`
+**Commit.** `refactor(c1q07)!: retire DMS`
 
 ---
 
@@ -279,7 +283,7 @@ meta: model=sonnet effort=medium boss=no diff=none removed=catppuccin,tokyo-nigh
 
 **CLAUDE.md.** Update the layout lines.
 
-**Commit.** `c1q08: retire the classic family`
+**Commit.** `refactor(c1q08)!: retire the classic family`
 
 ---
 
@@ -298,7 +302,7 @@ meta: model=sonnet effort=medium boss=no diff=none
 
 **CLAUDE.md.** No change.
 
-**Commit.** `c1q09: drop Stylix`
+**Commit.** `refactor(c1q09): drop Stylix`
 
 ---
 
@@ -323,7 +327,7 @@ meta: model=sonnet effort=medium boss=yes diff=leaves leaves=-hyprpolkitagent*,-
 
 **CLAUDE.md.** No change.
 
-**Commit.** `c1q10: host cleanup after classic`
+**Commit.** `refactor(c1q10): host cleanup after classic`
 
 **GM's turn.**
 - `just switch` (sudo).
@@ -355,7 +359,7 @@ meta: model=sonnet effort=high boss=yes diff=none
 
 **CLAUDE.md.** Mention that checks live in `lib/checks.nix` and the bind fixture changes only with a declared behavior change.
 
-**Commit.** `c1q11: checks out of flake.nix`
+**Commit.** `test(c1q11): checks out of flake.nix`
 
 ---
 
@@ -383,7 +387,7 @@ meta: model=sonnet effort=medium boss=no diff=none
 
 **CLAUDE.md.** "`state.json` holds the GM's choices; change it only when asked."
 
-**Commit.** `c1q12: state file`
+**Commit.** `refactor(c1q12): state file`
 
 ---
 
@@ -417,7 +421,7 @@ meta: model=sonnet effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_.confi
 
 **CLAUDE.md.** Loop becomes `edit → nix fmt → dangonix check --fast → dangonix check → scripts/closure-diff`; discovery `dangonix commands --json`; one line on `agent` allow/ask.
 
-**Commit.** `c1q13: dangonix v1`
+**Commit.** `feat(c1q13): dangonix v1`
 
 **GM's turn.**
 - `dangonix switch` (sudo); try `dangonix theme caelestia` and back.
@@ -448,7 +452,7 @@ meta: model=sonnet effort=medium boss=no diff=leaves leaves=+noctalia-runtime-ke
 
 **CLAUDE.md.** "Noctalia's `settings.toml` wins over declarations; enforce runtime keys only through the named list."
 
-**Commit.** `c1q14: Noctalia telemetry off`
+**Commit.** `feat(c1q14): Noctalia telemetry off`
 
 **GM's turn.**
 - `cp -a ~/.local/state/noctalia/settings.toml ~/settings.toml.bak`; `dangonix switch`; restart Noctalia.
@@ -473,7 +477,7 @@ meta: model=sonnet effort=medium boss=no diff=leaves leaves=+fwupd*,+unit-fwupd.
 
 **CLAUDE.md.** No change.
 
-**Commit.** `c1q15: firmware`
+**Commit.** `feat(c1q15): firmware`
 
 **GM's turn.**
 - `dangonix switch` (sudo); `dangonix firmware` lists the ThinkPad UEFI/EC; a second run within 24 h does not refresh; `systemctl list-timers | grep fwupd` is empty.
@@ -500,7 +504,7 @@ meta: model=sonnet effort=medium boss=no diff=leaves leaves=-kit-profile*,-hm_.l
 
 **CLAUDE.md.** Drop every pre-dangonix command.
 
-**Commit.** `c1q16: remove old entry points`
+**Commit.** `refactor(c1q16)!: remove old entry points`
 
 **GM's turn.**
 - `dangonix switch`; `command -v kit-profile` fails; the three Foundry launcher entries work.
@@ -526,7 +530,7 @@ meta: model=sonnet effort=medium boss=no diff=leaves leaves=-hm_kitprofile-id,+h
 
 **CLAUDE.md.** New names (theme, `themes/`).
 
-**Commit.** `c1q17: full rename`
+**Commit.** `refactor(c1q17)!: full rename`
 
 **GM's turn.**
 - `dangonix switch`; `cat ~/.config/dangonix/theme-id`; two competing `dangonix` commands still exclude each other.
@@ -554,7 +558,7 @@ meta: model=sonnet effort=high boss=yes diff=leaves leaves=~dangonix*,+hm_.confi
 
 **CLAUDE.md.** "Experimental themes produce role warnings until Caelestia meets the contract; do not add new ones. Run `dangonix doctor` after switching a theme."
 
-**Commit.** `c1q18: contract options and doctor`
+**Commit.** `feat(c1q18): contract options and doctor`
 
 **GM's turn.**
 - `dangonix switch`; `dangonix doctor` passes in Noctalia; `systemctl --user stop noctalia` → doctor fails naming notifications, polkit, idle; start it → passes.
@@ -582,7 +586,7 @@ meta: model=sonnet effort=medium boss=no diff=none
 
 **CLAUDE.md.** No change.
 
-**Commit.** `c1q19: binds generated from roles`
+**Commit.** `refactor(c1q19): binds generated from roles`
 
 **GM's turn.**
 - `dangonix switch`; `dangonix doctor` passes; a few keys behave as before.
@@ -607,7 +611,7 @@ meta: model=sonnet effort=medium boss=no diff=none rest=c1r3
 
 **CLAUDE.md.** Point at `docs/themes.md` for theme work.
 
-**Commit.** `c1q20: contract checks and themes doc`
+**Commit.** `feat(c1q20): contract checks and themes doc`
 
 **GM's turn.**
 - `dangonix switch`; `dangonix doctor` passes.
