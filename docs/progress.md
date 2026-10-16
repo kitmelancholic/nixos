@@ -1,12 +1,12 @@
-# Redesign progress
+# Campaign journal
 
-Journal for docs/redesign-plan.md, newest entry last. One entry per stage
-run, appended, never edited:
+Journal for docs/tasks.md (see docs/remake.md), newest entry last. One entry
+per quest run, appended, never edited:
 
-    ## stage N — done|needs-human|blocked
-    (at most 5 lines: what happened, and for needs-human/blocked what is
-    needed from you)
+    ## <quest id> — виконано | хід майстра | провалений кидок | благословення
+    (at most 5 lines: what happened, and for хід майстра / провалений кидок
+    what is needed from the GM)
 
-After you handle a `needs-human` or `blocked` entry, append
-`## stage N — done` yourself so the next run continues.
-
+After you handle a `хід майстра` or `провалений кидок` entry, append
+`## <quest id> — виконано` yourself (or your decision, then `/quest retry
+<id>`) so the next run continues.
