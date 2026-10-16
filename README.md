@@ -1,6 +1,15 @@
-# kitOS NixOS Configuration
+# dangoNix
 
-Personal NixOS + Home Manager configuration for the `nixos` host and `kit` user.
+Мій NixOS + Home Manager для одного ThinkPad: Hyprland, змінні теми (Noctalia, Caelestia) і одна CLI `dangonix`. Навіщо і куди це рухається — [бачення](docs/vision.md).
+
+## Документи
+- [vision](docs/vision.md) — що це, цілі, чому NixOS.
+- [design](docs/design.md) — цільова архітектура: контракт тем, `dangonix`, енергія, трафік, Foundry.
+- [current-state](docs/current-state.md) — теперішній стан репо і його недоліки.
+- [remake](docs/remake.md) — кампанія перебудови: квести, правила, твоя участь.
+- [tasks](docs/tasks.md) — завдання для агентів (англ.), по розділу на квест.
+
+> Нижче — мануал **поточних** команд. Він діє до квесту c1q16, де `dangonix` замінить старі точки входу і цей розділ стане коротким мануалом `dangonix`.
 
 ## Common Commands
 
