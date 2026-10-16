@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # The one check entry point until `dangonix check` absorbs it (c1q13).
 #   check --docs   docs, commit messages since origin/main, shellcheck
-#   check --fast   --docs + flake evaluation without building, IFD banned
+#   check --fast   --docs + flake evaluation without building (Hyprland's
+#                  flake reads its VERSION through import-from-derivation, so
+#                  IFD cannot be banned)
 #   check          --docs + full `nix flake check` (builds every theme)
 # Logs go to a temp file; only the last 40 lines are printed on failure.
 set -euo pipefail
@@ -42,8 +44,7 @@ step shellcheck shellcheck_scripts
 
 case $mode in
 --fast)
-  step eval nix flake check --no-build --no-write-lock-file \
-    --option allow-import-from-derivation false
+  step eval nix flake check --no-build --no-write-lock-file
   ;;
 --full)
   step flake nix flake check --no-write-lock-file

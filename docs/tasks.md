@@ -32,7 +32,7 @@ GM's turn      checklist for the GM with exact commands (omitted if none).
 
 **Versions** follow [Semantic Versioning](https://semver.org) as git tags `vX.Y.Z`, set only at a long rest by `scripts/next-version` from the commits since the previous version: while `0.x`, a breaking change or `feat` bumps the minor, anything else the patch. `c1r3` releases `v1.0.0`.
 
-**Checks.** `scripts/check --fast` while editing (doc and commit lint, shellcheck, flake evaluation without building, import-from-derivation banned); `scripts/check` is the full one (`nix flake check`), and `scripts/quest-verify` runs it. From c1q13 `dangonix check` is the same thing. CI on GitHub runs `scripts/check --fast` on every push and, once `scripts/closure-diff` exists, the oracle for every quest commit; the hero never pushes, so CI is the signal for the GM and the scribe.
+**Checks.** `scripts/check --fast` while editing (doc and commit lint, shellcheck, flake evaluation without building); `scripts/check` is the full one (`nix flake check`), and `scripts/quest-verify` runs it. From c1q13 `dangonix check` is the same thing. CI on GitHub runs `scripts/check --fast` on every push and, once `scripts/closure-diff` exists, the oracle for every quest commit; the hero never pushes, so CI is the signal for the GM and the scribe.
 
 **Models.** `model=` is a full model id, so a campaign never changes model halfway. The judge and the cleric are Opus.
 
@@ -139,7 +139,7 @@ meta: model=claude-sonnet-5-5 effort=high boss=yes diff=none
 **Read first.** `scripts/quest-verify` (its use of `--assert-same`, `--removed`, `--names`).
 
 **Steps.** Write `scripts/closure-diff [--assert-same] [--added <id>…] [--removed <id>…] [--names] <rev>` comparing `<rev>` with the working tree:
-1. Theme ids come from `lib.themes` at both revisions. Compare the `drvPath` of the host toplevel (`nixosConfigurations.nixos.config.system.build.toplevel`) and of `checks.x86_64-linux.home-<id>` for every id present at both, with `nix eval --raw … --option allow-import-from-derivation false`. Evaluate `<rev>` from a temporary worktree, never by checking it out in the checkout. Never rely on `homeConfigurations.kit-*` or option names.
+1. Theme ids come from `lib.themes` at both revisions. Compare the `drvPath` of the host toplevel (`nixosConfigurations.nixos.config.system.build.toplevel`) and of `checks.x86_64-linux.home-<id>` for every id present at both, with `nix eval --raw`. Evaluate `<rev>` from a temporary worktree, never by checking it out in the checkout. Never rely on `homeConfigurations.kit-*` or option names.
 2. `--assert-same` exits non-zero if any compared `drvPath` differs (print `nix-diff` of the two `.drv` files for each), if zero themes were compared, or if the added/removed themes are not exactly what `--added`/`--removed` declare.
 3. `--names` compares the two derivation closures (`nix-store -qR <drv>`, `.drv` files only) and prints one changed leaf derivation per line as `<sign><name>`, where `<name>` is the `.drv` basename without hash and `.drv` (sign `+` only in the new closure, `-` only in the old, `~` same name on both sides whose own attributes differ once input store paths are masked, so a derivation that only rebuilds because an input changed is not listed; e.g. `+mcp-nixos-2.4.3`). Skip the wrapper derivations listed in this file's header. `scripts/quest-verify` matches these lines against the quest's `leaves=` globs.
 4. Without flags it is a diagnostic: changed derivation names, `nix-diff` per differing top-level derivation, and the text diff of each theme's `hypr/hyprland.lua` (evaluated from `xdg.configFile`). `--build` additionally builds both sides and prints `nix store diff-closures`; it is the only mode that builds.
@@ -147,7 +147,7 @@ meta: model=claude-sonnet-5-5 effort=high boss=yes diff=none
 
 **Do not.** Hard-code theme ids or option names.
 
-**Verify.** `scripts/closure-diff --assert-same HEAD` passes on a clean tree, also with `--option max-jobs 0` in `NIX_CONFIG` (proves nothing is built). `scripts/quest-verify --oracle-only --base HEAD~1 c1q02` runs (the CI form). In a temporary worktree:
+**Verify.** `scripts/closure-diff --assert-same HEAD` passes on a clean tree without building any output (evaluation may still fetch sources: Hyprland's flake uses import-from-derivation). `scripts/quest-verify --oracle-only --base HEAD~1 c1q02` runs (the CI form). In a temporary worktree:
 - (a) rename `kit.profile.id` to `dangonix.theme.id` throughout and move `profiles/` to `shells/` (`themes/` still holds classic palettes): `--assert-same` passes;
 - (b) remove one theme: fails without `--removed <id>`, passes with it;
 - (c) empty the registry: fails with "compared zero themes";

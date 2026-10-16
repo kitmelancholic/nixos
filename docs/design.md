@@ -143,7 +143,7 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 | `dangonix` | read | allow | статус (тема, power mode, Foundry) + help |
 | `dangonix commands` | read | allow | всі команди з описом, effect, agent (`--json` — API для агентів/shell'ів) |
 | `dangonix switch [--home\|--host] [--backup]` | host | ask | транзакція: build host + home, nvd diff, активувати хост (тільки якщо змінився), потім home |
-| `dangonix check [--fast\|--vm]` | read | allow | завжди: лінт доків і комітів, shellcheck; full: `nix flake check` (static, host, всі теми, verify, контракт); `--fast`: тільки eval, без IFD; `--vm`: VM-тести транзакцій (`packages.dangonix-vm`) |
+| `dangonix check [--fast\|--vm]` | read | allow | завжди: лінт доків і комітів, shellcheck; full: `nix flake check` (static, host, всі теми, verify, контракт); `--fast`: тільки eval; `--vm`: VM-тести транзакцій (`packages.dangonix-vm`) |
 | `dangonix doctor` | read | allow | runtime-перевірка ролей активної теми |
 | `dangonix update [input...]` | state | ask | оновити всі inputs крім held, `dangonix check`, при помилці повернути `flake.lock`; ніколи не switch'ить і не комітить |
 | `dangonix theme` | read | allow | список тем: selected (`state.json`) і active |
