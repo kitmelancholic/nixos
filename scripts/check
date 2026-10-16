@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # The one check entry point until `dangonix check` absorbs it (c1q13).
 #   check --docs   docs, commit messages since origin/main, shellcheck
-#   check --fast   --docs + flake evaluation without building (Hyprland's
-#                  flake reads its VERSION through import-from-derivation, so
-#                  IFD cannot be banned)
+#   check --fast   --docs + the derivation of every check and of every host,
+#                  evaluated without building. `nix flake check --no-build`
+#                  cannot do it: Hyprland's flake reads ${src}/VERSION, which
+#                  needs its source in the store (import-from-derivation).
 #   check          --docs + full `nix flake check` (builds every theme)
 # Logs go to a temp file; only the last 40 lines are printed on failure.
 set -euo pipefail
@@ -42,9 +43,16 @@ if git rev-parse -q --verify origin/main >/dev/null; then
 fi
 step shellcheck shellcheck_scripts
 
+eval_all() {
+  nix eval --no-write-lock-file --json .#checks.x86_64-linux \
+    --apply 'builtins.mapAttrs (_: c: c.drvPath)'
+  nix eval --no-write-lock-file --json .#nixosConfigurations \
+    --apply 'builtins.mapAttrs (_: h: h.config.system.build.toplevel.drvPath)'
+}
+
 case $mode in
 --fast)
-  step eval nix flake check --no-build --no-write-lock-file
+  step eval eval_all
   ;;
 --full)
   step flake nix flake check --no-write-lock-file
