@@ -1,0 +1,61 @@
+# Evaluation-only CI: the runners can fetch every flake input, but nothing is
+# built (the Foundry payload is licensed and the desktop closure is huge).
+# Builds and activation stay on the laptop (docs/remake.md).
+name: ci
+
+on:
+  push:
+    branches: [main, redesign]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: scripts/check --fast
+        run: scripts/check --fast
+
+  # From c1q03: every quest commit must change exactly what its meta line
+  # declares (scripts/quest-verify), compared with its parent.
+  oracle:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: quest oracle
+        env:
+          BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          AFTER: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ -z $BEFORE || $BEFORE == 0000000000000000000000000000000000000000 ]]; then
+            BEFORE=$(git merge-base origin/main "$AFTER")
+          fi
+          for sha in $(git rev-list --reverse --no-merges "$BEFORE..$AFTER"); do
+            id=$(git log -1 --format=%s "$sha" | grep -oP '^[a-z]+\(\Kc\d+q\d+(?=\))' || true)
+            [[ -n $id ]] || continue
+            files=$(git diff-tree --no-commit-id --name-only -r "$sha")
+            [[ $files == docs/progress.md ]] && continue   # journal-only commit
+            git checkout -q "$sha"
+            if [[ ! -x scripts/closure-diff ]]; then
+              echo "== $id ${sha:0:7}: no oracle yet"
+              continue
+            fi
+            echo "== $id ${sha:0:7}"
+            scripts/quest-verify --oracle-only --base "$sha~1" "$id"
+          done

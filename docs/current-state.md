@@ -2,7 +2,7 @@
 
 Стан на 2026-10-16. Код — ще kitOS (`flake.nix`: `description = "kitOS v0.16.3"`), жоден stage remake'у не виконано. Ціль — [design](design.md).
 
-**Гілки.** На GitHub `main` = `ff258ef` (plan + routine). Гілка `redesign` (`804b792` baseline → `ff258ef` → `24b4691` routine review fixes) існує **тільки локально** на ноутбуці, тому хмарні агенти бачать лише `main`.
+**Гілки.** На GitHub `main` = `ff258ef` (plan + routine). Гілка `redesign` теж на GitHub: доки, правила кампанії і tooling перед c1q00. Хмарний писар пушить туди доки й скрипти; на ноутбуці лежать незакомічені `flake.lock`, `flake.nix`, `home/packages.nix` (їх закомітить c1q00).
 
 ## 1. Що є
 - **Розмір:** ~3.3k рядків Nix, з них `flake.nix` — 285 (≈120 — checks).
@@ -12,7 +12,8 @@
 - **Теми (у коді — "profiles")** — реєстр `profiles/default.nix`, default `catppuccin`:
   - classic family: `catppuccin`, `tokyo-night`, `gruvbox`, `kit-dark` (палітри в `themes/`; Waybar, Dunst, SwayOSD, awww, Hyprlock, Hypridle, Wlogout);
   - external shells: `dms`, `noctalia`, `caelestia`.
-- **Agent tooling:** Graphify (`graphify-nix/`, patch, `home/graphify.nix`, 37 MB `graphify-out/`), `.codex/hooks.json`, `.claude/` (`/quest`, `git-guard`, `ref-guard`), `scripts/campaign`, `scripts/quest-verify`, `CLAUDE.md` (тільки build output і git правила).
+- **Agent tooling:** Graphify (`graphify-nix/`, patch, `home/graphify.nix`, 37 MB `graphify-out/`), `.codex/hooks.json`, `.claude/` (`/quest`, `settings.json` з дозволами, `git-guard`, `ref-guard`, `commit-msg`), `scripts/` (`check`, `quest-verify`, `campaign`, `lint-docs`, `lint-commits`, `next-version`), `CLAUDE.md` (тільки build output і git правила).
+- **CI:** `.github/workflows/ci.yml` — `scripts/check --fast` (лінт доків і комітів, shellcheck, eval без збірки) і оракул з c1q03.
 
 ## 2. Що добре (лишаємо)
 - **Host і home розділені.** Standalone Home Manager — зміна теми не перебудовує NixOS.

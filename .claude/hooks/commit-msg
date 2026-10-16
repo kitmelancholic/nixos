@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Git commit-msg hook, installed in c1q00 as .git/hooks/commit-msg. Inside
+# Claude Code (CLAUDECODE=1) every commit message must follow Conventional
+# Commits (scripts/lint-commits). Outside Claude Code it does nothing; CI
+# checks every pushed commit anyway.
+set -euo pipefail
+[[ ${CLAUDECODE:-} == 1 ]] || exit 0
+exec "$(git rev-parse --show-toplevel)/scripts/lint-commits" --msg-file "$1"

@@ -37,7 +37,10 @@ themes/
   noctalia/             family 1, stable
   caelestia/            family 2, experimental
 tests/binds/<id>.json   frozen fixture біндів
-scripts/closure-diff    output oracle
+tests/dangonix-vm/      fixture-flake і VM-тест транзакцій
+scripts/closure-diff    oracle: порівнює drvPath, тільки eval
+scripts/quest-verify, campaign, lint-docs, lint-commits, next-version
+.github/workflows/ci.yml  eval + лінт + oracle на кожен push, без збірки
 docs/themes.md          довідка по контракту + інтерв'ю для нової теми
 .mcp.json, .claude/settings.json, CLAUDE.md
 README.md               мануал для мене (intro + команди + fresh install)
@@ -140,7 +143,7 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 | `dangonix` | read | allow | статус (тема, power mode, Foundry) + help |
 | `dangonix commands` | read | allow | всі команди з описом, effect, agent (`--json` — API для агентів/shell'ів) |
 | `dangonix switch [--home\|--host] [--backup]` | host | ask | транзакція: build host + home, nvd diff, активувати хост (тільки якщо змінився), потім home |
-| `dangonix check [--fast\|--vm]` | read | allow | full: `nix flake check` (static, host, всі теми, verify, контракт); `--fast`: тільки eval; `--vm`: VM-тести транзакцій |
+| `dangonix check [--fast\|--vm]` | read | allow | завжди: лінт доків і комітів, shellcheck; full: `nix flake check` (static, host, всі теми, verify, контракт); `--fast`: тільки eval, без IFD; `--vm`: VM-тести транзакцій (`packages.dangonix-vm`) |
 | `dangonix doctor` | read | allow | runtime-перевірка ролей активної теми |
 | `dangonix update [input...]` | state | ask | оновити всі inputs крім held, `dangonix check`, при помилці повернути `flake.lock`; ніколи не switch'ить і не комітить |
 | `dangonix theme` | read | allow | список тем: selected (`state.json`) і active |
@@ -211,6 +214,7 @@ nix --extra-experimental-features 'nix-command flakes' run ~/nixos -- switch
 - `flake.lock` пінить усе, без `?rev=` у `flake.nix`.
 - `dangonix update` пропускає **held list** (`hyprland`, `noctalia`, `caelestia`), якщо input не названо явно; повідомляє про held.
 - Gate — `dangonix check`: збирає host toplevel і кожну тему; при помилці повертає `flake.lock` байт-у-байт; ніколи не switch'ить.
+- CI на GitHub — другий, eval-only gate: та сама `check --fast` і оракул на кожен push. CD немає: switch завжди робиш ти.
 - Kernel — `linuxPackages_latest`, оновлюється тільки через gated `dangonix update`.
 - Login: SDDM + `thyx`, спільний для всіх тем. Plymouth — host-owned, остання ціль.
 

@@ -1,0 +1,85 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(scripts/check)",
+      "Bash(scripts/check *)",
+      "Bash(scripts/quest-verify *)",
+      "Bash(scripts/closure-diff *)",
+      "Bash(scripts/next-version)",
+      "Bash(scripts/lint-docs)",
+      "Bash(scripts/lint-commits *)",
+      "Bash(nix build *)",
+      "Bash(nix eval *)",
+      "Bash(nix fmt)",
+      "Bash(nix fmt *)",
+      "Bash(nix flake check *)",
+      "Bash(nix flake show *)",
+      "Bash(nix flake metadata *)",
+      "Bash(nix flake lock)",
+      "Bash(nix path-info *)",
+      "Bash(nix derivation show *)",
+      "Bash(nix log *)",
+      "Bash(nix store diff-closures *)",
+      "Bash(nix-diff *)",
+      "Bash(git status *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git diff)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git add *)",
+      "Bash(git rm *)",
+      "Bash(git mv *)",
+      "Bash(git commit *)",
+      "Bash(git tag *)",
+      "Bash(git rev-parse *)",
+      "Bash(git stash create)",
+      "Bash(git worktree *)",
+      "Bash(git restore *)",
+      "Bash(rg *)",
+      "Bash(jq *)",
+      "Bash(mktemp *)"
+    ],
+    "ask": [
+      "Bash(sudo *)",
+      "Bash(nixos-rebuild *)",
+      "Bash(home-manager switch *)",
+      "Bash(nix flake update *)",
+      "Bash(nix flake update)",
+      "Bash(just switch)",
+      "Bash(just home-switch)",
+      "Bash(nix run .#switch)",
+      "Bash(nix run .#home-switch)",
+      "Bash(kit-profile switch *)",
+      "Bash(kit-theme switch *)",
+      "Bash(foundry)",
+      "Bash(foundry-stop)",
+      "Bash(foundry-restart)"
+    ],
+    "deny": [
+      "Bash(git clean *)",
+      "Bash(git reset --hard *)",
+      "Bash(git checkout .)",
+      "Bash(git commit -a *)",
+      "Edit(**/hardware-configuration.nix)",
+      "Write(**/hardware-configuration.nix)",
+      "Edit(**/.git/**)",
+      "Write(**/.git/**)",
+      "Edit(**/.claude/hooks/**)",
+      "Write(**/.claude/hooks/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/git-guard || exit 2"
+          }
+        ]
+      }
+    ]
+  }
+}

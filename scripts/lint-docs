@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Mechanical doc checks: relative links resolve, docs/tasks.md has every quest
+# heading once, and every quest has a well-formed meta line and a commit
+# subject. Usage: lint-docs
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+fail=0
+err() {
+  echo "lint-docs: $*" >&2
+  fail=1
+}
+
+# 1. Relative links (anchors and external URLs are skipped).
+for f in README.md CLAUDE.md docs/*.md .claude/commands/*.md; do
+  [[ -f $f ]] || continue
+  dir=$(dirname "$f")
+  while read -r link; do
+    target=${link%%#*}
+    [[ -z $target || $target == *://* || $target == mailto:* ]] && continue
+    [[ -e "$dir/$target" ]] || err "$f: broken link '$link'"
+  done < <(grep -oP '\]\(\K[^) ]+' "$f" || true)
+done
+
+# 2. Quest headings: c1q00..c1qNN contiguous, each exactly once.
+tasks=docs/tasks.md
+mapfile -t ids < <(grep -oP '^## \Kc\d+q\d+(?= — )' "$tasks")
+((${#ids[@]})) || err "$tasks: no quest headings"
+dups=$(printf '%s\n' "${ids[@]}" | sort | uniq -d)
+[[ -z $dups ]] || err "$tasks: duplicate quest ids: $dups"
+for i in "${!ids[@]}"; do
+  want=$(printf 'c1q%02d' "$i")
+  [[ ${ids[$i]} == "$want" ]] || {
+    err "$tasks: quest #$i is ${ids[$i]}, expected $want"
+    break
+  }
+done
+
+# 3. Each quest section: meta line fields and a Commit subject.
+for id in "${ids[@]}"; do
+  section=$(awk -v id="$id" '
+    $0 ~ "^## " id " " { f = 1; next }
+    f && /^## /        { exit }
+    f                  { print }' "$tasks")
+  meta=$(grep -m1 '^meta:' <<<"$section" || true)
+  [[ -n $meta ]] || {
+    err "$id: no meta line"
+    continue
+  }
+  for key in model effort boss diff; do
+    grep -qP "\b$key=\S+" <<<"$meta" || err "$id: meta lacks $key="
+  done
+  diff=$(grep -oP '\bdiff=\K\S+' <<<"$meta" || true)
+  case $diff in
+  baseline | source-only | none) ;;
+  leaves) grep -qP '\bleaves=\S+' <<<"$meta" || err "$id: diff=leaves without leaves=" ;;
+  *) err "$id: unknown diff mode '$diff'" ;;
+  esac
+  model=$(grep -oP '\bmodel=\K\S+' <<<"$meta" || true)
+  [[ $model == claude-* ]] || err "$id: model must be a full model id, got '$model'"
+  # shellcheck disable=SC2016  # literal backticks
+  subject=$(grep -oP '^\*\*Commit\.\*\* `\K[^`]+' <<<"$section" || true)
+  if [[ -z $subject ]]; then
+    err "$id: no Commit subject"
+  elif ! grep -qP "^[a-z]+\($id\)!?: \S" <<<"$subject"; then
+    err "$id: commit subject '$subject' lacks scope ($id)"
+  fi
+done
+
+((fail == 0)) && echo "lint-docs: ok"
+exit "$fail"

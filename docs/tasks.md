@@ -24,20 +24,24 @@ GM's turn      checklist for the GM with exact commands (omitted if none).
 ```
 
 **`diff` modes** (enforced by `scripts/quest-verify <id>`):
-- `baseline` / `source-only` — no oracle yet (before c1q03); only `nix flake check`.
-- `none` — `scripts/closure-diff --assert-same HEAD`, plus `--removed` for each id in `removed=`.
+- `baseline` / `source-only` — no oracle yet (before c1q03); only `scripts/check`.
+- `none` — `scripts/closure-diff --assert-same HEAD` (compares derivation paths, evaluation only), plus `--removed` for each id in `removed=`.
 - `leaves` — `scripts/closure-diff --names HEAD`: every changed leaf derivation must match a glob in `leaves=` (prefix `+` added, `-` removed, `~` changed); a glob ending in `?` is optional, every other glob must match at least once. Wrapper derivations (`home-manager-files`, `home-manager-path`, `home-manager-generation`, `etc`, `system-path`, `system-units`, `nixos-system-*`) are never listed.
 
 **Commits** follow [Conventional Commits](https://www.conventionalcommits.org): `<type>(<quest id>)[!]: <subject>`, with the type and `!` given in each section's *Commit*. `!` marks a change the GM notices as a removal or an incompatible change; the body then has a `BREAKING CHANGE:` line saying what. Journal-only commits are `chore(<quest id>): <state>`; commits outside quests use a normal scope (`docs: …`, `fix(scripts): …`).
 
 **Versions** follow [Semantic Versioning](https://semver.org) as git tags `vX.Y.Z`, set only at a long rest by `scripts/next-version` from the commits since the previous version: while `0.x`, a breaking change or `feat` bumps the minor, anything else the patch. `c1r3` releases `v1.0.0`.
 
+**Checks.** `scripts/check --fast` while editing (doc and commit lint, shellcheck, flake evaluation without building, import-from-derivation banned); `scripts/check` is the full one (`nix flake check`), and `scripts/quest-verify` runs it. From c1q13 `dangonix check` is the same thing. CI on GitHub runs `scripts/check --fast` on every push and, once `scripts/closure-diff` exists, the oracle for every quest commit; the hero never pushes, so CI is the signal for the GM and the scribe.
+
+**Models.** `model=` is a full model id, so a campaign never changes model halfway. The judge and the cleric are Opus.
+
 **Shared rules.** Tests that change `state.json`, `flake.lock` or Nix code on purpose run in a temporary worktree: `wt=$(mktemp -d) && git worktree add --detach "$wt" "$(git stash create)"`, then `git worktree remove --force "$wt"`; `git status` in the checkout must be unchanged afterwards. `hosts/nixos/hardware-configuration.nix` is never touched.
 
 ---
 
 ## c1q00 — Roll call of heroes
-meta: model=sonnet effort=medium boss=no diff=baseline rest=c1r0
+meta: model=claude-sonnet-5-5 effort=medium boss=no diff=baseline rest=c1r0
 
 **Goal.** The uncommitted work that predates the remake is committed as the baseline, after the GM blesses it.
 
@@ -52,7 +56,7 @@ meta: model=sonnet effort=medium boss=no diff=baseline rest=c1r0
    - write the summary for the GM into the `хід майстра` entry: `flake.nix` (`pkgsUnstable` with `config.allowUnfree = true`); `home/packages.nix` (`pkgsUnstable.claude-code`); per changed `flake.lock` input, old → new revision and date, calling out `nixpkgs` and the held inputs `hyprland`, `noctalia`, `caelestia`; what changed in the graphify patch and whether the new `graphify` lock entry needs it;
    - run `nix flake check --no-write-lock-file` and build `.#nixosConfigurations.nixos.config.system.build.toplevel`;
    - commit only `docs/progress.md` and stop.
-2. On `/quest retry c1q00` with `благословення`: `git add flake.nix flake.lock home/packages.nix patches/graphify-nix-support.patch`, `git rm AGENTS.md`, commit, tag `redesign-baseline` and `c1r0`, install `.claude/hooks/ref-guard` as the git `reference-transaction` and `pre-push` hook, append `виконано`.
+2. On `/quest retry c1q00` with `благословення`: `git add flake.nix flake.lock home/packages.nix patches/graphify-nix-support.patch`, `git rm AGENTS.md`, commit, tag `redesign-baseline` and `c1r0`, install `.claude/hooks/ref-guard` as the git `reference-transaction` and `pre-push` hook and `.claude/hooks/commit-msg` as the git `commit-msg` hook (executable copies in `.git/hooks/`), append `виконано`.
 
 **Do not.** Stage anything outside those five paths. Edit any Nix file.
 
@@ -70,18 +74,19 @@ meta: model=sonnet effort=medium boss=no diff=baseline rest=c1r0
 ---
 
 ## c1q01 — Reading the map
-meta: model=sonnet effort=medium boss=no diff=source-only
+meta: model=claude-sonnet-5-5 effort=medium boss=no diff=source-only
 
-**Goal.** Confirm the docs-sync commit is in the branch and consistent, so later quests can rely on it.
+**Goal.** Confirm the docs and the pre-campaign tooling are in the branch and consistent, so later quests can rely on them.
 
 **Why.** The docs and this file were committed on `main` before the remake and merged into `redesign`; a broken link or a missing section would mislead every later quest.
 
 **Read first.** `docs/` listing, `README.md`.
 
 **Steps.**
-1. Check that `docs/vision.md`, `docs/design.md`, `docs/current-state.md`, `docs/remake.md`, `docs/tasks.md`, `.claude/commands/quest.md`, `scripts/quest-verify`, `scripts/campaign` exist and `docs/redesign-plan.md` and `.claude/commands/next-stage.md` do not.
-2. Every relative link in `README.md` and `docs/*.md` resolves to an existing file; every `## c1qNN` heading in `docs/tasks.md` from 00 to 20 exists exactly once.
-3. Anything wrong → `провалений кидок` naming it (do not fix docs yourself).
+1. Check that `docs/vision.md`, `docs/design.md`, `docs/current-state.md`, `docs/remake.md`, `docs/tasks.md`, `.claude/commands/quest.md`, `.claude/settings.json`, `.github/workflows/ci.yml`, `scripts/check`, `scripts/lint-docs`, `scripts/lint-commits`, `scripts/quest-verify`, `scripts/campaign` exist and `docs/redesign-plan.md` and `.claude/commands/next-stage.md` do not.
+2. `scripts/check --fast` passes (its `lint-docs` step checks links, quest headings, meta lines and commit subjects).
+3. The git hooks installed in c1q00 (`commit-msg`, `reference-transaction`, `pre-push`) exist in `.git/hooks/` and match `.claude/hooks/`.
+4. Anything wrong → `провалений кидок` naming it (do not fix docs yourself).
 
 **Do not.** Edit any doc or Nix file.
 
@@ -94,7 +99,7 @@ meta: model=sonnet effort=medium boss=no diff=source-only
 ---
 
 ## c1q02 — The mirror twin
-meta: model=sonnet effort=medium boss=no diff=source-only
+meta: model=claude-sonnet-5-5 effort=medium boss=no diff=source-only
 
 **Goal.** The repo is no longer copied into the home closure, and `kit-profile` switches from the checkout.
 
@@ -125,24 +130,24 @@ meta: model=sonnet effort=medium boss=no diff=source-only
 ---
 
 ## c1q03 — Eye of the oracle ⚔️
-meta: model=sonnet effort=high boss=yes diff=none
+meta: model=claude-sonnet-5-5 effort=high boss=yes diff=none
 
-**Goal.** `scripts/closure-diff` proves "the built system did not change" or names exactly what changed.
+**Goal.** `scripts/closure-diff` proves "the system would not change" or names exactly what changes, by evaluation alone.
 
-**Why.** Every later quest's expected diff is enforced by this script through `scripts/quest-verify`. It must survive the renames of c1q17.
+**Why.** Every later quest's expected diff is enforced by this script through `scripts/quest-verify`, and by CI on every pushed quest commit. Comparing derivation paths instead of out paths needs no build: equal `drvPath` means equal output, it runs without the Foundry ZIP, and it runs on GitHub's runners. It must survive the renames of c1q17.
 
 **Read first.** `scripts/quest-verify` (its use of `--assert-same`, `--removed`, `--names`).
 
 **Steps.** Write `scripts/closure-diff [--assert-same] [--added <id>…] [--removed <id>…] [--names] <rev>` comparing `<rev>` with the working tree:
-1. Theme ids come from `lib.themes` at both revisions. Compare the host toplevel (`nixosConfigurations.nixos.config.system.build.toplevel`) and `checks.x86_64-linux.home-<id>` for every id present at both. Never rely on `homeConfigurations.kit-*` or option names.
-2. `--assert-same` exits non-zero if any compared out path differs (print `nix-diff` for each), if zero themes were compared, or if the added/removed themes are not exactly what `--added`/`--removed` declare.
-3. `--names` prints one changed leaf derivation per line as `<sign><store path basename without the hash>` (sign `+` added, `-` removed, `~` changed; e.g. `+mcp-nixos-2.4.3`), skipping the wrapper derivations listed in this file's header. `scripts/quest-verify` matches these lines against the quest's `leaves=` globs.
-4. Without flags it is a diagnostic: changed derivation names, `nix-diff` per differing top-level output, `nix store diff-closures`, and the text diff of each theme's `home-files/.config/hypr/hyprland.lua`.
-5. A `writeShellApplication`-style bash script with `set -euo pipefail`; dependencies (`nix-diff`, `jq`) via `nix shell` or the devShell.
+1. Theme ids come from `lib.themes` at both revisions. Compare the `drvPath` of the host toplevel (`nixosConfigurations.nixos.config.system.build.toplevel`) and of `checks.x86_64-linux.home-<id>` for every id present at both, with `nix eval --raw … --option allow-import-from-derivation false`. Evaluate `<rev>` from a temporary worktree, never by checking it out in the checkout. Never rely on `homeConfigurations.kit-*` or option names.
+2. `--assert-same` exits non-zero if any compared `drvPath` differs (print `nix-diff` of the two `.drv` files for each), if zero themes were compared, or if the added/removed themes are not exactly what `--added`/`--removed` declare.
+3. `--names` compares the two derivation closures (`nix-store -qR <drv>`, `.drv` files only) and prints one changed leaf derivation per line as `<sign><name>`, where `<name>` is the `.drv` basename without hash and `.drv` (sign `+` only in the new closure, `-` only in the old, `~` same name on both sides whose own attributes differ once input store paths are masked, so a derivation that only rebuilds because an input changed is not listed; e.g. `+mcp-nixos-2.4.3`). Skip the wrapper derivations listed in this file's header. `scripts/quest-verify` matches these lines against the quest's `leaves=` globs.
+4. Without flags it is a diagnostic: changed derivation names, `nix-diff` per differing top-level derivation, and the text diff of each theme's `hypr/hyprland.lua` (evaluated from `xdg.configFile`). `--build` additionally builds both sides and prints `nix store diff-closures`; it is the only mode that builds.
+5. A bash script with `set -euo pipefail`; dependencies (`nix-diff`, `jq`) via `nix shell` or the devShell. It must pass `shellcheck` (`scripts/check` runs it): add it to the list in `scripts/check`.
 
 **Do not.** Hard-code theme ids or option names.
 
-**Verify.** `scripts/closure-diff --assert-same HEAD` passes on a clean tree. In a temporary worktree:
+**Verify.** `scripts/closure-diff --assert-same HEAD` passes on a clean tree, also with `--option max-jobs 0` in `NIX_CONFIG` (proves nothing is built). `scripts/quest-verify --oracle-only --base HEAD~1 c1q02` runs (the CI form). In a temporary worktree:
 - (a) rename `kit.profile.id` to `dangonix.theme.id` throughout and move `profiles/` to `shells/` (`themes/` still holds classic palettes): `--assert-same` passes;
 - (b) remove one theme: fails without `--removed <id>`, passes with it;
 - (c) empty the registry: fails with "compared zero themes";
@@ -156,7 +161,7 @@ meta: model=sonnet effort=high boss=yes diff=none
 ---
 
 ## c1q04 — Banishing the graphomaniac
-meta: model=sonnet effort=medium boss=no diff=leaves leaves=-graphify-*,-graphify-codex-skill*,-hm_.codexAGENTS.md,-hm_.codexhooks.json,-python3*?
+meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=-graphify-*,-graphify-codex-skill*,-hm_.codexAGENTS.md,-hm_.codexhooks.json,-python3*?
 
 **Goal.** Graphify and every Codex-specific repo file are gone; Zed's `codex-acp` stays.
 
@@ -181,25 +186,26 @@ meta: model=sonnet effort=medium boss=no diff=leaves leaves=-graphify-*,-graphif
 ---
 
 ## c1q05 — Guild charter
-meta: model=sonnet effort=medium boss=no diff=leaves leaves=+mcp-nixos*,+bash-guard*,+hm_.configdangonixhooksbash-guard,~claude-code*?
+meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=+mcp-nixos*,+bash-guard*,+hm_.configdangonixhooksbash-guard,~claude-code*?
 
-**Goal.** `CLAUDE.md`, permissions, a fail-closed Bash guard and `mcp-nixos` give agents safe, short guidance.
+**Goal.** `CLAUDE.md`, permissions, a fail-closed Bash guard, `mcp-nixos` and `scripts/opt` give agents safe, short guidance.
 
 **Why.** Lands right after c1q04 so old and new agent tooling never coexist. Design: [§10](design.md#10-агенти).
 
-**Read first.** `CLAUDE.md`, `.claude/settings.local.json` (if present), `home/packages.nix`.
+**Read first.** `CLAUDE.md`, `.claude/settings.json`, `.claude/settings.local.json` (if present), `home/packages.nix`.
 
 **Steps.**
-1. `CLAUDE.md` (English, ≤ 60 lines) describes only what exists now: what the repo is (two sentences, one machine); invariants (never edit `hardware-configuration.nix`; a theme never changes the host; every theme passes the checks; never remove or rebind an existing key); the loop `edit → nix fmt → nix flake check --no-write-lock-file → scripts/closure-diff --assert-same HEAD`; quests via `/quest`; stage files explicitly, never `git commit -a`; temporary worktrees for state-changing tests; the mcp-nixos line (look up names when unsure, 26.05 channel, it does not know flake-input options); one-line permission reminders; one line per top-level directory.
+1. `CLAUDE.md` (English, ≤ 60 lines) describes only what exists now: what the repo is (two sentences, one machine); invariants (never edit `hardware-configuration.nix`; a theme never changes the host; every theme passes the checks; never remove or rebind an existing key); the loop `edit → nix fmt → scripts/check --fast → scripts/quest-verify <id>`; quests via `/quest`; stage files explicitly, never `git commit -a`; temporary worktrees for state-changing tests; the mcp-nixos line (look up names when unsure, 26.05 channel, it does not know flake-input options; for those use `scripts/opt`); one-line permission reminders; one line per top-level directory.
 2. Claude Code CLI: confirm the nixpkgs wrapper sets `DISABLE_AUTOUPDATER=1`; if not, wrap it. Note in the GM's turn any `~/.local/bin/claude` or `~/.npm-global` install to remove.
 3. `pkgs.mcp-nixos` in home packages; committed `.mcp.json` `{"mcpServers":{"nixos":{"command":"mcp-nixos"}}}`; `enabledMcpjsonServers: ["nixos"]`.
 4. Plugin `claude-md-management` only, via `extraKnownMarketplaces` (`claude-plugins-official`) and `enabledPlugins` in `.claude/settings.json`; marketplace auto-update off if the key exists.
 5. Guard: a `writeShellApplication` `bash-guard` (deps in Nix, any internal error exits 2) that blocks any Bash command whose text mentions `hardware-configuration.nix`, installed by HM at `~/.config/dangonix/hooks/bash-guard` (`xdg.configFile`, executable). Hook command: `"$HOME/.config/dangonix/hooks/bash-guard" || exit 2`. Deny Edit/Write of `hosts/nixos/hardware-configuration.nix`, `.git/**`, `.claude/hooks/**`.
-6. Permissions in `.claude/settings.json`: ask for `sudo`, `nixos-rebuild`, `home-manager switch`, `nix flake update`, `nix flake lock`, `just switch`, `just home-switch`, `nix run .#switch`, `nix run .#home-switch`, `kit-profile switch`, `kit-theme switch`, `foundry`, `foundry-stop`, `foundry-restart`; allow `nix build`, `nix eval`, `nix flake check`, `nix fmt`, `foundry-status`, `scripts/closure-diff`, `scripts/quest-verify`, `scripts/next-version`. Move the existing `.claude/hooks/git-guard` PreToolUse(Bash) hook from `.claude/settings.local.json` into `.claude/settings.json` (still `… || exit 2`), then delete `.claude/settings.local.json` and add it to `.gitignore`.
+6. Permissions: `.claude/settings.json` was committed before c1q00 with the quest-loop allow list, the ask list, the deny rules of step 5 and the `git-guard` hook; `scripts/campaign` runs headless, where anything not allowed is denied, so keep every command the quest loop needs in `allow` (`nix flake lock` stays allowed: c1q07 and c1q09 need it). Add the step 3-5 keys, the `bash-guard` hook, and allow `foundry-status` and `scripts/opt *`. Delete `.claude/settings.local.json` if present (its `git-guard` hook now lives in `settings.json`; it is already in `.gitignore`).
+7. `scripts/opt [--home [<theme id>]] <option path>`: `nix eval` of the option in the real host configuration (or the theme's home configuration, default theme if no id), printing type, description, default and current value as JSON. Unlike mcp-nixos it knows options from flake inputs (Noctalia, Caelestia, Home Manager). Add it to the shellcheck list in `scripts/check`.
 
 **Do not.** Add hookify or a formatting hook. Put the hook in a profile `bin` directory.
 
-**Verify.** `readlink -f "$(command -v claude)"` is in `/nix/store` and its wrapper sets `DISABLE_AUTOUPDATER=1`.
+**Verify.** `readlink -f "$(command -v claude)"` is in `/nix/store` and its wrapper sets `DISABLE_AUTOUPDATER=1`. `scripts/opt --home noctalia programs.noctalia.enable` prints a description and `true`.
 
 **CLAUDE.md.** Written in this quest.
 
@@ -214,7 +220,7 @@ meta: model=sonnet effort=medium boss=no diff=leaves leaves=+mcp-nixos*,+bash-gu
 ---
 
 ## c1q06 — Under one banner
-meta: model=sonnet effort=medium boss=no diff=none
+meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none
 
 **Goal.** The default theme (`.#kit`, fresh install) is `noctalia`, and the classic-only override canary is gone.
 
@@ -239,7 +245,7 @@ meta: model=sonnet effort=medium boss=no diff=none
 ---
 
 ## c1q07 — Fall of the Dark Master
-meta: model=sonnet effort=medium boss=no diff=none removed=dms
+meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none removed=dms
 
 **Goal.** The `dms` theme (Dank Material Shell) no longer exists in the repo.
 
@@ -264,7 +270,7 @@ meta: model=sonnet effort=medium boss=no diff=none removed=dms
 ---
 
 ## c1q08 — Twilight of the classics
-meta: model=sonnet effort=medium boss=no diff=none removed=catppuccin,tokyo-night,gruvbox,kit-dark
+meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none removed=catppuccin,tokyo-night,gruvbox,kit-dark
 
 **Goal.** The classic family is gone; only Noctalia and Caelestia remain.
 
@@ -288,7 +294,7 @@ meta: model=sonnet effort=medium boss=no diff=none removed=catppuccin,tokyo-nigh
 ---
 
 ## c1q09 — Dispelling Stylix
-meta: model=sonnet effort=medium boss=no diff=none
+meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none
 
 **Goal.** Stylix is gone.
 
@@ -307,7 +313,7 @@ meta: model=sonnet effort=medium boss=no diff=none
 ---
 
 ## c1q10 — Cleaning the castle ⚔️
-meta: model=sonnet effort=medium boss=yes diff=leaves leaves=-hyprpolkitagent*,-hyprlock*? rest=c1r1
+meta: model=claude-sonnet-5-5 effort=medium boss=yes diff=leaves leaves=-hyprpolkitagent*,-hyprlock*? rest=c1r1
 
 **Goal.** The host keeps only what the remaining lock screens need.
 
@@ -338,7 +344,7 @@ meta: model=sonnet effort=medium boss=yes diff=leaves leaves=-hyprpolkitagent*,-
 ---
 
 ## c1q11 — Warding runes ⚔️
-meta: model=sonnet effort=high boss=yes diff=none
+meta: model=claude-sonnet-5-5 effort=high boss=yes diff=none
 
 **Goal.** All checks live in `lib/checks.nix`, generic over the registry, plus a host build check and a frozen bind fixture.
 
@@ -364,7 +370,7 @@ meta: model=sonnet effort=high boss=yes diff=none
 ---
 
 ## c1q12 — Book of choices
-meta: model=sonnet effort=medium boss=no diff=none
+meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none
 
 **Goal.** A tracked `state.json` holds every choice a command can make: the theme and the Foundry instances.
 
@@ -392,7 +398,7 @@ meta: model=sonnet effort=medium boss=no diff=none
 ---
 
 ## c1q13 — Forging dangonix ⚔️
-meta: model=sonnet effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_.configfishcompletionsdangonix.fish rest=c1r2
+meta: model=claude-sonnet-5-5 effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_.configfishcompletionsdangonix.fish rest=c1r2
 
 **Goal.** `dangonix` v1 runs every mutation as a transaction, next to the old commands.
 
@@ -402,19 +408,22 @@ meta: model=sonnet effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_.confi
 
 **Steps.**
 1. `lib/dangonix/` (`default.nix`, `commands.nix` with `effect` and `agent`, `dangonix.sh`) and `home/dangonix.nix`; `apps.default = dangonix`; option `kit.repo` (default `~/nixos`, renamed in c1q17).
-2. Subcommands: `switch`, `check` (includes `host`), `update` (held list, reports held), `theme`, `commands`, and `foundry` limited to one instance: `list`, `status|logs|check|start|stop|restart|open [main]`, `import <zip>`, `upgrade main <zip>`, `add main <zip>`, `remove main`. Every command has `--json`; every non-`read` command has `--dry`.
+2. Subcommands: `switch`, `check [--fast|--vm]` (absorbs `scripts/check`: the same steps and modes, plus `host`; `scripts/check` becomes `exec nix run "$(git rev-parse --show-toplevel)" -- check "$@"` so CI and `quest-verify` keep working), `update` (held list, reports held), `theme`, `commands`, and `foundry` limited to one instance: `list`, `status|logs|check|start|stop|restart|open [main]`, `import <zip>`, `upgrade main <zip>`, `add main <zip>`, `remove main`. Every command has `--json`; every non-`read` command has `--dry`.
 3. Every `state`/`host` command is the transaction from design §5: one lock (reuse `kit-home-activation.lock`) around snapshot, preflight, `state.json` edit, build, host activation, home activation, recovery.
-4. Generate the `.claude/settings.json` permission block from the command table's `agent` field + the registry (per-id ask rules) + `allow dangonix --dry …` + the hand-written non-dangonix rules from c1q05; add design check 7.
+4. Generate the `.claude/settings.json` permission block from the command table's `agent` field + the registry (per-id ask rules) + `allow dangonix --dry …` + the hand-written non-dangonix rules from c1q05 (keep the quest-loop allow list: headless runs deny everything else); add design check 7.
+5. VM harness for the transaction cases that break activation on purpose: `pkgs.testers.runNixOSTest` exposed as `packages.x86_64-linux.dangonix-vm` (not in `checks`, so `dangonix check` stays fast) and run by `dangonix check --vm`. The node is a small NixOS with Home Manager, user `kit` and `dangonix`, switching between fixture configurations under `tests/dangonix-vm/` (a tiny host and home on the same nixpkgs, not the real host: no Foundry, no Hyprland). The VM is offline: put every fixture variant's build closure in the image (`system.includeBuildDependencies` or `virtualisation.additionalPaths`, `nix.settings.substituters = [ ]`); nixpkgs' own `nixos/tests/nixos-rebuild-*.nix` show the pattern. Cannot make the VM rebuild work → `провалений кидок` with what blocks it; the GM decides whether cases 1-4 run live instead.
 
 **Do not.** Remove or change any old command. Test failures in the checkout.
 
 **Verify (checkout).** `dangonix check`; `dangonix theme` marks noctalia; `dangonix theme noctalia` leaves `git diff` empty; `dangonix --dry switch` reports no change; `sudo -u nobody dangonix switch` refuses; every command in `dangonix commands --json` runs (`read` with `--json`, others with `--dry --json`) without a prompt and its output passes `jq -e .`; check 7 fails after a hand edit of the permission block.
 
-**Verify (temporary worktree, `dangonix --flake "$wt"`).**
+**Verify (VM, `dangonix check --vm`, against the fixture flake).**
 1. Changed host (`environment.etc."dangonix-test".text = "1";`), `switch`: `/etc/dangonix-test` exists; JSON `steps` are host before home.
-2. `system.activationScripts.dangonixFail = "exit 1";`, `theme caelestia`: `failedStep: "host"`, `recovered: true`; system, home generation and `state.json` unchanged.
+2. `system.activationScripts.dangonixFail = "exit 1";`, `theme <other fixture theme>`: `failedStep: "host"`, `recovered: true`; system, home generation, boot entries and `state.json` unchanged.
 3. Host change + `xdg.configFile."dangonix-test".text = "1";` + a `home.activation` step after `linkGeneration` that exits 1: `failedStep: "home"`, `recovered: true`; `~/.config/dangonix-test` gone; generations unchanged.
-4. While `theme caelestia` builds, `foundry remove main` and `kit-profile switch noctalia` fail at once with "another … is running".
+4. While a `theme` switch builds, a second `theme` and `foundry remove main` fail at once with "another … is running".
+
+**Verify (temporary worktree on the laptop, `dangonix --flake "$wt"`; nothing here breaks activation).**
 5. `update`: held inputs byte-identical in `flake.lock`, JSON `held` lists them; `update hyprland` changes only `hyprland`; with a broken check, `update` exits non-zero and `sha256sum flake.lock` is unchanged.
 6. Foundry: version in the table but not in the store → `failedStep: "preflight"` naming `dangonix foundry import <zip>`; a ZIP with one changed byte or an unsupported version is rejected with `state.json` unchanged and no GC root; `remove main` then `add main <zip>` round-trips with an empty `state.json` diff.
 7. Afterwards `dangonix switch` from the checkout restores the normal system; `git -C ~/nixos status` unchanged.
@@ -431,7 +440,7 @@ meta: model=sonnet effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_.confi
 ---
 
 ## c1q14 — Vow of silence
-meta: model=sonnet effort=medium boss=no diff=leaves leaves=+noctalia-runtime-keys*,+python3*-env?,~hm_.configsystemdusernoctalia.service?
+meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=+noctalia-runtime-keys*,+python3*-env?,~hm_.configsystemdusernoctalia.service?
 
 **Goal.** Noctalia telemetry is off through one named runtime key; nothing else in its `settings.toml` changes.
 
@@ -462,7 +471,7 @@ meta: model=sonnet effort=medium boss=no diff=leaves leaves=+noctalia-runtime-ke
 ---
 
 ## c1q15 — Spirit in the iron
-meta: model=sonnet effort=medium boss=no diff=leaves leaves=+fwupd*,+unit-fwupd.service,~dangonix*
+meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=+fwupd*,+unit-fwupd.service,~dangonix*
 
 **Goal.** Firmware updates exist, but only on request through `dangonix firmware`.
 
@@ -486,7 +495,7 @@ meta: model=sonnet effort=medium boss=no diff=leaves leaves=+fwupd*,+unit-fwupd.
 ---
 
 ## c1q16 — Walling up the old gates
-meta: model=sonnet effort=medium boss=no diff=leaves leaves=-kit-profile*,-hm_.localbinkit-theme,-hm_kittheme-id,-foundry*,~hm_applicationsfoundryvtt*,~hm_fishconfig.fish
+meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=-kit-profile*,-hm_.localbinkit-theme,-hm_kittheme-id,-foundry*,~hm_applicationsfoundryvtt*,~hm_fishconfig.fish
 
 **Goal.** `dangonix` is the only entry point.
 
@@ -499,6 +508,7 @@ meta: model=sonnet effort=medium boss=no diff=leaves leaves=-kit-profile*,-hm_.l
 2. Foundry desktop entries call `dangonix foundry open|stop|restart`.
 3. Remove the pre-dangonix ask rules.
 4. README: replace the command sections with a short `dangonix` section.
+5. Delete `scripts/check`; `.github/workflows/ci.yml` and `scripts/quest-verify` call `nix run . -- check …` instead.
 
 **Do not.** Remove `homeConfigurations.kit` or `checks.home-<id>`.
 
@@ -513,7 +523,7 @@ meta: model=sonnet effort=medium boss=no diff=leaves leaves=-kit-profile*,-hm_.l
 ---
 
 ## c1q17 — True name
-meta: model=sonnet effort=medium boss=no diff=leaves leaves=-hm_kitprofile-id,+hm_dangonixtheme-id,~dangonix*
+meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=-hm_kitprofile-id,+hm_dangonixtheme-id,~dangonix*
 
 **Goal.** Everything is named dangoNix / theme.
 
@@ -539,7 +549,7 @@ meta: model=sonnet effort=medium boss=no diff=leaves leaves=-hm_kitprofile-id,+h
 ---
 
 ## c1q18 — Seal of the pact ⚔️
-meta: model=sonnet effort=high boss=yes diff=leaves leaves=~dangonix*,+hm_.configdangonixroles.json
+meta: model=claude-sonnet-5-5 effort=high boss=yes diff=leaves leaves=~dangonix*,+hm_.configdangonixroles.json
 
 **Goal.** The theme contract exists as options, Noctalia declares every role, and `dangonix doctor` checks them live.
 
@@ -567,7 +577,7 @@ meta: model=sonnet effort=high boss=yes diff=leaves leaves=~dangonix*,+hm_.confi
 ---
 
 ## c1q19 — Oath of keys
-meta: model=sonnet effort=medium boss=no diff=none
+meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none
 
 **Goal.** Core binds are one list that calls roles; every bind has a description; `hyprland.lua` is byte-identical.
 
@@ -595,7 +605,7 @@ meta: model=sonnet effort=medium boss=no diff=none
 ---
 
 ## c1q20 — Sealing the pact
-meta: model=sonnet effort=medium boss=no diff=none rest=c1r3
+meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none rest=c1r3
 
 **Goal.** Contract checks 3, 4 and 5 run for every theme, and `docs/themes.md` explains the contract.
 

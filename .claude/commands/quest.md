@@ -17,7 +17,7 @@ Run exactly one quest, then stop. Argument: $ARGUMENTS
    section, append `## <id> — провалений кидок` (max 5 lines: what, why,
    what you need from the GM), commit only `docs/progress.md` as
    `chore(<id>): провалений кидок`, stop.
-5. Do *Steps*. Loop: edit → `nix fmt` → fast check → fix. Respect *Do not*.
+5. Do *Steps*. Loop: edit → `nix fmt` → `scripts/check --fast` → fix. Respect *Do not*.
    Line numbers in the section are hints; re-locate code with grep.
    Stage new files with `git add` before any check (flakes ignore untracked
    files). Never `git commit -a`, `git clean`, `reset --hard`, `checkout .`.
@@ -25,7 +25,7 @@ Run exactly one quest, then stop. Argument: $ARGUMENTS
    twice in a row: revert only the quest's paths, append `провалений кидок`,
    stop.
 7. If the quest's `meta:` line says `boss=yes`: start a reviewer subagent on
-   Opus with the quest section and `git diff --staged`; ask it for concrete
+   Opus (model `opus`) with the quest section and `git diff --staged`; ask it for concrete
    defects only. Fix what it finds, rerun step 6.
 8. Update `CLAUDE.md` if the section's *CLAUDE.md* item says so.
 9. Commit on branch `redesign` with the Conventional Commits subject from
