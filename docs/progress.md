@@ -66,3 +66,5 @@ Automatic guard rejected read-only hook comparison as “git push is denied”; 
 agent: codex gpt-6.1-sol
 
 GM: fixed in 0ebac19 (guard and nix cache); rerun the checks and finish.
+
+GM: guard fixed in 9683e6c. pre-push and reference-transaction must match scripts/hooks/ref-guard (not git-guard); finish.
