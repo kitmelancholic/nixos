@@ -162,7 +162,7 @@ meta: tier=cleric effort=high boss=yes diff=none
 ---
 
 ## c1q04 — Banishing the graphomaniac
-meta: tier=hero effort=medium boss=no diff=leaves leaves=-graphify-*,-graphify-codex-skill*,-hm_.codexAGENTS.md,-hm_.codexhooks.json,-python3*?
+meta: tier=hero effort=medium boss=no diff=leaves leaves=-graphify-*,-graphify-codex-skill*,-graphifyy*,-networkx*,-numpy*,-rapidfuzz*,-tree*sitter*,-ncurses-abi5-compat*,-python3*?,~*?
 
 **Goal.** Graphify is gone; Codex keeps its repo files (`.codex/`), and Zed's `codex-acp` stays.
 

@@ -32,11 +32,6 @@
       };
     };
 
-    graphify = {
-      url = "github:Graphify-Labs/graphify";
-      flake = false;
-    };
-
     pyproject-nix = {
       url = "github:pyproject-nix/pyproject.nix";
       inputs = {

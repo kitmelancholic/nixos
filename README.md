@@ -183,5 +183,3 @@ Launcher entries:
 ## Package Ownership
 
 System packages are kept for drivers, services, and rescue/debug basics. User-facing applications and daily CLI tools live in `home/packages.nix` and Home Manager modules.
-
-The Graphify Nix extractor remains maintained locally because no compatible pinned upstream or fork was established during the refactor. Its integration suite includes real-repository smoke coverage for `query`, `path`, and `explain`.

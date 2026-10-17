@@ -107,3 +107,8 @@ Graphify removal done and `scripts/check` passed, but `quest-verify` fails twice
 Quest paths reverted; `graphify-out/` was deleted (untracked, generated).
 GM: widen `leaves=` (add `-networkx*,-numpy*,-rapidfuzz*,-tree*sitter*,-ncurses-abi5-compat*,-graphifyy*`, `~*?`) and fix the hm_ names (check `closure-diff --names` output), then retry c1q04.
 agent: claude claude-sonnet-5-5
+
+## c1q04 — виконано
+Graphify removed: module, `graphify-nix/`, patch, flake input (lock drops only `graphify`), `.gitignore` entries, README line, stale pdf2md comment. `rg -i graphify` outside `docs/` is empty.
+GM decision applied to the c1q04 `meta:` line: `leaves=` widened; the two `hm_` globs were dropped because `closure-diff --names` lists no `hm_` entries. `scripts/quest-verify c1q04` passed.
+agent: claude claude-opus-5-5

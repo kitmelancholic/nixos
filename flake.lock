@@ -345,22 +345,6 @@
         "type": "github"
       }
     },
-    "graphify": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1791931550,
-        "narHash": "sha256-naDpP4uyA/PBtEgeP4h1iMEetctrHOyk4p3IdkVs7NQ=",
-        "owner": "Graphify-Labs",
-        "repo": "graphify",
-        "rev": "041771be72229bb2c8d8205b9cc6871c6be52b91",
-        "type": "github"
-      },
-      "original": {
-        "owner": "Graphify-Labs",
-        "repo": "graphify",
-        "type": "github"
-      }
-    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -999,7 +983,6 @@
         "claude-desktop-extra": "claude-desktop-extra",
         "dms": "dms",
         "foundryvtt": "foundryvtt",
-        "graphify": "graphify",
         "home-manager": "home-manager",
         "hyprland": "hyprland",
         "nixpkgs": "nixpkgs_4",
