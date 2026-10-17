@@ -10,4 +10,6 @@ network_access = true
 
 [shell_environment_policy]
 # The git hooks (scripts/hooks) guard every agent that sets this.
-set = { DANGONIX_AGENT = "codex" }
+# nix writes its fetcher and eval caches to $XDG_CACHE_HOME/nix, and the
+# sandbox makes ~/.cache read-only; /tmp is writable.
+set = { DANGONIX_AGENT = "codex", XDG_CACHE_HOME = "/tmp/dangonix-codex-cache" }

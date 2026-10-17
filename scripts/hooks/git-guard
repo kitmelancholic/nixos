@@ -17,7 +17,9 @@ deny() {
 }
 
 grep -qP '\bgit\b' <<<"$cmd" || exit 0
-grep -qP '\bgit\b.*\bpush\b' <<<"$cmd" && deny "git push is denied"
+# The git command, not a path such as .git/hooks/pre-push; options may sit
+# between `git` and `push` (git -c k=v push).
+grep -qP '(?<![\w./-])git(\s+-\S+(\s+[^-\s]\S*)?)*\s+push\b' <<<"$cmd" && deny "git push is denied"
 # Changing what makes the hooks run is a bypass; reading the variables or the
 # installed hooks (cmp, diff, cat) is not.
 grep -qP -- '--no-verify|core\.hooksPath|\b(CLAUDECODE|DANGONIX_AGENT)=|\b(unset|env\s+-u)\s+(CLAUDECODE|DANGONIX_AGENT)\b' <<<"$cmd" &&
