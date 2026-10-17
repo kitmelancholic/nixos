@@ -112,3 +112,8 @@ agent: claude claude-sonnet-5-5
 Graphify removed: module, `graphify-nix/`, patch, flake input (lock drops only `graphify`), `.gitignore` entries, README line, stale pdf2md comment. `rg -i graphify` outside `docs/` is empty.
 GM decision applied to the c1q04 `meta:` line: `leaves=` widened; the two `hm_` globs were dropped because `closure-diff --names` lists no `hm_` entries. `scripts/quest-verify c1q04` passed.
 agent: claude claude-opus-5-5
+
+## c1q05 — провалений кидок
+Writes to `.claude/settings.json` and `.mcp.json` were denied (sensitive files, no approval surface); also blocked: reading `~/.codex`, `~/.local/bin`, `/nix/store` outside the checkout. Done and left uncommitted: `home/agents.nix` (bash-guard, new), `home/kit.nix`, `home/packages.nix` (codex, mcp-nixos), `.codex/{config.toml,hooks.json,rules/dangonix.rules}`. Not done: `.claude/settings.json` keys/hook/permissions, `.mcp.json`, `scripts/opt` + check list, `AGENTS.md`, step 7 (codex loading), verify. Claude wrapper sets `DISABLE_AUTOUPDATER=1` (seen in the drv).
+GM: allow edits to `.claude/settings.json` and `.mcp.json` for this run (or apply them by hand), then `/quest retry c1q05`.
+agent: claude claude-sonnet-5-5
