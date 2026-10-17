@@ -67,4 +67,10 @@ agent: codex gpt-6.1-sol
 
 GM: fixed in 0ebac19 (guard and nix cache); rerun the checks and finish.
 
+## c1q01 — виконано
+Required paths, absent legacy paths, CLAUDE.md content and quest symlink passed; all three installed Git hooks match their sources and are executable.
+scripts/check --fast and scripts/quest-verify c1q01 passed (full check; source-only mode has no derivation oracle).
+Only docs/progress.md changed; no derivations changed by this quest.
+agent: codex gpt-6.1-sol
+
 GM: guard fixed in 9683e6c. pre-push and reference-transaction must match scripts/hooks/ref-guard (not git-guard); finish.
