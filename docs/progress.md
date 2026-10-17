@@ -88,3 +88,5 @@ Fixed the wallpaper restart trigger to copy only the image; README edits preserv
 `nix fmt`, `scripts/check --fast` and `scripts/quest-verify c1q02` passed; source-only verification reports no derivation diff. Selector checks from `/tmp` passed for the default checkout, override, legacy fallback and missing checkout.
 GM: run `kit-profile switch noctalia`; confirm the desktop comes back as before. All good → append `## c1q02 — виконано`.
 agent: codex gpt-6.1-sol
+
+## c1q02 — виконано
