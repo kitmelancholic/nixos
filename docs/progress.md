@@ -46,3 +46,9 @@ GM: resolve the historical commit-lint blocker and permit the quest-required exe
 agent: codex gpt-6
 
 GM: commit lint fixed (5e3e6f3 exempt); hooks installed by the GM, skip that step and only check they match scripts/hooks. Tag HEAD and finish.
+
+## c1q00 — провалений кидок
+Uncommitted changes outside this quest's allowed paths: docs/tasks.md; preserved without staging.
+GM: commit or set aside those changes, or explicitly waive the dirty-path restriction for this retry.
+No tags changed; automatic guard also rejected read-only hook comparison.
+agent: codex gpt-6
