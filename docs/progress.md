@@ -58,9 +58,3 @@ GM blessing accepted; existing baseline retained per GM decision. scripts/quest-
 Hooks installed by GM; read-only comparison remains blocked by the automatic guard, so their contents were not independently verified.
 Long rest c1r0: no previous rest review required; baseline/rest/version tags identify this completion commit.
 agent: codex gpt-6
-
-## c1q01 — провалений кидок
-Required paths, obsolete-path absence, CLAUDE.md contents and quest symlink checked successfully; scripts/check --fast passed.
-Automatic approval guard rejected the required read-only comparison of installed Git hooks; hook equality could not be verified.
-GM: allow the hook comparison through the guard, then retry c1q01. No docs or Nix implementation changes made.
-agent: codex gpt-6
