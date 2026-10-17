@@ -8,6 +8,8 @@
       "Bash(scripts/next-version)",
       "Bash(scripts/lint-docs)",
       "Bash(scripts/lint-commits *)",
+      "Bash(scripts/review *)",
+      "Bash(scripts/agent model *)",
       "Bash(nix build *)",
       "Bash(nix eval *)",
       "Bash(nix fmt)",
@@ -65,8 +67,8 @@
       "Write(**/hardware-configuration.nix)",
       "Edit(**/.git/**)",
       "Write(**/.git/**)",
-      "Edit(**/.claude/hooks/**)",
-      "Write(**/.claude/hooks/**)"
+      "Edit(**/scripts/hooks/**)",
+      "Write(**/scripts/hooks/**)"
     ]
   },
   "hooks": {
@@ -76,7 +78,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/git-guard || exit 2"
+            "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || \"$CLAUDE_PROJECT_DIR\"/scripts/hooks/git-guard || exit 2"
           }
         ]
       }
