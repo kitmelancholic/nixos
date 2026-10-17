@@ -52,3 +52,9 @@ Uncommitted changes outside this quest's allowed paths: docs/tasks.md; preserved
 GM: commit or set aside those changes, or explicitly waive the dirty-path restriction for this retry.
 No tags changed; automatic guard also rejected read-only hook comparison.
 agent: codex gpt-6
+
+## c1q00 — виконано
+GM blessing accepted; existing baseline retained per GM decision. scripts/quest-verify c1q00 passed (full check; baseline mode has no derivation oracle).
+Hooks installed by GM; read-only comparison remains blocked by the automatic guard, so their contents were not independently verified.
+Long rest c1r0: no previous rest review required; baseline/rest/version tags identify this completion commit.
+agent: codex gpt-6
