@@ -126,3 +126,12 @@ GM: change c1q05's oracle (widen `leaves=`, dropping `hm_`), run `just home-swit
 agent: claude claude-opus-5-5
 
 GM decision: the agent changed c1q05's `meta:` line in `docs/tasks.md` (staged, not committed) to `leaves=+mcp-nixos*,+bash-guard,+codex*,~claude-code*?,+*?,~*?`: mcp-nixos, bash-guard and codex must appear, other additions and updates are allowed, and removals still fail. `just home-switch` is done (`~/.config/dangonix/hooks/bash-guard` is installed). Retry c1q05: add the `bash-guard` hook to `.claude/settings.json`, run `scripts/quest-verify c1q05`, commit.
+
+## c1q05 — хід майстра
+Retry with the GM's `leaves=` line: added the `bash-guard` hook to `.claude/settings.json` (guard installed by the GM's switch); `scripts/quest-verify c1q05` passed. No non-Nix `claude`/`codex` copies to remove.
+- `just home-switch`.
+- New `claude` session: `claude mcp list` shows `nixos` connected; `/plugin` lists only `claude-md-management`; editing `hosts/nixos/hardware-configuration.nix` is refused; `cat hosts/nixos/hardware-configuration.nix` is blocked; `nix flake check` runs without a prompt; `sudo true` asks.
+- New `codex` session in `~/nixos`: trust the new `bash-guard` hook in `/hooks` (Codex trusts hooks by hash and skips untrusted ones); `/mcp` shows `nixos`; `$quest` is offered; `cat hosts/nixos/hardware-configuration.nix` is blocked; `git push` is refused; `nix flake check` runs without a prompt; `sudo true` asks. Codex has no file-edit hook: its sandbox and your review guard those paths. Consider dropping the `sudo nixos-rebuild switch` allow rule from `~/.codex/rules/default.rules`.
+- Negative: `mv ~/.config/dangonix/hooks/bash-guard ~/.config/dangonix/hooks/bash-guard.off` → every Bash command is blocked in both CLIs; `just home-switch` restores it.
+- All good → `## c1q05 — виконано`.
+agent: claude claude-opus-5-5

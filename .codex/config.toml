@@ -3,6 +3,12 @@
 # commands are in .codex/rules/dangonix.rules.
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"
+# Codex comes from nixpkgs; updates arrive through the flake lock.
+check_for_update_on_startup = false
+
+# Same lookup server as .mcp.json for Claude Code.
+[mcp_servers.nixos]
+command = "mcp-nixos"
 
 [sandbox_workspace_write]
 # nix fetches flake inputs and talks to nix-daemon, as in Claude Code.

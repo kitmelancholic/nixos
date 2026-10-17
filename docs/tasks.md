@@ -187,7 +187,7 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=-graphify-*,-graphify-c
 ---
 
 ## c1q05 — Guild charter
-meta: tier=hero effort=medium boss=no diff=leaves leaves=+mcp-nixos*,+bash-guard*,+hm_.configdangonixhooksbash-guard,+codex*,~claude-code*?,+hm_.codex*?
+meta: tier=hero effort=medium boss=no diff=leaves leaves=+mcp-nixos*,+bash-guard,+codex*,~claude-code*?,+*?,~*?
 
 **Goal.** `AGENTS.md`, permissions for both CLIs, a fail-closed Bash guard, `mcp-nixos` and `scripts/opt` give Claude Code and Codex the same safe, short guidance.
 

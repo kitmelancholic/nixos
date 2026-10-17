@@ -40,7 +40,9 @@
       "Bash(git restore *)",
       "Bash(rg *)",
       "Bash(jq *)",
-      "Bash(mktemp *)"
+      "Bash(mktemp *)",
+      "Bash(foundry-status)",
+      "Bash(scripts/opt *)"
     ],
     "ask": [
       "Bash(sudo *)",
@@ -65,7 +67,10 @@
       "Bash(git commit -a *)",
       "Edit(**/hardware-configuration.nix)",
       "Edit(**/.git/**)",
-      "Edit(**/scripts/hooks/**)"
+      "Edit(**/scripts/hooks/**)",
+      "Write(**/hardware-configuration.nix)",
+      "Write(**/.git/**)",
+      "Write(**/scripts/hooks/**)"
     ]
   },
   "hooks": {
@@ -76,9 +81,28 @@
           {
             "type": "command",
             "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || \"$CLAUDE_PROJECT_DIR\"/scripts/hooks/git-guard || exit 2"
+          },
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/dangonix/hooks/bash-guard\" || exit 2"
           }
         ]
       }
     ]
+  },
+  "enabledMcpjsonServers": [
+    "nixos"
+  ],
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      },
+      "autoUpdate": false
+    }
+  },
+  "enabledPlugins": {
+    "claude-md-management@claude-plugins-official": true
   }
 }

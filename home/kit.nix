@@ -10,6 +10,7 @@ in
 {
   imports = [
     ./options.nix
+    ./agents.nix
     ./desktop.nix
     ./foundry.nix
     ./programs.nix
