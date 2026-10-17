@@ -41,10 +41,12 @@ themes/
 tests/binds/<id>.json   frozen fixture біндів
 tests/dangonix-vm/      fixture-flake і VM-тест транзакцій
 scripts/closure-diff    oracle: порівнює drvPath, тільки eval
-scripts/quest-verify, campaign, lint-docs, lint-commits, next-version, opt
+scripts/quest-verify, campaign, agent, review, lint-docs, lint-commits, next-version, opt
+scripts/hooks/          git-guard, ref-guard, commit-msg (спільні для обох агентів)
 .github/workflows/ci.yml  eval + лінт + oracle на кожен push, без збірки
 docs/themes.md          довідка по контракту + інтерв'ю для нової теми
-.mcp.json, .claude/settings.json, CLAUDE.md
+AGENTS.md, CLAUDE.md (@AGENTS.md), .agents/skills/quest/
+.mcp.json, .claude/settings.json, .codex/ (config.toml, hooks.json, rules/)
 README.md               мануал для мене (intro + команди + fresh install)
 docs/                   vision, design, current-state, remake (укр., для мене); tasks.md (англ., для агентів)
 ```
@@ -67,7 +69,7 @@ themes.noctalia = {
   variant = { };
 };
 ```
-`experimental` лише ховає тему з `dangonix theme` без `--all` і ніколи не послаблює перевірки. Виняток — тимчасовий warning mode для Caelestia (з c1q18 до кампанії II).
+`experimental` лише ховає тему з `dangonix theme` без `--all` і ніколи не послаблює перевірки. Виняток — тимчасовий warning mode для Caelestia (з c1q20 до кампанії II).
 
 ### Ролі (контракт)
 Ядро (Hyprland, apps, input, frontend-сервіси) викликає **ролі**, а не провайдерів. Нова тема = "заповни ролі й пройди перевірки". Чотири види:
@@ -107,7 +109,7 @@ themes.noctalia = {
 4. **Bindings** — frozen fixture (кожен запис на місці і незмінний), ключі ролей присутні, у кожного bind'а є опис, немає дублікатів resolved ключів.
 5. **Executables** — перше слово кожної role-команди є в `home-path/bin` теми або це абсолютний store path.
 6. **Builds** — host toplevel, activation package кожної теми, `Hyprland --verify-config`.
-7. **Command table** — кожна підкоманда в таблиці, у кожної є `effect`/`agent`/kind, не-`read` мають `--dry`, `.claude/settings.json` збігається зі згенерованим.
+7. **Command table** — кожна підкоманда в таблиці, у кожної є `effect`/`agent`/kind, не-`read` мають `--dry`, `.claude/settings.json` і `.codex/rules/dangonix.rules` збігаються зі згенерованими.
 
 Runtime-відповідник — **`dangonix doctor`**: один власник `org.freedesktop.Notifications` (і це заявлений провайдер), зареєстрований polkit agent, запущений idle daemon, один writer clipboard history.
 
@@ -397,7 +399,8 @@ PAM-стек послідовний: `pam_fprintd` чекає палець і п
 
 ### Агенти
 - **Managed settings Claude Code** генерує NixOS-модуль: `/etc/claude-code/managed-settings.json`, змінюється тільки через switch, налаштування репо його не послаблять. Вміст: sandbox `enabled`, `failIfUnavailable`, `allowUnsandboxedCommands: false`; `credentials.files` deny для `~/.ssh`, `~/.config/gh`, `~/.local/share/keyrings`, `~/.1password`, профілю Zen; `network.allowedDomains` — GitHub, `cache.nixos.org`, cachix; `network.allowUnixSockets` — тільки сокет nix-daemon (сокети Docker і 1Password — ні); `Read(...)` deny на ті самі шляхи, бо інструмент Read працює поза sandbox. `bubblewrap` і `socat` — у системі. Точні ключі звірити з документацією Claude Code під час реалізації.
-- `scripts/campaign` запускає `claude` цілком у bubblewrap: видно тільки `~/nixos`, `~/.claude` і сокет nix-daemon.
+- **Codex** — ті самі обмеження через `/etc/codex/` (managed `config.toml`/`requirements.toml` з NixOS-модуля): sandbox `workspace-write` обов'язковий, ті самі deny на шляхи й домени. Точні ключі звірити з документацією Codex.
+- `scripts/campaign` запускає агента (`claude` чи `codex`) цілком у bubblewrap: видно тільки `~/nixos`, `~/.claude` або `~/.codex` і сокет nix-daemon.
 - **Сирі команди, які обгортає `dangonix`,** агентам заборонені тими самими managed settings (deny генерується з поля `wraps` таблиці команд): `nixos-rebuild`, `home-manager switch`, `switch-to-configuration`, `nix-env --set`, `nix-env -i`, `nix profile install`, `nix-collect-garbage`, `nix flake update`, `fwupdmgr update`, `fprintd-enroll`, `fprintd-delete`, `tailscale funnel`, `restic`, `systemctl start|stop|restart foundryvtt-*`, `nmcli … metered`, `Edit`/`Write` на `state.json` і `packages.json`. Агент змінює систему тільки через `dangonix`. Мені — тільки підказка: fish-функції `nixos-rebuild` і `home-manager` друкують «це робить `dangonix switch`», сира команда — `command nixos-rebuild …`; ручні кроки після exit 3 працюють.
 - `.claude/settings.json` у репо лишається для allow/ask ([§12](#12-агенти)).
 - **Перевірити при реалізації:** клітка `scripts/campaign` має бачити й fail-closed hook `~/.config/dangonix/hooks/bash-guard` ([§12](#12-агенти)), `~/.claude.json` і `~/.cache/nix`, інакше кожна Bash-команда героя падає; клієнт `nix` сам качає flake inputs і пише в `~/.cache/nix`, тож `allowedDomains` і дозволений запис мають це покривати (домени — з `flake.lock`); read-команди `dangonix` (`status`, `doctor`, `foundry status`, `security`) потребують D-Bus, systemd і сокета tailscaled — краще виключити `dangonix` із sandbox, ніж відкривати агенту session bus (там keyring з порожнім паролем); deny на `state.json`/`packages.json` має стосуватися тільки checkout'у, а квест, що змінює їхню схему, отримує виняток; `tailscale funnel` без sudo — через `tailscale set --operator=kit`, а не NOPASSWD.
@@ -414,12 +417,12 @@ restic у власну теку на зовнішньому HDD (решту фа
 **Не робимо:** антивірус, USBGuard, AppArmor/firejail, hardened kernel і профіль `hardened` (ламають Steam, Proton, `nix-ld`), `security.protectKernelImage` (вимикає гібернацію), VPN за замовчуванням, FIDO2-ключ (немає), DNS over TLS (поки).
 
 ## 12. Агенти
-- **Тільки Claude Code.** Graphify і Codex repo tooling видалено (Zed `codex-acp` лишається — це фіча редактора). CLI з nixpkgs-unstable, self-updater off, оновлюється через `dangonix update`.
-- **`CLAUDE.md`** англійською, < 60 рядків, описує тільки те, що вже існує. Будь-яка зміна, на яку покладаються агенти, оновлює його в тому самому коміті. README — для мене, CLAUDE.md — для агентів; не дублюють одне одного.
+- **Claude Code і Codex на рівних.** Будь-який з них виконує або продовжує будь-який квест: стан — тільки в репо (`docs/tasks.md`, журнал `docs/progress.md` з рядком `agent:` у кожному записі, git). Одна процедура квесту `.agents/skills/quest/SKILL.md` (`/quest` у Claude, `$quest` у Codex), один `scripts/agent` для headless-запуску обох, суддя — окремий виклик `scripts/review`, тож може бути іншим агентом. Моделі за tier (hero, cleric, judge) — таблиця в `AGENTS.md`. Graphify видалено; Zed `codex-acp` лишається. Обидва CLI з nixpkgs-unstable, self-updater off, оновлюються через `dangonix update`.
+- **`AGENTS.md`** англійською, < 60 рядків, описує тільки те, що вже існує; `CLAUDE.md` — один рядок `@AGENTS.md`. Будь-яка зміна, на яку покладаються агенти, оновлює його в тому самому коміті. README — для мене, AGENTS.md — для агентів; не дублюють одне одного.
 - **Інваріанти для агентів:** не чіпати `hardware-configuration.nix`; тема не змінює хост; кожна тема проходить `dangonix check`; не прибирати й не перебиндовувати наявні клавіші; clipboard і search — core; `settings.toml` Noctalia — тільки через named keys; `ask`-команди і `sudo` — тільки на запит; `state.json` — тільки на запит.
 - **Цикл:** edit → `nix fmt` → `dangonix check --fast` → `dangonix check` → `scripts/closure-diff --assert-same HEAD` (або очікувані зміни); після зміни теми — `dangonix doctor`. Тести, що навмисно змінюють стан, — у тимчасовому worktree.
-- **Guards:** permissions у `.claude/settings.json` (генеруються з таблиці команд); fail-closed Bash hook `~/.config/dangonix/hooks/bash-guard || exit 2` (новий шлях одразу, бо нові речі з початку звуться по-новому; rename у c1q17 стосується тільки наявних `kit`-шляхів) блокує команди з `hardware-configuration.nix`. Це сильний guard, не гарантія — фінальна перевірка мій review diff'у.
-- **Tooling:** `mcp-nixos` (опційно, канал 26.05; не знає options з flake inputs, для них — `scripts/opt`), плагін `claude-md-management` — єдиний. Без hookify і formatting hook.
+- **Guards однакові для обох:** permissions у `.claude/settings.json` і `.codex/rules/dangonix.rules` (генеруються з таблиці команд); git hooks `scripts/hooks/` спрацьовують за `CLAUDECODE=1` або `DANGONIX_AGENT` (Codex ставить його з `.codex/config.toml`); `git-guard` і fail-closed hook `~/.config/dangonix/hooks/bash-guard || exit 2` в обох CLI (новий шлях одразу, бо нові речі з початку звуться по-новому; rename у c1q19 стосується тільки наявних `kit`-шляхів) блокує команди з `hardware-configuration.nix`. Це сильний guard, не гарантія — фінальна перевірка мій review diff'у.
+- **Tooling:** `mcp-nixos` (опційно, канал 26.05; не знає options з flake inputs, для них — `scripts/opt`), плагін `claude-md-management` — єдиний (тільки Claude). Без hookify і formatting hook.
 - Discovery: `dangonix commands --json`.
 
 ## 13. Запозичено з Omarchy 4.0

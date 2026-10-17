@@ -11,7 +11,7 @@ err() {
 }
 
 # 1. Relative links (anchors and external URLs are skipped).
-for f in README.md CLAUDE.md docs/*.md .claude/commands/*.md; do
+for f in README.md AGENTS.md docs/*.md .agents/skills/*/SKILL.md; do
   [[ -f $f ]] || continue
   dir=$(dirname "$f")
   while read -r link; do
@@ -46,7 +46,7 @@ for id in "${ids[@]}"; do
     err "$id: no meta line"
     continue
   }
-  for key in model effort boss diff; do
+  for key in tier effort boss diff; do
     grep -qP "\b$key=\S+" <<<"$meta" || err "$id: meta lacks $key="
   done
   diff=$(grep -oP '\bdiff=\K\S+' <<<"$meta" || true)
@@ -55,8 +55,9 @@ for id in "${ids[@]}"; do
   leaves) grep -qP '\bleaves=\S+' <<<"$meta" || err "$id: diff=leaves without leaves=" ;;
   *) err "$id: unknown diff mode '$diff'" ;;
   esac
-  model=$(grep -oP '\bmodel=\K\S+' <<<"$meta" || true)
-  [[ $model == claude-* ]] || err "$id: model must be a full model id, got '$model'"
+  tier=$(grep -oP '\btier=\K\S+' <<<"$meta" || true)
+  [[ $tier == hero || $tier == cleric ]] || err "$id: tier must be hero or cleric, got '$tier'"
+  grep -qP '\bmodel=' <<<"$meta" && err "$id: models live in AGENTS.md, not in meta"
   # shellcheck disable=SC2016  # literal backticks
   subject=$(grep -oP '^\*\*Commit\.\*\* `\K[^`]+' <<<"$section" || true)
   if [[ -z $subject ]]; then

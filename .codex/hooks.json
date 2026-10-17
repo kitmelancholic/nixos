@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/etc/profiles/per-user/kit/bin/graphify hook-check"
+            "command": "top=$(git rev-parse --show-toplevel 2>/dev/null) && [ -f \"$top/.codex/rules/dangonix.rules\" ] || exit 0; \"$top/scripts/hooks/git-guard\" || exit 2"
           }
         ]
       }

@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# One interface over Claude Code and Codex, so the quest workflow does not
+# depend on which CLI runs it. The tier → model table lives in AGENTS.md.
+#   agent model <claude|codex> <hero|cleric|judge>
+#   agent run   <claude|codex> <tier> <effort> <log> <prompt>   edits allowed
+#   agent ask   <claude|codex> <tier> <effort> <log> <prompt>   read-only;
+#                                                  prints the final message
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+model() {
+  local col
+  case $1 in
+  claude) col=3 ;;
+  codex) col=4 ;;
+  *)
+    echo "agent: unknown agent '$1'" >&2
+    return 2
+    ;;
+  esac
+  awk -F'|' -v tier="$2" -v col="$col" '
+    { gsub(/ /, "", $2) }
+    $2 == tier { gsub(/ /, "", $col); print $col; found = 1; exit }
+    END { exit !found }' AGENTS.md || {
+    echo "agent: no $1 model for tier '$2' in AGENTS.md" >&2
+    return 2
+  }
+}
+
+cmd=${1:?usage: agent model|run|ask …}
+shift
+case $cmd in
+model)
+  model "${1:?agent}" "${2:?tier}"
+  ;;
+run | ask)
+  agent=${1:?agent} tier=${2:?tier} effort=${3:?effort} log=${4:?log}
+  prompt=${5:?prompt}
+  m=$(model "$agent" "$tier") || exit 2
+  export DANGONIX_AGENT=$agent DANGONIX_MODEL=$m
+  case $agent in
+  claude)
+    flags=(--permission-mode acceptEdits)
+    [[ $cmd == ask ]] && flags=(--permission-mode default
+      --disallowedTools Edit Write NotebookEdit)
+    # -p cannot ask: anything not allowed by .claude/settings.json is denied.
+    claude -p "$prompt" --model "$m" --effort "$effort" "${flags[@]}" \
+      --permission-prompts none --output-format json >"$log"
+    rc=$?
+    [[ $cmd == ask ]] && jq -r '.result // empty' "$log"
+    ;;
+  codex)
+    sandbox=workspace-write
+    [[ $cmd == ask ]] && sandbox=read-only
+    # exec never asks: anything the sandbox and .codex/rules refuse fails.
+    codex exec --model "$m" -c model_reasoning_effort="$effort" \
+      --sandbox "$sandbox" --json --output-last-message "$log.last" \
+      "$prompt" >"$log"
+    rc=$?
+    [[ $cmd == ask ]] && cat "$log.last"
+    ;;
+  *)
+    echo "agent: unknown agent '$agent'" >&2
+    exit 2
+    ;;
+  esac
+  exit "$rc"
+  ;;
+*)
+  echo "agent: unknown command '$cmd'" >&2
+  exit 2
+  ;;
+esac

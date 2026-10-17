@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # PreToolUse(Bash) tripwire: git commit/tag only in this checkout on branch
 # `redesign`; never git push. Regex over command text is not security: the
-# ref guard (.claude/hooks/ref-guard, a git hook) is the real local check.
+# ref guard (scripts/hooks/ref-guard, a git hook) is the real local check.
+# Claude Code (.claude/settings.json) and Codex (.codex/hooks.json) both run
+# it before every shell command, with the same JSON input.
 # Exit 2 blocks the command; settings run this as `… || exit 2`, so any
 # failure here (missing jq, crash) also blocks.
 set -euo pipefail
@@ -16,7 +18,7 @@ deny() {
 
 grep -qP '\bgit\b' <<<"$cmd" || exit 0
 grep -qP '\bgit\b.*\bpush\b' <<<"$cmd" && deny "git push is denied"
-grep -qP -- '--no-verify|\bCLAUDECODE\b|core\.hooksPath|\.git/hooks' <<<"$cmd" &&
+grep -qP -- '--no-verify|\b(CLAUDECODE|DANGONIX_AGENT)\b|core\.hooksPath|\.git/hooks' <<<"$cmd" &&
   deny "hook bypass is denied"
 if grep -qP '\bgit\b[^;&|]*\b(commit|tag)\b' <<<"$cmd"; then
   # Anything that can point git at another repository or branch.

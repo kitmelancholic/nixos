@@ -1,7 +1,8 @@
 # dangoNix quests
 
-One section per quest, executed by `/quest` (`.claude/commands/quest.md`).
-Each section is self-contained: the agent reads only `CLAUDE.md`, the end of
+One section per quest, executed by the `quest` skill (`.agents/skills/quest/SKILL.md`:
+`/quest` in Claude Code, `$quest` in Codex). Either agent can run or resume any
+quest. Each section is self-contained: the agent reads only `AGENTS.md`, the end of
 `docs/progress.md`, its own section and the files under *Read first*.
 The GM-facing plan is `docs/remake.md`; the target design is `docs/design.md`.
 This file links to the design and never restates it.
@@ -10,7 +11,7 @@ This file links to the design and never restates it.
 
 ```
 ## <id> — <quest name>
-meta: model=… effort=… boss=yes|no diff=<mode> [removed=<ids>] [leaves=<globs>] [rest=<tag>]
+meta: tier=hero|cleric effort=… boss=yes|no diff=<mode> [removed=<ids>] [leaves=<globs>] [rest=<tag>]
 Goal           one sentence: the end state.
 Why            enough context to resolve ambiguity in the steps.
 Read first     files or design sections to read before editing.
@@ -18,7 +19,7 @@ Preconditions  facts to establish first; each says what to do with the outcome.
 Steps          numbered and concrete; line numbers are hints (re-locate with rg).
 Do not         the traps for this quest.
 Verify         checks beyond scripts/quest-verify, with expected results.
-CLAUDE.md      what to change in it, or "no change".
+AGENTS.md      what to change in it, or "no change".
 Commit         the Conventional Commits subject (type, quest id as scope, `!` if breaking).
 GM's turn      checklist for the GM with exact commands (omitted if none).
 ```
@@ -34,14 +35,14 @@ GM's turn      checklist for the GM with exact commands (omitted if none).
 
 **Checks.** `scripts/check --fast` while editing (doc and commit lint, shellcheck, flake evaluation without building); `scripts/check` is the full one (`nix flake check`), and `scripts/quest-verify` runs it. From c1q13 `dangonix check` is the same thing. CI on GitHub runs `scripts/check --fast` on every push and, once `scripts/closure-diff` exists, the oracle for every quest commit; the hero never pushes, so CI is the signal for the GM and the scribe.
 
-**Models.** `model=` is a full model id, so a campaign never changes model halfway. The judge and the cleric are Opus.
+**Models.** `tier=` names a row of the model table in `AGENTS.md` (`hero`; `cleric` for retries and for the quests whose code the rest depends on: c1q03, c1q13, c1q14; the judge behind `scripts/review` is `judge`), with a full model id per agent, so a campaign never changes model halfway. `scripts/campaign [--agent claude|codex] [--judge claude|codex]` picks the CLI; the journal records which agent and model ran each entry.
 
 **Shared rules.** Tests that change `state.json`, `flake.lock` or Nix code on purpose run in a temporary worktree: `wt=$(mktemp -d) && git worktree add --detach "$wt" "$(git stash create)"`, then `git worktree remove --force "$wt"`; `git status` in the checkout must be unchanged afterwards. `hosts/nixos/hardware-configuration.nix` is never touched.
 
 ---
 
 ## c1q00 — Roll call of heroes
-meta: model=claude-sonnet-5-5 effort=medium boss=no diff=baseline rest=c1r0
+meta: tier=hero effort=medium boss=no diff=baseline rest=c1r0
 
 **Goal.** The uncommitted work that predates the remake is committed as the baseline, after the GM blesses it.
 
@@ -49,20 +50,20 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=baseline rest=c1r0
 
 **Read first.** `git status`, `git diff --stat`.
 
-**Preconditions.** The working tree differs from `HEAD` in exactly: `flake.nix`, `flake.lock`, `home/packages.nix`, `patches/graphify-nix-support.patch`, and a deleted `AGENTS.md`. Anything else → `провалений кидок` listing the extra paths.
+**Preconditions.** The working tree differs from `HEAD` in exactly: `flake.nix`, `flake.lock`, `home/packages.nix`, `patches/graphify-nix-support.patch`. Anything else → `провалений кидок` listing the extra paths.
 
 **Steps.**
 1. Without a `благословення` entry for c1q00 in the journal:
    - write the summary for the GM into the `хід майстра` entry: `flake.nix` (`pkgsUnstable` with `config.allowUnfree = true`); `home/packages.nix` (`pkgsUnstable.claude-code`); per changed `flake.lock` input, old → new revision and date, calling out `nixpkgs` and the held inputs `hyprland`, `noctalia`, `caelestia`; what changed in the graphify patch and whether the new `graphify` lock entry needs it;
    - run `nix flake check --no-write-lock-file` and build `.#nixosConfigurations.nixos.config.system.build.toplevel`;
    - commit only `docs/progress.md` and stop.
-2. On `/quest retry c1q00` with `благословення`: `git add flake.nix flake.lock home/packages.nix patches/graphify-nix-support.patch`, `git rm AGENTS.md`, commit, tag `redesign-baseline` and `c1r0`, install `.claude/hooks/ref-guard` as the git `reference-transaction` and `pre-push` hook and `.claude/hooks/commit-msg` as the git `commit-msg` hook (executable copies in `.git/hooks/`), append `виконано`.
+2. On `/quest retry c1q00` with `благословення`: `git add flake.nix flake.lock home/packages.nix patches/graphify-nix-support.patch`, commit, tag `redesign-baseline` and `c1r0`, install `scripts/hooks/ref-guard` as the git `reference-transaction` and `pre-push` hook and `scripts/hooks/commit-msg` as the git `commit-msg` hook (executable copies in `.git/hooks/`), append `виконано`.
 
 **Do not.** Stage anything outside those five paths. Edit any Nix file.
 
 **Verify.** `git show --stat HEAD` lists exactly the five paths.
 
-**CLAUDE.md.** No change.
+**AGENTS.md.** No change.
 
 **Commit.** `chore(c1q00): baseline`
 
@@ -74,7 +75,7 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=baseline rest=c1r0
 ---
 
 ## c1q01 — Reading the map
-meta: model=claude-sonnet-5-5 effort=medium boss=no diff=source-only
+meta: tier=hero effort=medium boss=no diff=source-only
 
 **Goal.** Confirm the docs and the pre-campaign tooling are in the branch and consistent, so later quests can rely on them.
 
@@ -83,23 +84,23 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=source-only
 **Read first.** `docs/` listing, `README.md`.
 
 **Steps.**
-1. Check that `docs/vision.md`, `docs/design.md`, `docs/current-state.md`, `docs/remake.md`, `docs/tasks.md`, `.claude/commands/quest.md`, `.claude/settings.json`, `.github/workflows/ci.yml`, `scripts/check`, `scripts/lint-docs`, `scripts/lint-commits`, `scripts/quest-verify`, `scripts/campaign` exist and `docs/redesign-plan.md` and `.claude/commands/next-stage.md` do not.
+1. Check that `docs/vision.md`, `docs/design.md`, `docs/current-state.md`, `docs/remake.md`, `docs/tasks.md`, `AGENTS.md`, `CLAUDE.md` (only `@AGENTS.md`), `.agents/skills/quest/SKILL.md`, `.claude/skills/quest` (a symlink to it), `.claude/settings.json`, `.codex/config.toml`, `.codex/hooks.json`, `.codex/rules/dangonix.rules`, `.github/workflows/ci.yml`, `scripts/check`, `scripts/lint-docs`, `scripts/lint-commits`, `scripts/quest-verify`, `scripts/campaign`, `scripts/agent`, `scripts/review`, `scripts/hooks/` exist and `docs/redesign-plan.md`, `.claude/commands/` and `.claude/hooks/` do not.
 2. `scripts/check --fast` passes (its `lint-docs` step checks links, quest headings, meta lines and commit subjects).
-3. The git hooks installed in c1q00 (`commit-msg`, `reference-transaction`, `pre-push`) exist in `.git/hooks/` and match `.claude/hooks/`.
+3. The git hooks installed in c1q00 (`commit-msg`, `reference-transaction`, `pre-push`) exist in `.git/hooks/` and match `scripts/hooks/`.
 4. Anything wrong → `провалений кидок` naming it (do not fix docs yourself).
 
 **Do not.** Edit any doc or Nix file.
 
 **Verify.** Only the journal changes.
 
-**CLAUDE.md.** No change.
+**AGENTS.md.** No change.
 
 **Commit.** `chore(c1q01): map check`
 
 ---
 
 ## c1q02 — The mirror twin
-meta: model=claude-sonnet-5-5 effort=medium boss=no diff=source-only
+meta: tier=hero effort=medium boss=no diff=source-only
 
 **Goal.** The repo is no longer copied into the home closure, and `kit-profile` switches from the checkout.
 
@@ -110,7 +111,7 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=source-only
 **Steps.**
 1. Remove `profileFlakeSource` and every use of it.
 2. Add the flake output `lib.themes` = the theme registry attrset.
-3. `kit-profile` reads the flake **and** the theme list from the checkout: `$KIT_PROFILE_FLAKE`, else `~/nixos`, via `nix eval <flake>#lib.themes --json`. Remove the baked-in registry case tables. A missing checkout is a clear error. Keep the `KIT_THEME_FLAKE` fallback (removed in c1q16).
+3. `kit-profile` reads the flake **and** the theme list from the checkout: `$KIT_PROFILE_FLAKE`, else `~/nixos`, via `nix eval <flake>#lib.themes --json`. Remove the baked-in registry case tables. A missing checkout is a clear error. Keep the `KIT_THEME_FLAKE` fallback (removed in c1q18).
 
 **Do not.** Change anything a theme builds besides `kit-profile` and the source path.
 
@@ -119,7 +120,7 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=source-only
 - `nix path-info -r` of each activation package contains no copy of the repo.
 - From `/tmp`: `kit-profile list` works; with `KIT_PROFILE_FLAKE` pointing at a copy, that copy is used.
 
-**CLAUDE.md.** No change.
+**AGENTS.md.** No change.
 
 **Commit.** `fix(c1q02): stop embedding the flake source`
 
@@ -130,11 +131,11 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=source-only
 ---
 
 ## c1q03 — Eye of the oracle ⚔️
-meta: model=claude-sonnet-5-5 effort=high boss=yes diff=none
+meta: tier=cleric effort=high boss=yes diff=none
 
 **Goal.** `scripts/closure-diff` proves "the system would not change" or names exactly what changes, by evaluation alone.
 
-**Why.** Every later quest's expected diff is enforced by this script through `scripts/quest-verify`, and by CI on every pushed quest commit. Comparing derivation paths instead of out paths needs no build: equal `drvPath` means equal output, it runs without the Foundry ZIP, and it runs on GitHub's runners. It must survive the renames of c1q17.
+**Why.** Every later quest's expected diff is enforced by this script through `scripts/quest-verify`, and by CI on every pushed quest commit. Comparing derivation paths instead of out paths needs no build: equal `drvPath` means equal output, it runs without the Foundry ZIP, and it runs on GitHub's runners. It must survive the renames of c1q19.
 
 **Read first.** `scripts/quest-verify` (its use of `--assert-same`, `--removed`, `--names`).
 
@@ -154,73 +155,75 @@ meta: model=claude-sonnet-5-5 effort=high boss=yes diff=none
 - (d) change one Hyprland option: fails and prints the `nix-diff`;
 - (e) add a package to home: `--names` prints `+<name>`.
 
-**CLAUDE.md.** No change (c1q05 writes it).
+**AGENTS.md.** No change (c1q05 writes it).
 
 **Commit.** `test(c1q03): output oracle`
 
 ---
 
 ## c1q04 — Banishing the graphomaniac
-meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=-graphify-*,-graphify-codex-skill*,-hm_.codexAGENTS.md,-hm_.codexhooks.json,-python3*?
+meta: tier=hero effort=medium boss=no diff=leaves leaves=-graphify-*,-graphify-codex-skill*,-hm_.codexAGENTS.md,-hm_.codexhooks.json,-python3*?
 
-**Goal.** Graphify and every Codex-specific repo file are gone; Zed's `codex-acp` stays.
+**Goal.** Graphify is gone; Codex keeps its repo files (`.codex/`), and Zed's `codex-acp` stays.
 
-**Why.** Claude Code only ([design §12](design.md#12-агенти)); Graphify cost far more than it gave for 3.3k lines of Nix.
+**Why.** Graphify cost far more than it gave for 3.3k lines of Nix. Codex is a peer of Claude Code in the quest workflow ([design §12](design.md#12-агенти)); only the Graphify parts of its setup go.
 
 **Read first.** `home/kit.nix` (line 15), `home/graphify.nix`, `home/pdf2md.nix` (line 32), `.gitignore`, `README.md` (around line 178).
 
 **Steps.**
-1. `git rm -r home/graphify.nix graphify-nix/ patches/graphify-nix-support.patch .codex/`; remove the import in `home/kit.nix`.
+1. `git rm -r home/graphify.nix graphify-nix/ patches/graphify-nix-support.patch`; remove the import in `home/kit.nix`. HM then stops managing `~/.codex/AGENTS.md`, `~/.codex/hooks.json` and `~/.codex/skills/graphify`; c1q05 decides how Codex loads the repo's hooks.
 2. Remove the `graphify` input from `flake.nix`; `nix flake lock` must only drop graphify nodes.
 3. Remove the graphify `.gitignore` entries and the README line; fix the stale comment in `home/pdf2md.nix`.
 4. Delete `graphify-out/` locally (untracked).
 
-**Do not.** Remove `pyproject-nix`, `uv2nix`, `pyproject-build-systems` (pdf2md uses them), `home/zed.nix`'s `codex-acp`, or anything in `~/.codex` besides what HM installed.
+**Do not.** Remove `pyproject-nix`, `uv2nix`, `pyproject-build-systems` (pdf2md uses them), `.codex/`, `home/zed.nix`'s `codex-acp`, or anything in `~/.codex` besides what HM installed.
 
-**Verify.** `rg -n -i 'graphify|\.codex' --glob '!docs/**'` finds only Zed's `codex-acp`.
+**Verify.** `rg -n -i graphify --glob '!docs/**'` finds nothing.
 
-**CLAUDE.md.** No change.
+**AGENTS.md.** No change.
 
-**Commit.** `refactor(c1q04)!: drop Graphify and Codex tooling`
+**Commit.** `refactor(c1q04)!: drop Graphify`
 
 ---
 
 ## c1q05 — Guild charter
-meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=+mcp-nixos*,+bash-guard*,+hm_.configdangonixhooksbash-guard,~claude-code*?
+meta: tier=hero effort=medium boss=no diff=leaves leaves=+mcp-nixos*,+bash-guard*,+hm_.configdangonixhooksbash-guard,+codex*,~claude-code*?,+hm_.codex*?
 
-**Goal.** `CLAUDE.md`, permissions, a fail-closed Bash guard, `mcp-nixos` and `scripts/opt` give agents safe, short guidance.
+**Goal.** `AGENTS.md`, permissions for both CLIs, a fail-closed Bash guard, `mcp-nixos` and `scripts/opt` give Claude Code and Codex the same safe, short guidance.
 
-**Why.** Lands right after c1q04 so old and new agent tooling never coexist. Design: [§12](design.md#12-агенти).
+**Why.** Lands right after c1q04 so old and new agent tooling never coexist. Either agent must be able to run or resume any quest with the same rules and guards. Design: [§12](design.md#12-агенти).
 
-**Read first.** `CLAUDE.md`, `.claude/settings.json`, `.claude/settings.local.json` (if present), `home/packages.nix`.
+**Read first.** `AGENTS.md`, `.claude/settings.json`, `.claude/settings.local.json` (if present), `.codex/config.toml`, `.codex/hooks.json`, `.codex/rules/dangonix.rules`, `home/packages.nix`.
 
 **Steps.**
-1. `CLAUDE.md` (English, ≤ 60 lines) describes only what exists now: what the repo is (two sentences, one machine); invariants (never edit `hardware-configuration.nix`; a theme never changes the host; every theme passes the checks; never remove or rebind an existing key); the loop `edit → nix fmt → scripts/check --fast → scripts/quest-verify <id>`; quests via `/quest`; stage files explicitly, never `git commit -a`; temporary worktrees for state-changing tests; the mcp-nixos line (look up names when unsure, 26.05 channel, it does not know flake-input options; for those use `scripts/opt`); one-line permission reminders; one line per top-level directory.
-2. Claude Code CLI: confirm the nixpkgs wrapper sets `DISABLE_AUTOUPDATER=1`; if not, wrap it. Note in the GM's turn any `~/.local/bin/claude` or `~/.npm-global` install to remove.
-3. `pkgs.mcp-nixos` in home packages; committed `.mcp.json` `{"mcpServers":{"nixos":{"command":"mcp-nixos"}}}`; `enabledMcpjsonServers: ["nixos"]`.
-4. Plugin `claude-md-management` only, via `extraKnownMarketplaces` (`claude-plugins-official`) and `enabledPlugins` in `.claude/settings.json`; marketplace auto-update off if the key exists.
-5. Guard: a `writeShellApplication` `bash-guard` (deps in Nix, any internal error exits 2) that blocks any Bash command whose text mentions `hardware-configuration.nix`, installed by HM at `~/.config/dangonix/hooks/bash-guard` (`xdg.configFile`, executable). Hook command: `"$HOME/.config/dangonix/hooks/bash-guard" || exit 2`. Deny Edit/Write of `hosts/nixos/hardware-configuration.nix`, `.git/**`, `.claude/hooks/**`.
-6. Permissions: `.claude/settings.json` was committed before c1q00 with the quest-loop allow list, the ask list, the deny rules of step 5 and the `git-guard` hook; `scripts/campaign` runs headless, where anything not allowed is denied, so keep every command the quest loop needs in `allow` (`nix flake lock` stays allowed: c1q07 and c1q09 need it). Add the step 3-5 keys, the `bash-guard` hook, and allow `foundry-status` and `scripts/opt *`. Delete `.claude/settings.local.json` if present (its `git-guard` hook now lives in `settings.json`; it is already in `.gitignore`).
-7. `scripts/opt [--home [<theme id>]] <option path>`: `nix eval` of the option in the real host configuration (or the theme's home configuration, default theme if no id), printing type, description, default and current value as JSON. Unlike mcp-nixos it knows options from flake inputs (Noctalia, Caelestia, Home Manager). Add it to the shellcheck list in `scripts/check`.
+1. `AGENTS.md` (English, ≤ 60 lines) describes only what exists now: what the repo is (two sentences, one machine); invariants (never edit `hardware-configuration.nix`; a theme never changes the host; every theme passes the checks; never remove or rebind an existing key); the loop `edit → nix fmt → scripts/check --fast → scripts/quest-verify <id>`; quests via `/quest` or `$quest` and the model table (keep it as is); stage files explicitly, never `git commit -a`; temporary worktrees for state-changing tests; the mcp-nixos line (look up names when unsure, 26.05 channel, it does not know flake-input options; for those use `scripts/opt`); one-line permission reminders; one line per top-level directory. `CLAUDE.md` stays the single line `@AGENTS.md`.
+2. CLIs from nixpkgs-unstable without self-update: Claude Code — confirm the wrapper sets `DISABLE_AUTOUPDATER=1`, else wrap it; Codex — add `pkgsUnstable.codex` to home packages and turn its update check off (`check_for_update_on_startup = false` in `~/.codex/config.toml` via HM, if the key exists in that version). Note in the GM's turn any `~/.local/bin/claude`, `~/.npm-global` or other non-Nix `codex` install to remove.
+3. `pkgs.mcp-nixos` in home packages; committed `.mcp.json` `{"mcpServers":{"nixos":{"command":"mcp-nixos"}}}` and `enabledMcpjsonServers: ["nixos"]` for Claude Code; `[mcp_servers.nixos] command = "mcp-nixos"` in `.codex/config.toml` for Codex.
+4. Plugin `claude-md-management` only, via `extraKnownMarketplaces` (`claude-plugins-official`) and `enabledPlugins` in `.claude/settings.json`; marketplace auto-update off if the key exists. Codex gets no plugins.
+5. Guard: a `writeShellApplication` `bash-guard` (deps in Nix, any internal error exits 2) that blocks any shell command whose text mentions `hardware-configuration.nix`, installed by HM at `~/.config/dangonix/hooks/bash-guard` (`xdg.configFile`, executable). Hook command `"$HOME/.config/dangonix/hooks/bash-guard" || exit 2` in both `.claude/settings.json` and `.codex/hooks.json`, next to `git-guard`. Claude Code: deny Edit/Write of `hosts/nixos/hardware-configuration.nix`, `.git/**`, `scripts/hooks/**`. Codex: if its hooks also see file edits (`apply_patch`), guard the same paths there; otherwise write in the GM's turn that Codex relies on its sandbox and the GM's review for them.
+6. Permissions: `.claude/settings.json` was committed before c1q00 with the quest-loop allow list, the ask list, the deny rules and the `git-guard` hook, and `.codex/rules/dangonix.rules` mirrors its Bash rules (`allow`/`prompt`/`forbidden`); headless runs (`scripts/agent`) refuse anything not allowed, so keep every command the quest loop needs allowed in both (`nix flake lock` stays allowed: c1q07 and c1q09 need it). Add the step 3-5 keys, the `bash-guard` hook, and allow `foundry-status` and `scripts/opt *` in both files. Delete `.claude/settings.local.json` if present (its `git-guard` hook now lives in `settings.json`; it is already in `.gitignore`).
+7. Codex loading: with the installed `codex`, establish whether it reads the project's `.codex/config.toml`, `.codex/hooks.json`, `.codex/rules/` and `.agents/skills/` (for example `codex exec --sandbox read-only 'list the skills and hooks you have'`, and the docs of that version). For each it does not, HM links the repo file into `~/.codex/` with `config.lib.file.mkOutOfStoreSymlink` (so edits in the checkout apply without a switch). Then confirm `codex exec --sandbox workspace-write` can run `scripts/check --fast` (nix-daemon socket, network); if not, fix it in `.codex/config.toml` (`writable_roots`, `network_access`) and say what in the GM's turn.
+8. `scripts/opt [--home [<theme id>]] <option path>`: `nix eval` of the option in the real host configuration (or the theme's home configuration, default theme if no id), printing type, description, default and current value as JSON. Unlike mcp-nixos it knows options from flake inputs (Noctalia, Caelestia, Home Manager). Add it to the shellcheck list in `scripts/check`.
 
-**Do not.** Add hookify or a formatting hook. Put the hook in a profile `bin` directory.
+**Do not.** Add hookify or a formatting hook. Put the hook in a profile `bin` directory. Give one CLI a rule, guard or tool the other lacks without writing why in `AGENTS.md`.
 
-**Verify.** `readlink -f "$(command -v claude)"` is in `/nix/store` and its wrapper sets `DISABLE_AUTOUPDATER=1`. `scripts/opt --home noctalia programs.noctalia.enable` prints a description and `true`.
+**Verify.** `readlink -f "$(command -v claude)"` and `readlink -f "$(command -v codex)"` are in `/nix/store`; the Claude wrapper sets `DISABLE_AUTOUPDATER=1`. `scripts/opt --home noctalia programs.noctalia.enable` prints a description and `true`. Every Bash rule of `.claude/settings.json` has its counterpart in `.codex/rules/dangonix.rules`.
 
-**CLAUDE.md.** Written in this quest.
+**AGENTS.md.** Written in this quest.
 
-**Commit.** `feat(c1q05): CLAUDE.md and agent tooling`
+**Commit.** `feat(c1q05): AGENTS.md and agent tooling`
 
 **GM's turn.**
-- `just home-switch`; remove any `~/.local/bin/claude` / `~/.npm-global` copy the agent listed.
+- `just home-switch`; remove any non-Nix `claude` / `codex` copy the agent listed.
 - In a new `claude` session: `claude mcp list` shows `nixos` connected; `/plugin` lists only `claude-md-management`; editing `hardware-configuration.nix` is refused; `cat hosts/nixos/hardware-configuration.nix` is blocked; `nix flake check` runs without a prompt; `sudo true` asks.
+- In a new `codex` session in `~/nixos` (trust the project when asked): `/mcp` shows `nixos`; `$quest` is offered; `cat hosts/nixos/hardware-configuration.nix` is blocked; `git push` is refused; `nix flake check` runs without a prompt; `sudo true` asks.
 - Negative: rename `~/.config/dangonix/hooks/bash-guard` away → every Bash command is blocked; `just home-switch` restores it.
 - All good → `## c1q05 — виконано`.
 
 ---
 
 ## c1q06 — Under one banner
-meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none
+meta: tier=hero effort=medium boss=no diff=none
 
 **Goal.** The default theme (`.#kit`, fresh install) is `noctalia`, and the classic-only override canary is gone.
 
@@ -238,14 +241,14 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none
 
 **Verify.** `nix eval .#homeConfigurations.kit.config.kit.profile.id` returns `"noctalia"`.
 
-**CLAUDE.md.** No change.
+**AGENTS.md.** No change.
 
 **Commit.** `feat(c1q06)!: default theme noctalia`
 
 ---
 
 ## c1q07 — Fall of the Dark Master
-meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none removed=dms
+meta: tier=hero effort=medium boss=no diff=none removed=dms
 
 **Goal.** The `dms` theme (Dank Material Shell) no longer exists in the repo.
 
@@ -263,14 +266,14 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none removed=dms
 
 **Do not.** Touch other themes or inputs. Run `nix flake update`.
 
-**CLAUDE.md.** No change.
+**AGENTS.md.** No change.
 
 **Commit.** `refactor(c1q07)!: retire DMS`
 
 ---
 
 ## c1q08 — Twilight of the classics
-meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none removed=catppuccin,tokyo-night,gruvbox,kit-dark
+meta: tier=hero effort=medium boss=no diff=none removed=catppuccin,tokyo-night,gruvbox,kit-dark
 
 **Goal.** The classic family is gone; only Noctalia and Caelestia remain.
 
@@ -287,14 +290,14 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none removed=catppuccin
 
 **Verify.** If anything differs for noctalia or caelestia, the classic code leaked into the shells: `провалений кидок` with the `nix-diff`.
 
-**CLAUDE.md.** Update the layout lines.
+**AGENTS.md.** Update the layout lines.
 
 **Commit.** `refactor(c1q08)!: retire the classic family`
 
 ---
 
 ## c1q09 — Dispelling Stylix
-meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none
+meta: tier=hero effort=medium boss=no diff=none
 
 **Goal.** Stylix is gone.
 
@@ -306,14 +309,14 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none
 
 **Do not.** Paper over a diff. Any difference is something disabled Stylix still set: `провалений кидок` with the `nix-diff`.
 
-**CLAUDE.md.** No change.
+**AGENTS.md.** No change.
 
 **Commit.** `refactor(c1q09): drop Stylix`
 
 ---
 
 ## c1q10 — Cleaning the castle ⚔️
-meta: model=claude-sonnet-5-5 effort=medium boss=yes diff=leaves leaves=-hyprpolkitagent*,-hyprlock*? rest=c1r1
+meta: tier=hero effort=medium boss=yes diff=leaves leaves=-hyprpolkitagent*,-hyprlock*? rest=c1r1
 
 **Goal.** The host keeps only what the remaining lock screens need.
 
@@ -331,7 +334,7 @@ meta: model=claude-sonnet-5-5 effort=medium boss=yes diff=leaves leaves=-hyprpol
 
 **Verify.** `nix build .#nixosConfigurations.nixos.config.system.build.toplevel`. Home: no change.
 
-**CLAUDE.md.** No change.
+**AGENTS.md.** No change.
 
 **Commit.** `refactor(c1q10): host cleanup after classic`
 
@@ -344,7 +347,7 @@ meta: model=claude-sonnet-5-5 effort=medium boss=yes diff=leaves leaves=-hyprpol
 ---
 
 ## c1q11 — Warding runes ⚔️
-meta: model=claude-sonnet-5-5 effort=high boss=yes diff=none
+meta: tier=hero effort=high boss=yes diff=none
 
 **Goal.** All checks live in `lib/checks.nix`, generic over the registry, plus a host build check and a frozen bind fixture.
 
@@ -363,14 +366,14 @@ meta: model=claude-sonnet-5-5 effort=high boss=yes diff=none
 
 **Verify.** `nix flake show` lists only `static`, `registry`, `binds-fixture`, `host`, `home-<id>`, `hyprland-<id>`. Negative tests in a temporary worktree: change one fixture action → `binds-fixture` fails; drop `mouse = true` from one mouse bind → fails; duplicate a registry id → `registry` fails; set an invalid `boot.kernelPackages` → `host` fails.
 
-**CLAUDE.md.** Mention that checks live in `lib/checks.nix` and the bind fixture changes only with a declared behavior change.
+**AGENTS.md.** Mention that checks live in `lib/checks.nix` and the bind fixture changes only with a declared behavior change.
 
 **Commit.** `test(c1q11): checks out of flake.nix`
 
 ---
 
 ## c1q12 — Book of choices
-meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none
+meta: tier=hero effort=medium boss=no diff=none
 
 **Goal.** A tracked `state.json` holds every choice a command can make: the theme and the Foundry instances.
 
@@ -384,38 +387,92 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none
 1. Add `state.json`: `{ "theme": "noctalia", "foundry": { "instances": { "main": { "version": <current>, "port": <current> } } } }` and nothing else.
 2. `homeConfigurations.kit` builds `state.theme`; the registry `default` goes away.
 3. The host gets only `state.foundry` (via `specialArgs`). Today's Foundry module reads `instances.main`; an assertion fails evaluation with "several Foundry instances arrive in campaign II" if there is more than one, and empty `instances` disables Foundry.
-4. Delete `shortVersion`, `filename`, `hash` from `lib/settings.nix`; the payload check (`foundry-check`, until c1q16) derives filename and hash from the nix-foundryvtt table.
+4. Delete `shortVersion`, `filename`, `hash` from `lib/settings.nix`; the payload check (`foundry-check`, until c1q18) derives filename and hash from the nix-foundryvtt table.
 5. Check `registry` gains "`state.json`'s theme exists".
 
 **Do not.** Change the Foundry unit name, data dir or port.
 
 **Verify.** `just foundry-check` passes. In a temporary worktree a version absent from the table fails evaluation with a clear message.
 
-**CLAUDE.md.** "`state.json` holds the GM's choices; change it only when asked."
+**AGENTS.md.** "`state.json` holds the GM's choices; change it only when asked."
 
 **Commit.** `refactor(c1q12): state file`
 
 ---
 
 ## c1q13 — Forging dangonix ⚔️
-meta: model=claude-sonnet-5-5 effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_.configfishcompletionsdangonix.fish rest=c1r2
+meta: tier=cleric effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_.configfishcompletionsdangonix.fish
 
-**Goal.** `dangonix` v1 runs every mutation as a transaction, next to the old commands.
+**Goal.** `dangonix` v1 exists next to the old commands: every subcommand, the grammar, `--json` and `--dry`; the read commands and `check` work for real, and every `state`/`host` command so far only plans (`--dry`).
+
+**Why.** The single CLI is the heart of the design: [§5](design.md#5-dangonix), [transactions](design.md#транзакції), [§6](design.md#6-стабільність). This is the first of three quests (c1q14 transactions, c1q15 VM tests); later campaigns extend this code, so its structure matters more than in any other quest.
+
+**Read first.** Design §5 in full; `home/theme-switcher.nix`, `lib/settings.nix` (held inputs), `scripts/check`.
+
+**Steps.**
+1. `lib/dangonix/` (`default.nix`, `commands.nix` with `effect`, `agent` and `wraps` (the raw commands a row wraps, [design §11 agents](design.md#агенти); only data until campaign II), `dangonix.sh`) and `home/dangonix.nix`; `apps.default = dangonix`; option `kit.repo` (default `~/nixos`, renamed in c1q19).
+2. Subcommands: `switch`, `check [--fast|--vm]` (absorbs `scripts/check`: the same steps and modes, plus `host`; `scripts/check` becomes `exec nix run "$(git rev-parse --show-toplevel)" -- check "$@"` so CI and `quest-verify` keep working), `update` (held list, reports held), `theme`, `commands`, `status`, `help`, `version`, `history` (reads the transaction journal), and `foundry` limited to one instance: `list`, `status|logs|start|stop|restart|open [main]`, where `status` and `foundry status` show only what exists by now (power, net, shield, Funnel and backup arrive with their features in campaign II and III), `import <zip>`, `upgrade main <zip>`, `add main <zip>`, `remove main`. Every command has `--json`; every non-`read` command has `--dry`. Grammar, global flags (`--yes`, `--metered-ok` included), the JSON envelope and exit codes follow [design §5 grammar](design.md#граматика).
+3. In this quest every `state`/`host` command only plans: without `--dry` it refuses with exit 4 ("not available before c1q14") and changes nothing; `check --vm` refuses the same way until c1q15.
+
+**Do not.** Remove or change any old command. Implement any `state`/`host` effect (that is c1q14).
+
+**Verify.** `dangonix check` and `dangonix check --fast` give the same results as `scripts/check`; `dangonix theme` marks noctalia; every command in `dangonix commands --json` runs (`read` with `--json`, others with `--dry --json`) without a prompt and its output passes `jq -e .`.
+
+**AGENTS.md.** Loop becomes `edit → nix fmt → dangonix check --fast → dangonix check → scripts/closure-diff`; discovery `dangonix commands --json`.
+
+**Commit.** `feat(c1q13): dangonix v1 commands`
+
+**GM's turn.**
+- `just home-switch`; `dangonix status`, `dangonix help`, `dangonix --dry switch` look right to you.
+- All good → `## c1q13 — виконано`.
+
+---
+
+## c1q14 — Tempering the blade ⚔️
+meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*
+
+**Goal.** Every `state`/`host` command of `dangonix` runs as a transaction, and the permission files are generated from the command table.
 
 **Why.** The single CLI is the heart of the design: [§5](design.md#5-dangonix), [transactions](design.md#транзакції), [§6](design.md#6-стабільність).
 
-**Read first.** Design §5 and §6 in full; `home/theme-switcher.nix` (lock, activation), `lib/settings.nix` (held inputs).
+**Read first.** Design §5 (transactions) and §6 in full; `lib/dangonix/`; `home/theme-switcher.nix` (lock, activation).
 
 **Steps.**
-1. `lib/dangonix/` (`default.nix`, `commands.nix` with `effect`, `agent` and `wraps` (the raw commands a row wraps, [design §11 agents](design.md#агенти); only data until campaign II), `dangonix.sh`) and `home/dangonix.nix`; `apps.default = dangonix`; option `kit.repo` (default `~/nixos`, renamed in c1q17).
-2. Subcommands: `switch`, `check [--fast|--vm]` (absorbs `scripts/check`: the same steps and modes, plus `host`; `scripts/check` becomes `exec nix run "$(git rev-parse --show-toplevel)" -- check "$@"` so CI and `quest-verify` keep working), `update` (held list, reports held), `theme`, `commands`, `status`, `help`, `version`, `history` (reads the transaction journal), and `foundry` limited to one instance: `list`, `status|logs|start|stop|restart|open [main]`, where `status` and `foundry status` show only what exists by now (power, net, shield, Funnel and backup arrive with their features in campaign II and III), `import <zip>`, `upgrade main <zip>`, `add main <zip>`, `remove main`. Every command has `--json`; every non-`read` command has `--dry`. Grammar, global flags (`--yes`, `--metered-ok` included), the JSON envelope and exit codes follow [design §5 grammar](design.md#граматика).
-3. Every `state`/`host` command is the transaction from design §5: one lock (reuse `kit-home-activation.lock`) around snapshot, preflight, `state.json` edit, build, nvd diff, host activation, home activation, recovery, and the journal line in `~/.local/state/dangonix/journal.jsonl`.
-4. Generate the `.claude/settings.json` permission block from the command table's `agent` field + the registry (per-id ask rules) + `allow dangonix --dry …` + the hand-written non-dangonix rules from c1q05 (keep the quest-loop allow list: headless runs deny everything else); add design check 7.
-5. VM harness for the transaction cases that break activation on purpose: `pkgs.testers.runNixOSTest` exposed as `packages.x86_64-linux.dangonix-vm` (not in `checks`, so `dangonix check` stays fast) and run by `dangonix check --vm`. The node is a small NixOS with Home Manager, user `kit` and `dangonix`, switching between fixture configurations under `tests/dangonix-vm/` (a tiny host and home on the same nixpkgs, not the real host: no Foundry, no Hyprland). The VM is offline: put every fixture variant's build closure in the image (`system.includeBuildDependencies` or `virtualisation.additionalPaths`, `nix.settings.substituters = [ ]`); nixpkgs' own `nixos/tests/nixos-rebuild-*.nix` show the pattern. Cannot make the VM rebuild work → `провалений кидок` with what blocks it; the GM decides whether cases 1-4 run live instead.
+1. Every `state`/`host` command is the transaction from design §5: one lock (reuse `kit-home-activation.lock`) around snapshot, preflight, `state.json` edit, build, nvd diff, host activation, home activation, recovery, and the journal line in `~/.local/state/dangonix/journal.jsonl`.
+2. Generate the `.claude/settings.json` permission block and `.codex/rules/dangonix.rules` from the command table's `agent` field + the registry (per-id ask rules) + `allow dangonix --dry …` + the hand-written non-dangonix rules from c1q05 (keep the quest-loop allow list: headless runs deny everything else); add design check 7 for both files.
 
 **Do not.** Remove or change any old command. Test failures in the checkout.
 
-**Verify (checkout).** `dangonix check`; `dangonix theme` marks noctalia; `dangonix theme noctalia` leaves `git diff` empty; `dangonix --dry switch` reports no change; `sudo -u nobody dangonix switch` refuses; every command in `dangonix commands --json` runs (`read` with `--json`, others with `--dry --json`) without a prompt and its output passes `jq -e .`; check 7 fails after a hand edit of the permission block.
+**Verify (checkout).** `dangonix theme noctalia` leaves `git diff` empty; `dangonix --dry switch` reports no change; `sudo -u nobody dangonix switch` refuses; check 7 fails after a hand edit of either permission file.
+
+**Verify (temporary worktree on the laptop, `dangonix --flake "$wt"`; nothing here breaks activation).**
+5. `update`: held inputs byte-identical in `flake.lock`, JSON `held` lists them; `update hyprland` changes only `hyprland`; with a broken check, `update` exits non-zero and `sha256sum flake.lock` is unchanged.
+6. Foundry: version in the table but not in the store → `failedStep: "preflight"` naming `dangonix foundry import <zip>`; a ZIP with one changed byte or an unsupported version is rejected with `state.json` unchanged and no GC root; `remove main` then `add main <zip>` round-trips with an empty `state.json` diff.
+7. Afterwards `dangonix switch` from the checkout restores the normal system; `git -C ~/nixos status` unchanged.
+
+**AGENTS.md.** One line on `agent` allow/ask.
+
+**Commit.** `feat(c1q14): dangonix transactions`
+
+**GM's turn.**
+- `dangonix switch` (sudo); try `dangonix theme caelestia` and back.
+- All good → `## c1q14 — виконано`.
+
+---
+
+## c1q15 — Trial by fire
+meta: tier=hero effort=high boss=no diff=leaves leaves=~dangonix*? rest=c1r2
+
+**Goal.** The transaction cases that break activation on purpose are tested in a VM by `dangonix check --vm`.
+
+**Why.** Recovery after a failed host or home activation cannot be tested on the laptop without risk ([design §5 transactions](design.md#транзакції)).
+
+**Read first.** Design §5 (transactions); `lib/dangonix/` (the transaction code from c1q14).
+
+**Steps.**
+1. VM harness for the transaction cases that break activation on purpose: `pkgs.testers.runNixOSTest` exposed as `packages.x86_64-linux.dangonix-vm` (not in `checks`, so `dangonix check` stays fast) and run by `dangonix check --vm`. The node is a small NixOS with Home Manager, user `kit` and `dangonix`, switching between fixture configurations under `tests/dangonix-vm/` (a tiny host and home on the same nixpkgs, not the real host: no Foundry, no Hyprland). The VM is offline: put every fixture variant's build closure in the image (`system.includeBuildDependencies` or `virtualisation.additionalPaths`, `nix.settings.substituters = [ ]`); nixpkgs' own `nixos/tests/nixos-rebuild-*.nix` show the pattern. Cannot make the VM rebuild work → `провалений кидок` with what blocks it; the GM decides whether cases 1-4 run live instead.
+
+**Do not.** Change the transaction code to make a case pass without saying why in the commit body. Test failures in the checkout.
 
 **Verify (VM, `dangonix check --vm`, against the fixture flake).**
 1. Changed host (`environment.etc."dangonix-test".text = "1";`), `switch`: `/etc/dangonix-test` exists; JSON `steps` are host before home.
@@ -423,25 +480,19 @@ meta: model=claude-sonnet-5-5 effort=high boss=yes diff=leaves leaves=+dangonix*
 3. Host change + `xdg.configFile."dangonix-test".text = "1";` + a `home.activation` step after `linkGeneration` that exits 1: `failedStep: "home"`, `recovered: true`; `~/.config/dangonix-test` gone; generations unchanged.
 4. While a `theme` switch builds, a second `theme` and `foundry remove main` fail at once with "another … is running".
 
-**Verify (temporary worktree on the laptop, `dangonix --flake "$wt"`; nothing here breaks activation).**
-5. `update`: held inputs byte-identical in `flake.lock`, JSON `held` lists them; `update hyprland` changes only `hyprland`; with a broken check, `update` exits non-zero and `sha256sum flake.lock` is unchanged.
-6. Foundry: version in the table but not in the store → `failedStep: "preflight"` naming `dangonix foundry import <zip>`; a ZIP with one changed byte or an unsupported version is rejected with `state.json` unchanged and no GC root; `remove main` then `add main <zip>` round-trips with an empty `state.json` diff.
-7. Afterwards `dangonix switch` from the checkout restores the normal system; `git -C ~/nixos status` unchanged.
+**AGENTS.md.** One line: `dangonix check --vm` runs the VM transaction tests (slow; run it when transaction code changes).
 
-**CLAUDE.md.** Loop becomes `edit → nix fmt → dangonix check --fast → dangonix check → scripts/closure-diff`; discovery `dangonix commands --json`; one line on `agent` allow/ask.
-
-**Commit.** `feat(c1q13): dangonix v1`
+**Commit.** `test(c1q15): dangonix VM transaction tests`
 
 **GM's turn.**
-- `dangonix switch` (sudo); try `dangonix theme caelestia` and back.
 - Decide whether `hyprland` tracks release tags (`github:hyprwm/Hyprland?ref=v0.x.y`) instead of git master; tell the scribe in the project.
 - Long rest: read the reviewer's findings, push `redesign`, merge into `main` as a merge commit, sync `main`.
-- All good → `## c1q13 — виконано`.
+- All good → `## c1q15 — виконано`.
 
 ---
 
-## c1q14 — Vow of silence
-meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=+noctalia-runtime-keys*,+python3*-env?,~hm_.configsystemdusernoctalia.service?
+## c1q16 — Vow of silence
+meta: tier=hero effort=medium boss=no diff=leaves leaves=+noctalia-runtime-keys*,+python3*-env?,~hm_.configsystemdusernoctalia.service?
 
 **Goal.** Noctalia telemetry is off through one named runtime key; nothing else in its `settings.toml` changes.
 
@@ -460,19 +511,19 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=+noctalia
 
 **Verify.** On copies in `/tmp` (a real copy, an empty file, a missing path) the script sets only the named key. Caelestia unchanged.
 
-**CLAUDE.md.** "Noctalia's `settings.toml` wins over declarations; enforce runtime keys only through the named list."
+**AGENTS.md.** "Noctalia's `settings.toml` wins over declarations; enforce runtime keys only through the named list."
 
-**Commit.** `feat(c1q14): Noctalia telemetry off`
+**Commit.** `feat(c1q16): Noctalia telemetry off`
 
 **GM's turn.**
 - `cp -a ~/.local/state/noctalia/settings.toml ~/settings.toml.bak`; `dangonix switch`; restart Noctalia.
 - `telemetry_enabled` is false in the file and in Noctalia's settings UI; `diff ~/settings.toml.bak ~/.local/state/noctalia/settings.toml` shows only that line; the palette looks the same.
-- All good → `## c1q14 — виконано`.
+- All good → `## c1q16 — виконано`.
 
 ---
 
-## c1q15 — Spirit in the iron
-meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=+fwupd*,+unit-fwupd.service,~dangonix*
+## c1q17 — Spirit in the iron
+meta: tier=hero effort=medium boss=no diff=leaves leaves=+fwupd*,+unit-fwupd.service,~dangonix*
 
 **Goal.** Firmware updates exist, but only on request through `dangonix firmware`.
 
@@ -485,18 +536,18 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=+fwupd*,+
 
 **Verify.** Regenerated permissions ask for `dangonix firmware update`, not for `dangonix firmware`.
 
-**CLAUDE.md.** No change.
+**AGENTS.md.** No change.
 
-**Commit.** `feat(c1q15): firmware`
+**Commit.** `feat(c1q17): firmware`
 
 **GM's turn.**
 - `dangonix switch` (sudo); `dangonix firmware` lists the ThinkPad UEFI/EC; a second run within 24 h does not refresh; `systemctl list-timers | grep fwupd` is empty.
-- All good → `## c1q15 — виконано`.
+- All good → `## c1q17 — виконано`.
 
 ---
 
-## c1q16 — Walling up the old gates
-meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=-kit-profile*,-hm_.localbinkit-theme,-hm_kittheme-id,-foundry*,~hm_applicationsfoundryvtt*,~hm_fishconfig.fish
+## c1q18 — Walling up the old gates
+meta: tier=hero effort=medium boss=no diff=leaves leaves=-kit-profile*,-hm_.localbinkit-theme,-hm_kittheme-id,-foundry*,~hm_applicationsfoundryvtt*,~hm_fishconfig.fish
 
 **Goal.** `dangonix` is the only entry point.
 
@@ -513,18 +564,18 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=-kit-prof
 
 **Do not.** Remove `homeConfigurations.kit` or `checks.home-<id>`.
 
-**CLAUDE.md.** Drop every pre-dangonix command.
+**AGENTS.md.** Drop every pre-dangonix command.
 
-**Commit.** `refactor(c1q16)!: remove old entry points`
+**Commit.** `refactor(c1q18)!: remove old entry points`
 
 **GM's turn.**
 - `dangonix switch`; `command -v kit-profile` fails; the three Foundry launcher entries work.
-- All good → `## c1q16 — виконано`.
+- All good → `## c1q18 — виконано`.
 
 ---
 
-## c1q17 — True name
-meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=-hm_kitprofile-id,+hm_dangonixtheme-id,~dangonix*
+## c1q19 — True name
+meta: tier=hero effort=medium boss=no diff=leaves leaves=-hm_kitprofile-id,+hm_dangonixtheme-id,~dangonix*
 
 **Goal.** Everything is named dangoNix / theme.
 
@@ -539,18 +590,18 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=-hm_kitpr
 
 **Verify.** `scripts/closure-diff HEAD` still compares every theme.
 
-**CLAUDE.md.** New names (theme, `themes/`).
+**AGENTS.md.** New names (theme, `themes/`).
 
-**Commit.** `refactor(c1q17)!: full rename`
+**Commit.** `refactor(c1q19)!: full rename`
 
 **GM's turn.**
 - `dangonix switch`; `cat ~/.config/dangonix/theme-id`; two competing `dangonix` commands still exclude each other.
-- All good → `## c1q17 — виконано`.
+- All good → `## c1q19 — виконано`.
 
 ---
 
-## c1q18 — Seal of the pact ⚔️
-meta: model=claude-sonnet-5-5 effort=high boss=yes diff=leaves leaves=~dangonix*,+hm_.configdangonixroles.json
+## c1q20 — Seal of the pact ⚔️
+meta: tier=hero effort=high boss=yes diff=leaves leaves=~dangonix*,+hm_.configdangonixroles.json
 
 **Goal.** The theme contract exists as options, Noctalia declares every role, and `dangonix doctor` checks them live.
 
@@ -567,18 +618,18 @@ meta: model=claude-sonnet-5-5 effort=high boss=yes diff=leaves leaves=~dangonix*
 
 **Verify.** `dangonix check` shows Caelestia's missing roles as warnings only.
 
-**CLAUDE.md.** "Experimental themes produce role warnings until Caelestia meets the contract; do not add new ones. Run `dangonix doctor` after switching a theme."
+**AGENTS.md.** "Experimental themes produce role warnings until Caelestia meets the contract; do not add new ones. Run `dangonix doctor` after switching a theme."
 
-**Commit.** `feat(c1q18): contract options and doctor`
+**Commit.** `feat(c1q20): contract options and doctor`
 
 **GM's turn.**
 - `dangonix switch`; `dangonix doctor` passes in Noctalia; `systemctl --user stop noctalia` → doctor fails naming notifications, polkit, idle; start it → passes.
-- All good → `## c1q18 — виконано`.
+- All good → `## c1q20 — виконано`.
 
 ---
 
-## c1q19 — Oath of keys
-meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none
+## c1q21 — Oath of keys
+meta: tier=hero effort=medium boss=no diff=none
 
 **Goal.** Core binds are one list that calls roles; every bind has a description; `hyprland.lua` is byte-identical.
 
@@ -595,18 +646,18 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none
 
 **Verify.** `nix eval` of the bind data shows a description on every entry.
 
-**CLAUDE.md.** No change.
+**AGENTS.md.** No change.
 
-**Commit.** `refactor(c1q19): binds generated from roles`
+**Commit.** `refactor(c1q21): binds generated from roles`
 
 **GM's turn.**
 - `dangonix switch`; `dangonix doctor` passes; a few keys behave as before.
-- All good → `## c1q19 — виконано`.
+- All good → `## c1q21 — виконано`.
 
 ---
 
-## c1q20 — Sealing the pact
-meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none rest=c1r3
+## c1q22 — Sealing the pact
+meta: tier=hero effort=medium boss=no diff=none rest=c1r3
 
 **Goal.** Contract checks 3, 4 and 5 run for every theme, and `docs/themes.md` explains the contract.
 
@@ -620,11 +671,11 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=none rest=c1r3
 
 **Verify.** Negative tests in a temporary worktree: unset one Noctalia role → `dangonix check --fast` names it; `programs.noctalia.systemd.enable = false` → check 3 reports every exclusive role Noctalia provides; `programs.waybar.enable = true` → check 3 fails; bind two actions to `mod .. " + R"` and `"SUPER + R"` → check 4 fails.
 
-**CLAUDE.md.** Point at `docs/themes.md` for theme work.
+**AGENTS.md.** Point at `docs/themes.md` for theme work.
 
-**Commit.** `feat(c1q20): contract checks and themes doc`
+**Commit.** `feat(c1q22): contract checks and themes doc`
 
 **GM's turn.**
 - `dangonix switch`; `dangonix doctor` passes.
 - Long rest: read the reviewer's findings, push `redesign`, merge into `main`, sync. The scribe then writes campaign II's quests.
-- All good → `## c1q20 — виконано`.
+- All good → `## c1q22 — виконано`.

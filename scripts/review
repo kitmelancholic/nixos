@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# The judge: a separate agent session reviews a quest's change against its
+# section in docs/tasks.md and prints concrete defects, or `no defects`.
+#   review [--range <a>..<b>] <id>      default: the staged diff
+# The judge's CLI is $DANGONIX_JUDGE, else $DANGONIX_AGENT, else claude.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+range=
+if [[ ${1:-} == --range ]]; then
+  range=${2:?--range needs <a>..<b>}
+  shift 2
+fi
+id=${1:?usage: review [--range <a>..<b>] <quest id>}
+agent=${DANGONIX_JUDGE:-${DANGONIX_AGENT:-claude}}
+if [[ -n $range ]]; then
+  what="the commits \`git diff $range\` (a whole act ending in long rest $id)"
+else
+  what="the staged change \`git diff --staged\`"
+fi
+mkdir -p .campaign
+scripts/agent ask "$agent" judge high ".campaign/$id.review.json" "You are the judge for quest $id of this repo. Read AGENTS.md, the section \`## $id\` of docs/tasks.md (up to the next \`## \`), and $what. Do not edit files or run anything that changes state. List only concrete defects: a step of the section not done, a *Do not* violated, a bug or a regression, each with file:line and the fix. No style opinions. If there are none, print exactly: no defects"
