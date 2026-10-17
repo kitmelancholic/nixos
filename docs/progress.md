@@ -101,3 +101,9 @@ agent: codex gpt-6.1-sol
 Retry with writable `.git`: staged and committed the previous run's oracle. The judge found two defects: the lua diagnostic relied on `homeConfigurations`, and the id lookup hard-coded `.profiles`. Both are fixed (the lua is read from the `hyprland-<id>` check's input; ids come from `themes or profiles`).
 `scripts/check --fast`, `scripts/quest-verify c1q03` and the judge (`no defects`) passed; a changed `gaps_in` shows in the lua diff. No derivations changed.
 agent: claude claude-opus-5-5
+
+## c1q04 — провалений кидок
+Graphify removal done and `scripts/check` passed, but `quest-verify` fails twice: the `leaves=` globs miss real removals (networkx, numpy, rapidfuzz, tree-sitter*, ncurses-abi5-compat, graphifyy, `~source`, `~man-paths`, `~kit-fish-completions`), and `-hm_.codexAGENTS.md`/`-hm_.codexhooks.json` are reported missing (names differ).
+Quest paths reverted; `graphify-out/` was deleted (untracked, generated).
+GM: widen `leaves=` (add `-networkx*,-numpy*,-rapidfuzz*,-tree*sitter*,-ncurses-abi5-compat*,-graphifyy*`, `~*?`) and fix the hm_ names (check `closure-diff --names` output), then retry c1q04.
+agent: claude claude-sonnet-5-5
