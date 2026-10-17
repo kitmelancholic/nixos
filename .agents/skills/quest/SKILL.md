@@ -7,9 +7,10 @@ as a placeholder, the argument is the text after the skill name in the
 request: `next`, `<id>` or `retry <id>`).
 
 The same procedure runs in Claude Code (`/quest …`) and Codex (`$quest …`).
-Name yourself in journal entries as `agent: <claude|codex> <model id>`
-(the model you run as; `scripts/campaign` also sets `DANGONIX_AGENT` and
-`DANGONIX_MODEL`).
+End every journal entry with the line `agent: <claude|codex> <model id>`:
+the values of `$DANGONIX_AGENT` and `$DANGONIX_MODEL` when they are set
+(`scripts/agent` sets them), else the model you run as, in full. The GM
+answers an entry below that line; `scripts/campaign` then runs `retry`.
 
 1. Read `AGENTS.md` and the last 20 lines of `docs/progress.md`.
    - If the last entry is `хід майстра` or `провалений кидок` and the

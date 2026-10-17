@@ -18,8 +18,13 @@ deny() {
 
 grep -qP '\bgit\b' <<<"$cmd" || exit 0
 grep -qP '\bgit\b.*\bpush\b' <<<"$cmd" && deny "git push is denied"
-grep -qP -- '--no-verify|\b(CLAUDECODE|DANGONIX_AGENT)\b|core\.hooksPath|\.git/hooks' <<<"$cmd" &&
+# Changing what makes the hooks run is a bypass; reading the variables or the
+# installed hooks (cmp, diff, cat) is not.
+grep -qP -- '--no-verify|core\.hooksPath|\b(CLAUDECODE|DANGONIX_AGENT)=|\b(unset|env\s+-u)\s+(CLAUDECODE|DANGONIX_AGENT)\b' <<<"$cmd" &&
   deny "hook bypass is denied"
+grep -qP '\.git/hooks' <<<"$cmd" &&
+  grep -qP '\b(cp|mv|install|ln|rm|tee|chmod|truncate|dd|patch)\b|\bsed\s+-i|(?<![0-9])>' <<<"$cmd" &&
+  deny "writing .git/hooks is denied"
 if grep -qP '\bgit\b[^;&|]*\b(commit|tag)\b' <<<"$cmd"; then
   # Anything that can point git at another repository or branch.
   grep -qP -- '\s-C\s|--git-dir|--work-tree|\bGIT_(DIR|WORK_TREE)\b|(^|[;&|(]|\s)cd\s|\b(checkout|switch)\b|\b(bash|sh|eval|xargs)\b' <<<"$cmd" &&

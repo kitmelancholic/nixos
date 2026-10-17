@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Autopilot: run quests from docs/tasks.md one fresh agent session at a time,
 # with the tier and effort from each quest's meta line, until a journal entry
-# is anything but `виконано`.
+# is anything but `виконано`. A quest whose last entry the GM has answered
+# (see quest_state) is retried by the cleric; one still waiting for the GM
+# stops the run before any agent starts.
 #   campaign [--agent claude|codex] [--judge claude|codex]
 # --agent  the hero's CLI (default claude); --judge  the CLI behind
 # scripts/review (default: the hero's). Models per tier: AGENTS.md. Each
@@ -47,6 +49,24 @@ next_quest() {
   done
 }
 
+# The quest's state from its last journal entry: `new` (none yet), `retry`
+# (the GM answered it: a `благословення` entry, or any text the GM wrote
+# below the entry's closing `agent:` line), or `gm` (it waits for the GM).
+quest_state() {
+  awk -v id="$1" '
+    $0 ~ "^## " id " — " { kind = $0; sub(/^## [^ ]+ — /, "", kind); gm = after = stop = 0; next }
+    /^## / { if (kind != "") stop = 1 }
+    stop || kind == "" { next }
+    /^agent:/ { after = 1; next }
+    after && NF { gm = 1 }
+    END {
+      if (kind == "") print "new"
+      else if (kind == "виконано") print "done"
+      else if (kind == "благословення" || gm) print "retry"
+      else print "gm"
+    }' docs/progress.md
+}
+
 # Each CLI has its own skill syntax; both load .agents/skills/quest.
 invoke() {
   case $agent in
@@ -58,14 +78,22 @@ invoke() {
 for _ in $(seq 25); do
   id=$(next_quest)
   [[ -n $id ]] || stop "Campaign complete" 0
+  # A dirty tree makes the quest fail on someone else's changes.
+  [[ -z $(git status --porcelain --untracked-files=no) ]] ||
+    stop "Uncommitted changes: commit or stash them first"
   meta=$(awk -v id="$id" '$0 ~ "^## " id " " {f=1; next} f && /^meta:/ {print; exit}' docs/tasks.md)
   tier=$(grep -oP 'tier=\K\S+' <<<"$meta")
   effort=$(grep -oP 'effort=\K\S+' <<<"$meta")
+  arg=$id
+  case $(quest_state "$id") in
+  gm) stop "$(grep -E "^## $id — " docs/progress.md | tail -n 1): waiting for the GM" 0 ;;
+  retry) arg="retry $id" tier=cleric ;;
+  esac
   before=$(git rev-parse HEAD)
   log=.campaign/$id.json
   echo "== $id ($agent $(scripts/agent model "$agent" "$tier"), $effort) → $log"
   timeout --foreground "$limit" scripts/agent run "$agent" "$tier" "$effort" \
-    "$log" "$(invoke "$id")"
+    "$log" "$(invoke "$arg")"
   rc=$?
   ((rc == 124)) && stop "$id: timed out after $limit"
   ((rc == 0)) || stop "$id: $agent exited $rc (see $log)"
