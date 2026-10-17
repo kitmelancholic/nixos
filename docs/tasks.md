@@ -316,11 +316,11 @@ meta: tier=hero effort=medium boss=no diff=none
 ---
 
 ## c1q10 — Cleaning the castle ⚔️
-meta: tier=hero effort=medium boss=yes diff=leaves leaves=-hyprpolkitagent*,-hyprlock*? rest=c1r1
+meta: tier=hero effort=medium boss=yes diff=leaves leaves=-hyprpolkitagent*,-hyprlock*?,-blueman*,-network-manager-applet*,~dbus*? rest=c1r1
 
-**Goal.** The host keeps only what the remaining lock screens need.
+**Goal.** The host keeps only what the remaining lock screens need, and the tray no longer duplicates the shells' own Wi-Fi and Bluetooth.
 
-**Why.** After c1q08 nothing uses the classic lock stack. Host changes need the GM's switch, so this is act I's boss.
+**Why.** After c1q08 nothing uses the classic lock stack. `services.blueman` and `networkmanagerapplet` are leftovers too: their XDG autostart entries (UWSM runs them) put blueman-applet and nm-applet in the tray next to the Wi-Fi and Bluetooth panels Noctalia and Caelestia already have, so the GM sees each twice. `bluetuith` stays as the terminal fallback. Host changes need the GM's switch, so this is act I's boss.
 
 **Read first.** `hosts/nixos/desktop.nix` (around lines 15-18, 76, 115).
 
@@ -329,18 +329,20 @@ meta: tier=hero effort=medium boss=yes diff=leaves leaves=-hyprpolkitagent*,-hyp
 **Steps.**
 1. Remove `hyprpolkitagent` from system packages.
 2. As decided: keep, or remove both `programs.hyprlock.enable = true` and `services.hypridle.enable = lib.mkForce false` with its comment.
+3. Remove `blueman.enable = true` from `services` and `networkmanagerapplet` from system packages. Keep `hardware.bluetooth` and `bluetuith`.
 
-**Do not.** Remove only one of the hyprlock / hypridle pair. Touch other PAM services.
+**Do not.** Remove only one of the hyprlock / hypridle pair. Touch other PAM services. Disable `hardware.bluetooth` or NetworkManager.
 
 **Verify.** `nix build .#nixosConfigurations.nixos.config.system.build.toplevel`. Home: no change.
 
 **AGENTS.md.** No change.
 
-**Commit.** `refactor(c1q10): host cleanup after classic`
+**Commit.** `refactor(c1q10)!: host cleanup after classic`
+(body: `BREAKING CHANGE: blueman and nm-applet tray applets removed; use the shell's Wi-Fi and Bluetooth panels or bluetuith.`)
 
 **GM's turn.**
 - `just switch` (sudo).
-- In Noctalia and Caelestia: lock, unlock with password, unlock with fingerprint (only if `fprintd-list kit` shows an enrolled finger), suspend and resume.
+- In Noctalia and Caelestia: lock, unlock with password, unlock with fingerprint (only if `fprintd-list kit` shows an enrolled finger), suspend and resume; the tray shows no blueman or nm-applet icon, and the shell's own Wi-Fi and Bluetooth panels still connect.
 - Long rest: read the reviewer's findings, push `redesign`, merge the PR into `main` as a merge commit, `git switch main && git pull --ff-only && git switch redesign`.
 - All good → `## c1q10 — виконано`.
 
