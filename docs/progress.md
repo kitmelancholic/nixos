@@ -32,3 +32,9 @@ Validation with `XDG_CACHE_HOME=/tmp/c1q00-nix-cache` (default cache is read-onl
 agent: codex gpt-6.1-sol
 
 ## c1q00 — благословення
+
+## c1q00 — провалений кидок
+Uncommitted changes outside this quest's paths: scripts/agent, scripts/campaign (staged).
+Preserved both paths; baseline tags and hook installation were not performed.
+GM: finish or set aside those changes, then run $quest retry c1q00.
+agent: codex gpt-6
