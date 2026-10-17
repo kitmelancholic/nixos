@@ -58,3 +58,9 @@ GM blessing accepted; existing baseline retained per GM decision. scripts/quest-
 Hooks installed by GM; read-only comparison remains blocked by the automatic guard, so their contents were not independently verified.
 Long rest c1r0: no previous rest review required; baseline/rest/version tags identify this completion commit.
 agent: codex gpt-6
+
+## c1q01 — провалений кидок
+Required paths, CLAUDE.md content and quest symlink passed; commit-msg matches its source.
+scripts/check --fast failed at shellcheck: Nix could not write /home/kit/.cache/nix/flake-registry.json (read-only filesystem).
+Automatic guard rejected read-only hook comparison as “git push is denied”; GM: enable required checks and verify reference-transaction/pre-push against scripts/hooks/ref-guard and git-guard, then retry.
+agent: codex gpt-6.1-sol
