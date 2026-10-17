@@ -80,3 +80,5 @@ README stability failed for catppuccin, gruvbox, kit-dark and tokyo-night: class
 Fast/full quest checks, repository-free activation closures and selector runtime checks passed; source-only verification has no derivation oracle.
 GM: extend the quest scope to inspect/fix the wallpaper source reference, then retry; edits retained in flake.nix, lib/mk-home.nix and home/theme-switcher.nix.
 agent: codex gpt-6.1-sol
+
+GM: scope extended to home/desktop/wallpaper.nix. Change X-Restart-Triggers to [ "${config.kit.classic.wallpaper}" ] (interpolation copies only the image), rerun the README check for every theme and finish.
