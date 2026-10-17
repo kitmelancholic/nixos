@@ -57,11 +57,11 @@ meta: tier=hero effort=medium boss=no diff=baseline rest=c1r0
    - write the summary for the GM into the `хід майстра` entry: `flake.nix` (`pkgsUnstable` with `config.allowUnfree = true`); `home/packages.nix` (`pkgsUnstable.claude-code`); per changed `flake.lock` input, old → new revision and date, calling out `nixpkgs` and the held inputs `hyprland`, `noctalia`, `caelestia`; what changed in the graphify patch and whether the new `graphify` lock entry needs it;
    - run `nix flake check --no-write-lock-file` and build `.#nixosConfigurations.nixos.config.system.build.toplevel`;
    - commit only `docs/progress.md` and stop.
-2. On `/quest retry c1q00` with `благословення`: `git add flake.nix flake.lock home/packages.nix patches/graphify-nix-support.patch`, commit, tag `redesign-baseline` and `c1r0`, install `scripts/hooks/ref-guard` as the git `reference-transaction` and `pre-push` hook and `scripts/hooks/commit-msg` as the git `commit-msg` hook (executable copies in `.git/hooks/`), append `виконано`.
+2. On `/quest retry c1q00` with `благословення`: `git add flake.nix flake.lock home/packages.nix patches/graphify-nix-support.patch`, commit, tag `redesign-baseline` and `c1r0`, append `виконано`.
 
 **Do not.** Stage anything outside those five paths. Edit any Nix file.
 
-**Verify.** `git show --stat HEAD` lists exactly the five paths.
+**Verify.** ---
 
 **AGENTS.md.** No change.
 
