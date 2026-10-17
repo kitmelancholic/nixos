@@ -146,6 +146,7 @@ CI на кожен push у `redesign` і PR у `main`: лінт доків і к
 | Zoom і масштаб | бінди на вільних клавішах | Hyprland міняє назви опцій |
 | Caelestia за контрактом | друга тема з тими самими біндами | IPC Caelestia часто змінюється |
 | Clipboard | одна історія (текст і картинки), що переживає зміну теми; `dangonix clipboard` | наявна історія Noctalia губиться |
+| Пакети командою | `dangonix pkg search zed ide`, `pkg install <attr> [unstable]`: програма одразу в конфігу (`packages.json`), потім переносимо в код ([design §5](design.md#пакети)) | перший пошук після `update` повільний |
 | Search на SUPER+R | застосунки, команди `dangonix`, калькулятор, файли | вибір backend (Walker, Vicinae) |
 | Ощадливий режим енергії | на батареї сам; на мережі — вручну, щоб швидше зарядитись ([design §7](design.md#7-енергія-і-фон)) | другий «водій» режиму в shell або ppd |
 | Ощадливий режим трафіку | на хотспоті iPhone не качає зайвого ([design §8](design.md#8-трафік)) | спершу замір, що реально качає |
@@ -158,7 +159,7 @@ CI на кожен push у `redesign` і PR у `main`: лінт доків і к
 | Попередження про батарею | рівно одне, як роль теми | різні пороги в shell'ів |
 | Wallpaper Noctalia | з репо | розмір файлу |
 | Дрібниці | git identity в конфігу, Proton-GE, без Discord (Vesktop лишається), оптимізація store | — |
-| Відкат і прибирання | `dangonix rollback` — відкат однією командою; `dangonix gc` прибирає старі generations, не чіпаючи Foundry | `rollback` без зміни `state.json` розводить їх до наступного switch |
+| Відкат і прибирання | `dangonix rollback` — відкат однією командою; `dangonix clean` прибирає старі generations, не чіпаючи Foundry | `rollback` без зміни `state.json` розводить їх до наступного switch |
 | Фінальні доки | README = мануал | — |
 | Plymouth | красивий тихий boot | LUKS, відбиток, resume |
 

@@ -16,6 +16,7 @@
 ```
 flake.nix               inputs + wiring (< 120 рядків); expose lib.themes
 state.json              вибір, який робить dangonix: { theme, foundry.instances, fingerprint }
+packages.json           пакети, встановлені `dangonix pkg install` (чернетка до переносу в код)
 lib/
   settings.nix          user, host, system, held inputs
   mk-home.nix           одна home-конфігурація на тему
@@ -161,7 +162,7 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 | `dangonix update [<input>...]` | state | ask | оновити всі inputs крім held, `dangonix check`, при помилці повернути `flake.lock`; ніколи не switch'ить і не комітить |
 | `dangonix history` | read | allow | журнал транзакцій (команда, час, результат, `failedStep`) разом з host і home generations |
 | `dangonix rollback [--host\|--home]` | host | ask | активувати попередню пару generations з журналу; `state.json` не чіпає, тож `status` попереджає, що система не з нього |
-| `dangonix gc [--older-than <14d>]` | host | ask | видалити старші generations (поточна й попередня лишаються завжди) і зібрати сміття store; GC roots Foundry не чіпає; друкує, скільки звільнено |
+| `dangonix clean [--older-than <14d>]` | host | ask | видалити старші generations (поточна й попередня лишаються завжди) і зібрати сміття store; GC roots Foundry не чіпає; друкує, скільки звільнено |
 | **Перевірки** | | | |
 | `dangonix check [--fast\|--vm]` | read | allow | завжди: лінт доків і комітів, shellcheck; full: `nix flake check` (static, host, всі теми, verify, контракт, політика безпеки); `--fast`: тільки eval; `--vm`: VM-тести транзакцій (`packages.dangonix-vm`) |
 | `dangonix doctor` | read | allow | наживо: ролі активної теми, відбиток ([§10](#10-відбиток-пальця)) |
@@ -171,6 +172,12 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 | `dangonix theme <id>` | state | ask | записати тему в `state.json`, зібрати й активувати home |
 | `dangonix keys` | read | allow | cheatsheet з реальних даних біндів |
 | `dangonix clipboard [list\|pick\|clear]` | read/runtime/state | **ask** | історія clipboard (може містити паролі) |
+| **Пакети** ([нижче](#пакети)) | | | |
+| `dangonix pkg [list]` | read | allow | пакети з `packages.json`: канал, дата, примітка, скільки днів чекає переносу в код |
+| `dangonix pkg search <слова…>` | read | allow | пошук по всьому nixpkgs (stable і unstable) з версіями з `flake.lock`; позначає встановлене (будь-яким шляхом) і програми з опцією модуля |
+| `dangonix pkg install <attr> [stable\|unstable] [--note <текст>]` | state | ask | записати в `packages.json`, зібрати й активувати home |
+| `dangonix pkg remove <attr>` | state | ask | прибрати з `packages.json`, активувати home; рукописні пакети не чіпає, а показує, де вони в коді |
+| `dangonix pkg try <attr>` | runtime | allow | тимчасова оболонка з пакетом (`nix shell`), конфіг не змінюється |
 | **Foundry** ([§9](#9-foundry-vtt)) | | | |
 | `dangonix foundry [list]` | read | allow | інстанси: версія, порт, стан, URL |
 | `dangonix foundry status [<name>]` | read | allow | повний звіт по інстансу, без імені — по всіх ([§9](#статус)) |
@@ -200,6 +207,12 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 | `dangonix backup check` | read | allow | `restic check` цілісності сховища |
 | `dangonix backup restore <snapshot> <path> [--to <dir>]` | state | ask | відновити в окрему теку (default `~/restore/<snapshot>/`), ніколи поверх живих даних |
 
+### Пакети
+Ціль: шукати й ставити програми однією командою, але так, щоб вони жили в конфігу.
+- `packages.json` (tracked): `{ "<attr>": { "channel": "stable|unstable", "added": "YYYY-MM-DD", "note": "…" } }`. `home/packages.nix` читає його `builtins.fromJSON` і додає `pkgs.<attr>` або `pkgsUnstable.<attr>` до `home.packages` поруч з рукописним списком. dangonix редагує його через `jq`, як `state.json`, і не комітить. Це чернетка: згодом пакети переносяться в рукописний список руками, а `pkg remove` прибирає їх звідси.
+- `search` шукає в назві й описі по обох зафіксованих nixpkgs, тож показана версія — та, що встановиться (перший пошук після `update` — десятки секунд, далі eval cache). «Встановлено» — за зібраною системою: `home.packages` і `environment.systemPackages`.
+- `install` перевіряє, що атрибут існує в зафіксованому nixpkgs, і відмовляє (exit 4) з назвою опції, якщо для програми є опція NixOS чи Home Manager (`programs.<name>.enable`): такій програмі мало пакета. Тільки `home.packages`; системні пакети й сервіси — лише в коді.
+
 **Свідомо не команди.** `nix fmt` — форматування, не обгортається. `scripts/` (closure-diff, quest-verify, campaign, next-version, lint-*) — інструменти розробки репо, не системи; єдиний міст — `dangonix check`. `docker`, `tailscale`, `op`, `fprintd-*` викликаються напряму: dangonix обгортає тільки те, де додає стан, транзакцію або захист. Zoom і scale моніторів, lock, suspend — бінди.
 
 ### `effect` і `agent`
@@ -210,14 +223,14 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 | `state` | пише `state.json`, `flake.lock` або user data | ні | з `--dry` | так |
 | `host` | змінює або активує системну конфігурацію | ні | з `--dry` | так |
 
-`agent` (`allow | ask`) — окреме поле для Claude Code permissions. Default: `allow` для read/runtime, `ask` для state/host; винятки — Foundry service control, clipboard і `fingerprint add|remove|check` (`ask`: потрібен живий палець). Rules генеруються з таблиці по конкретних формах аргументів (напр. ask на `dangonix theme noctalia`, але `dangonix theme` — allow). `dangonix --dry …` — один allow rule.
+`agent` (`allow | ask`) — окреме поле для Claude Code permissions. `wraps` — сирі команди, які рядок обгортає; з нього генерується deny для агентів у managed settings ([§11](#агенти)). Default: `allow` для read/runtime, `ask` для state/host; винятки — Foundry service control, clipboard і `fingerprint add|remove|check` (`ask`: потрібен живий палець). Rules генеруються з таблиці по конкретних формах аргументів (напр. ask на `dangonix theme noctalia`, але `dangonix theme` — allow). `dangonix --dry …` — один allow rule.
 
 З таблиці генеруються: help, fish completions, `dangonix commands --json`, що показує search, що проганяє `--json`-перевірка, хто бере lock, permissions для Claude Code.
 
 ### Транзакції
 Два види мутацій, обидва під lock'ом:
-- **configuration transaction** — `switch`, `rollback`, `theme <id>`, `update`, `foundry add|upgrade|remove`, `fingerprint on|off`. Мають recovery.
-- **irreversible operation** — `firmware update`, `gc`, `clipboard clear`, `foundry import`, `fingerprint remove`. Lock + `--dry` + `ask`, без rollback; dangonix каже про це перед дією, JSON має `reversible: false`. Імпорт ZIP усередині `foundry add|upgrade` — теж irreversible крок, але транзакція навколо нього відкочується; `reversible: false` стосується тільки імпорту.
+- **configuration transaction** — `switch`, `rollback`, `theme <id>`, `pkg install|remove`, `update`, `foundry add|upgrade|remove`, `fingerprint on|off`. Мають recovery.
+- **irreversible operation** — `firmware update`, `clean`, `clipboard clear`, `foundry import`, `fingerprint remove`. Lock + `--dry` + `ask`, без rollback; dangonix каже про це перед дією, JSON має `reversible: false`. Імпорт ZIP усередині `foundry add|upgrade` — теж irreversible крок, але транзакція навколо нього відкочується; `reversible: false` стосується тільки імпорту.
 
 Кроки транзакції:
 1. Відмова, якщо `$USER` ≠ `kit`.
@@ -384,6 +397,7 @@ PAM-стек послідовний: `pam_fprintd` чекає палець і п
 ### Агенти
 - **Managed settings Claude Code** генерує NixOS-модуль: `/etc/claude-code/managed-settings.json`, змінюється тільки через switch, налаштування репо його не послаблять. Вміст: sandbox `enabled`, `failIfUnavailable`, `allowUnsandboxedCommands: false`; `credentials.files` deny для `~/.ssh`, `~/.config/gh`, `~/.local/share/keyrings`, `~/.1password`, профілю Zen; `network.allowedDomains` — GitHub, `cache.nixos.org`, cachix; `network.allowUnixSockets` — тільки сокет nix-daemon (сокети Docker і 1Password — ні); `Read(...)` deny на ті самі шляхи, бо інструмент Read працює поза sandbox. `bubblewrap` і `socat` — у системі. Точні ключі звірити з документацією Claude Code під час реалізації.
 - `scripts/campaign` запускає `claude` цілком у bubblewrap: видно тільки `~/nixos`, `~/.claude` і сокет nix-daemon.
+- **Сирі команди, які обгортає `dangonix`,** агентам заборонені тими самими managed settings (deny генерується з поля `wraps` таблиці команд): `nixos-rebuild`, `home-manager switch`, `switch-to-configuration`, `nix-env --set`, `nix-env -i`, `nix profile install`, `nix-collect-garbage`, `nix flake update`, `fwupdmgr update`, `fprintd-enroll`, `fprintd-delete`, `tailscale funnel`, `restic`, `systemctl start|stop|restart foundryvtt-*`, `nmcli … metered`, `Edit`/`Write` на `state.json` і `packages.json`. Агент змінює систему тільки через `dangonix`. Мені — тільки підказка: fish-функції `nixos-rebuild` і `home-manager` друкують «це робить `dangonix switch`», сира команда — `command nixos-rebuild …`; ручні кроки після exit 3 працюють.
 - `.claude/settings.json` у репо лишається для allow/ask ([§12](#12-агенти)).
 
 ### Бекапи
