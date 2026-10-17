@@ -53,11 +53,18 @@ run | ask)
     sandbox=workspace-write
     [[ $cmd == ask ]] && sandbox=read-only
     # exec never asks: anything the sandbox and .codex/rules refuse fails.
-    codex exec --model "$m" -c model_reasoning_effort="$effort" \
+    # The registry/PATH may provide an older CLI that cannot read the shared
+    # model cache or use the campaign's models. Use our locked unstable input.
+    nix run --no-write-lock-file --inputs-from . nixpkgs-unstable#codex -- \
+      exec --model "$m" -c model_reasoning_effort="$effort" \
       --sandbox "$sandbox" --json --output-last-message "$log.last" \
       "$prompt" >"$log"
     rc=$?
-    [[ $cmd == ask ]] && cat "$log.last"
+    if ((rc != 0)); then
+      jq -r 'select(.type == "error") | .message // empty' "$log" >&2
+    elif [[ $cmd == ask ]]; then
+      cat "$log.last"
+    fi
     ;;
   *)
     echo "agent: unknown agent '$agent'" >&2
