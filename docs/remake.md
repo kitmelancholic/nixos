@@ -149,7 +149,7 @@ CI на кожен push у `redesign` і PR у `main`: лінт доків і к
 | Search на SUPER+R | застосунки, команди `dangonix`, калькулятор, файли | вибір backend (Walker, Vicinae) |
 | Ощадливий режим енергії | на батареї сам; на мережі — вручну, щоб швидше зарядитись ([design §7](design.md#7-енергія-і-фон)) | другий «водій» режиму в shell або ppd |
 | Ощадливий режим трафіку | на хотспоті iPhone не качає зайвого ([design §8](design.md#8-трафік)) | спершу замір, що реально качає |
-| Foundry-інстанси | кілька версій поруч, кожна зі своїми світами ([design §9](design.md#9-foundry-vtt)) | ліцензія; переїзд даних у `main` — твій ручний крок після backup |
+| Foundry-інстанси | кілька версій поруч, кожна зі своїми світами; `dangonix foundry status` показує все про кожен інстанс ([design §9](design.md#9-foundry-vtt)) | ліцензія; переїзд даних у `main` — твій ручний крок після backup |
 | Відбиток пальця | палець замість пароля в `sudo`, polkit і на lock screen; `dangonix fingerprint add\|remove\|check\|on\|off` ([design §10](design.md#10-відбиток-пальця)) | сенсор може не підтримуватись libfprint; вхід у SDDM лишається з паролем (keyring) |
 | Вартовий | `dangonix security` — один екран зі станом безпеки і командами-виправленнями; статична політика безпеки в `dangonix check`; закритий firewall, дрібне посилення ядра, Docker rootless; sandbox агентів через managed settings з Nix ([design §11](design.md#11-безпека)) | rootless ламає окремі compose-файли; точні ключі sandbox Claude Code |
 | 1Password і SSH з Windows | паролі, SSH-ключі й токен `gh` в 1Password з відбитком, браузер без master-пароля; `ssh kit@nixos` з Windows через Tailscale | master-пароль раз після перезавантаження (обмеження Linux); ім'я бінарника Zen для інтеграції |

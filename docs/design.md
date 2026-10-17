@@ -151,7 +151,8 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 | `dangonix theme` | read | allow | список тем: selected (`state.json`) і active |
 | `dangonix theme <id>` | state | ask | записати тему в `state.json`, зібрати й активувати home |
 | `dangonix foundry [list]` | read | allow | інстанси: версія, порт, стан, URL |
-| `dangonix foundry status\|logs\|check <name>` | read | allow | один інстанс |
+| `dangonix foundry status [<name>]` | read | allow | повний звіт по інстансу, без імені — по всіх ([§9](#статус)) |
+| `dangonix foundry logs\|check <name>` | read | allow | логи / перевірка одного інстансу |
 | `dangonix foundry start\|stop\|restart\|open <name>` | runtime | **ask** | керування `foundryvtt-<name>.service` (зупинка обірве гру) |
 | `dangonix foundry add <name> <zip> [--port N] [--copy-from <name>]` | host | ask | імпорт ZIP, новий інстанс у `state.json`, switch host; `--copy-from` копіює дані іншого інстансу |
 | `dangonix foundry upgrade <name> <zip>` | host | ask | імпорт ZIP, нова версія для інстансу, switch host; між major — тільки з `--backed-up` |
@@ -276,6 +277,21 @@ nix --extra-experimental-features 'nix-command flakes' run ~/nixos -- switch
 - `foundry remove` ніколи не видаляє дані; видалити `/var/lib/foundryvtt-<name>` — мій ручний крок.
 - **Міграція:** поточний `/var/lib/foundryvtt` стає інстансом `main` (`/var/lib/foundryvtt-main`) — одноразовий ручний крок після backup.
 - Ризик: умови ліцензії Foundry щодо одночасного запуску кількох інстансів з одним ключем — перевірити до реалізації.
+
+### Статус
+`dangonix foundry status [<name>]` — усе, що можна дізнатись без змін, одним екраном (`--json` — те саме для бару і агентів); без імені — блок на кожен інстанс і підсумок. `dangonix foundry` лишається коротким списком.
+
+| Блок | Що показує | Звідки |
+|---|---|---|
+| Інстанс | ім'я, версія в `state.json` і реально зібрана, major, порт, `http://127.0.0.1:<port>` | `state.json`, пакет хоста |
+| Сервіс | стан unit'а, uptime, пам'ять, CPU, перезапуски, останні помилки з журналу (кількість + останній рядок) | `systemctl show`, `journalctl` |
+| Гра | активний світ і система, гравців онлайн | `GET /api/status` інстансу (перевірити поля при реалізації) |
+| Гравці | Funnel `on/off`, публічне посилання, порт Funnel (443/8443/10000), чи з'єднання лімітне | `tailscale funnel status`, NetworkManager |
+| Дані | світи (назва, система, розмір, остання зміна), кількість модулів і систем, розмір `Data`, вільне місце на диску | `/var/lib/foundryvtt-<name>/Data` |
+| Безпека | admin-пароль заданий, ліцензія є (сам ключ не друкується), `✗`, якщо Funnel увімкнений без admin-пароля | `Config/` |
+| Бекап | вік останнього бекапу з цим інстансом | restic ([§11](#бекапи)) |
+
+Кожне попередження — з командою-виправленням, як у `dangonix security`; ті самі перевірки Foundry щит показує одним рядком.
 
 ## 10. Відбиток пальця
 Ціль: всюди, де система питає мій пароль і це має сенс, спершу можна прикласти палець; пароль завжди лишається запасним шляхом.
