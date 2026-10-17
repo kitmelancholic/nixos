@@ -12,7 +12,7 @@
 - **Теми (у коді — "profiles")** — реєстр `profiles/default.nix`, default `catppuccin`:
   - classic family: `catppuccin`, `tokyo-night`, `gruvbox`, `kit-dark` (палітри в `themes/`; Waybar, Dunst, SwayOSD, awww, Hyprlock, Hypridle, Wlogout);
   - external shells: `dms`, `noctalia`, `caelestia`.
-- **Agent tooling:** Graphify (`graphify-nix/`, patch, `home/graphify.nix`, 37 MB `graphify-out/`), `.codex/hooks.json`, `.claude/` (`/quest`, `settings.json` з дозволами, `git-guard`, `ref-guard`, `commit-msg`), `scripts/` (`check`, `quest-verify`, `campaign`, `lint-docs`, `lint-commits`, `next-version`), `CLAUDE.md` (тільки build output і git правила).
+- **Agent tooling:** Graphify (`graphify-nix/`, patch, `home/graphify.nix`, 37 MB `graphify-out/`), `AGENTS.md` (спільні правила; `CLAUDE.md` імпортує його), `.agents/skills/quest/` (`/quest` і `$quest`), `.claude/settings.json` з дозволами, `.codex/` (config, hooks, rules), `scripts/` (`check`, `quest-verify`, `campaign`, `agent`, `review`, `lint-docs`, `lint-commits`, `next-version`, `hooks/`).
 - **CI:** `.github/workflows/ci.yml` — `scripts/check --fast` (лінт доків і комітів, shellcheck, eval без збірки) і оракул з c1q03.
 
 ## 2. Що добре (лишаємо)
@@ -85,7 +85,7 @@
 
 ### Agent tooling (ціль 7)
 - Graphify: 1287-рядковий Nix extractor + тести, patch проти upstream internals, flake input, 92-рядковий модуль, hook на кожен Codex Bash call, 37 MB output — для 3.3k рядків Nix. Запит "how are desktop themes selected" дав 245 вузлів, переважно Zed syntax colours.
-- `AGENTS.md` робив Graphify обов'язковим (вже видалений); `CLAUDE.md` майже порожній.
+- Старий `AGENTS.md` робив Graphify обов'язковим (видалений у ff258ef); новий `AGENTS.md` — спільні правила для Claude Code і Codex, `CLAUDE.md` лише імпортує його.
 
 ### Дрібне
 - **Naming drift:** kitOS, `kit-profile`/`kit-theme`, `profile-id`/`theme-id`, `KIT_PROFILE_FLAKE`/`KIT_THEME_FLAKE`; checks звуться "theme", код — "profile".

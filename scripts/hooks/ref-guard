@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Git hook, installed in c1q00 as .git/hooks/reference-transaction and
+# .git/hooks/pre-push. Git runs it for every ref update, however the git
+# command was spelled. Inside an agent (Claude Code sets CLAUDECODE=1, Codex
+# and scripts/agent set DANGONIX_AGENT) only branch
+# `redesign`, the campaign tags (c1r0, …) and version tags (vX.Y.Z) may change, and nothing may be pushed.
+# Outside an agent (your own terminal) it does nothing.
+set -uo pipefail
+[[ ${CLAUDECODE:-} == 1 || -n ${DANGONIX_AGENT:-} ]] || exit 0
+case "$(basename "$0")" in
+pre-push)
+  echo "ref-guard: push denied inside an agent" >&2
+  exit 1
+  ;;
+reference-transaction)
+  [[ ${1:-} == prepared ]] || exit 0
+  status=0
+  while read -r _old _new ref; do
+    case "$ref" in
+    refs/heads/redesign | refs/tags/c[0-9]*r[0-9]* | refs/tags/v[0-9]* | refs/tags/redesign-baseline | refs/tags/last-multi-theme) ;;
+    refs/heads/* | refs/tags/*)
+      echo "ref-guard: $ref may not change inside an agent" >&2
+      status=1
+      ;;
+    esac
+  done
+  exit "$status"
+  ;;
+esac
+exit 0

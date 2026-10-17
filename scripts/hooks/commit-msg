@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Git commit-msg hook, installed in c1q00 as .git/hooks/commit-msg. Inside an
+# agent (CLAUDECODE=1 or DANGONIX_AGENT set) every commit message must follow
+# Conventional Commits (scripts/lint-commits). Outside an agent it does nothing; CI
+# checks every pushed commit anyway.
+set -euo pipefail
+[[ ${CLAUDECODE:-} == 1 || -n ${DANGONIX_AGENT:-} ]] || exit 0
+exec "$(git rev-parse --show-toplevel)/scripts/lint-commits" --msg-file "$1"

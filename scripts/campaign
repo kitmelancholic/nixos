@@ -1,10 +1,32 @@
 #!/usr/bin/env bash
-# Autopilot: run quests from docs/tasks.md one fresh Claude Code session at a
-# time, with the model and effort from each quest's meta line, until a journal
-# entry is anything but `виконано`. Each run's JSON result (cost, permission
-# denials, final message) goes to .campaign/<id>.json (gitignored).
+# Autopilot: run quests from docs/tasks.md one fresh agent session at a time,
+# with the tier and effort from each quest's meta line, until a journal entry
+# is anything but `виконано`.
+#   campaign [--agent claude|codex] [--judge claude|codex]
+# --agent  the hero's CLI (default claude); --judge  the CLI behind
+# scripts/review (default: the hero's). Models per tier: AGENTS.md. Each
+# run's log goes to .campaign/<id>.json (gitignored).
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
+agent=claude
+judge=
+while [[ ${1:-} == --* ]]; do
+  case $1 in
+  --agent | --judge)
+    [[ ${2:-} == claude || ${2:-} == codex ]] || {
+      echo "campaign: $1 needs claude or codex" >&2
+      exit 2
+    }
+    declare "${1#--}=$2"
+    shift 2
+    ;;
+  *)
+    echo "campaign: unknown flag $1" >&2
+    exit 2
+    ;;
+  esac
+done
+export DANGONIX_JUDGE=${judge:-$agent}
 mkdir -p .campaign
 limit=${QUEST_TIMEOUT:-3h}
 
@@ -23,24 +45,32 @@ next_quest() {
   done
 }
 
+# Each CLI has its own skill syntax; both load .agents/skills/quest.
+invoke() {
+  case $agent in
+  claude) echo "/quest $1" ;;
+  codex) echo "\$quest $1" ;;
+  esac
+}
+
 for _ in $(seq 25); do
   id=$(next_quest)
   [[ -n $id ]] || stop "Campaign complete" 0
   meta=$(awk -v id="$id" '$0 ~ "^## " id " " {f=1; next} f && /^meta:/ {print; exit}' docs/tasks.md)
-  model=$(grep -oP 'model=\K\S+' <<<"$meta")
+  tier=$(grep -oP 'tier=\K\S+' <<<"$meta")
   effort=$(grep -oP 'effort=\K\S+' <<<"$meta")
   before=$(git rev-parse HEAD)
   log=.campaign/$id.json
-  echo "== $id ($model, $effort) → $log"
-  # -p cannot ask: anything not allowed by .claude/settings.json is denied.
-  timeout --foreground "$limit" claude -p "/quest $id" --model "$model" \
-    --effort "$effort" --permission-mode acceptEdits \
-    --permission-prompts none --output-format json >"$log"
+  echo "== $id ($agent $(scripts/agent model "$agent" "$tier"), $effort) → $log"
+  timeout --foreground "$limit" scripts/agent run "$agent" "$tier" "$effort" \
+    "$log" "$(invoke "$id")"
   rc=$?
   ((rc == 124)) && stop "$id: timed out after $limit"
-  ((rc == 0)) || stop "$id: claude exited $rc (see $log)"
-  denied=$(jq '.permission_denials | length' "$log" 2>/dev/null || echo "?")
-  [[ $denied == 0 ]] || stop "$id: $denied permission denials (see $log)"
+  ((rc == 0)) || stop "$id: $agent exited $rc (see $log)"
+  if [[ $agent == claude ]]; then
+    denied=$(jq '.permission_denials | length' "$log" 2>/dev/null || echo "?")
+    [[ $denied == 0 ]] || stop "$id: $denied permission denials (see $log)"
+  fi
   [[ $(git rev-parse HEAD) != "$before" ]] || stop "$id: no new commit"
   last=$(grep -E '^## c[0-9]+q[0-9]+ — ' docs/progress.md | tail -n 1)
   case $last in

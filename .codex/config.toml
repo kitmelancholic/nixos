@@ -1,0 +1,13 @@
+# Project config for Codex, the counterpart of .claude/settings.json. Codex
+# loads it once the project is trusted. Allow/prompt/deny rules for shell
+# commands are in .codex/rules/dangonix.rules.
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+# nix fetches flake inputs and talks to nix-daemon, as in Claude Code.
+network_access = true
+
+[shell_environment_policy]
+# The git hooks (scripts/hooks) guard every agent that sets this.
+set = { DANGONIX_AGENT = "codex" }
