@@ -434,6 +434,7 @@ meta: model=claude-sonnet-5-5 effort=high boss=yes diff=leaves leaves=+dangonix*
 
 **GM's turn.**
 - `dangonix switch` (sudo); try `dangonix theme caelestia` and back.
+- Decide whether `hyprland` tracks release tags (`github:hyprwm/Hyprland?ref=v0.x.y`) instead of git master; tell the scribe in the project.
 - Long rest: read the reviewer's findings, push `redesign`, merge into `main` as a merge commit, sync `main`.
 - All good → `## c1q13 — виконано`.
 

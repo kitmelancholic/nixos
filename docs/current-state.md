@@ -83,7 +83,7 @@
 - Агенти обмежені лише текстовими правилами й hooks, sandbox Claude Code вимкнений: агент може читати `~/.ssh` і токен `gh`. Ніщо не ловить коміт, який послаблює захист.
 - Bluetooth вмикається при старті (`powerOnBoot = true`).
 
-### Agent tooling (ціль 6)
+### Agent tooling (ціль 7)
 - Graphify: 1287-рядковий Nix extractor + тести, patch проти upstream internals, flake input, 92-рядковий модуль, hook на кожен Codex Bash call, 37 MB output — для 3.3k рядків Nix. Запит "how are desktop themes selected" дав 245 вузлів, переважно Zed syntax colours.
 - `AGENTS.md` робив Graphify обов'язковим (вже видалений); `CLAUDE.md` майже порожній.
 
@@ -100,7 +100,7 @@
 |---|---|---|
 | 1 | Згенерувати `hardware-configuration.nix` | inherent, pre-step |
 | 2 | Увімкнути flakes в installer'і | bootstrap з `--extra-experimental-features` |
-| 3 | Bootstrap: home → host, `-b hm-backup` | `dangonix switch [--backup]` |
+| 3 | Bootstrap: home → host, `-b hm-backup` | `dangonix switch [--overwrite]` |
 | 4 | Створити юзера `kit` | inherent; dangonix відмовляє іншим юзерам |
 | 5 | Foundry payload: `nix-store --add-fixed` + ручний GC root | `dangonix foundry import <zip>` |
 | 6 | Foundry licence, admin password, worlds | inherent data; задокументувати backup |

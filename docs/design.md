@@ -158,7 +158,7 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 | `dangonix help [<команда>]` | read | allow | довідка з таблиці команд |
 | `dangonix commands` | read | allow | всі команди з описом, effect, agent (`--json` — API для агентів, search і shell'ів) |
 | `dangonix version` | read | allow | версія dangoNix (`git describe`), коміт, чи брудне дерево, host і home generations, дата `nixpkgs` |
-| `dangonix switch [--home\|--host] [--backup]` | host | ask | транзакція: build host + home, nvd diff, активувати хост (тільки якщо змінився), потім home |
+| `dangonix switch [--home\|--host] [--overwrite]` | host | ask | транзакція: build host + home, nvd diff, активувати хост (тільки якщо змінився), потім home; `--overwrite` відкладає вбік файли, з якими зіткнувся Home Manager (`-b`) |
 | `dangonix update [<input>...]` | state | ask | оновити всі inputs крім held, `dangonix check`, при помилці повернути `flake.lock`; ніколи не switch'ить і не комітить |
 | `dangonix history` | read | allow | журнал транзакцій (команда, час, результат, `failedStep`) разом з host і home generations |
 | `dangonix rollback [--host\|--home]` | host | ask | активувати попередню пару generations з журналу; `state.json` не чіпає, тож `status` попереджає, що система не з нього |
@@ -228,9 +228,10 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 З таблиці генеруються: help, fish completions, `dangonix commands --json`, що показує search, що проганяє `--json`-перевірка, хто бере lock, permissions для Claude Code.
 
 ### Транзакції
-Два види мутацій, обидва під lock'ом:
+Три види мутацій, усі під lock'ом:
 - **configuration transaction** — `switch`, `rollback`, `theme <id>`, `pkg install|remove`, `update`, `foundry add|upgrade|remove`, `fingerprint on|off`. Мають recovery.
 - **irreversible operation** — `firmware update`, `clean`, `clipboard clear`, `foundry import`, `fingerprint remove`. Lock + `--dry` + `ask`, без rollback; dangonix каже про це перед дією, JSON має `reversible: false`. Імпорт ZIP усередині `foundry add|upgrade` — теж irreversible крок, але транзакція навколо нього відкочується; `reversible: false` стосується тільки імпорту.
+- **проста мутація** — `fingerprint add`, `net metered on|off`, `backup now`, `backup restore`. Lock + `--dry` + запис у журнал, без `y/N` і без recovery: вони не чіпають конфіг і нічого не знищують.
 
 Кроки транзакції:
 1. Відмова, якщо `$USER` ≠ `kit`.
@@ -263,7 +264,7 @@ nix --extra-experimental-features 'nix-command flakes' run ~/nixos -- switch
 - Gate — `dangonix check`: збирає host toplevel і кожну тему; при помилці повертає `flake.lock` байт-у-байт; ніколи не switch'ить.
 - CI на GitHub — другий, eval-only gate: та сама `check --fast` і оракул на кожен push. CD немає: switch завжди робиш ти.
 - Kernel — `linuxPackages_latest`, оновлюється тільки через gated `dangonix update`.
-- Login: SDDM + `thyx`, спільний для всіх тем. Plymouth — host-owned, остання ціль.
+- Login: SDDM + `thyx`, спільний для всіх тем. Plymouth — host-owned, у кампанії III після LUKS: він малює запит пароля диска.
 
 ## 7. Енергія і фон
 Один user-сервіс `dangonix-saver` (ppd лишається), прив'язаний до `graphical-session.target`, керує і енергією, і трафіком ([§8](#8-трафік)). Слухає UPower, NetworkManager, Hyprland config reload, resume.
@@ -278,7 +279,7 @@ nix --extra-experimental-features 'nix-command flakes' run ~/nixos -- switch
 
 - Override (`saver|balanced|performance`) живе в `$XDG_RUNTIME_DIR`: переживає plug/unplug, скидається після reboot або `dangonix power auto`.
 - Чесне обмеження: швидша зарядка помітна, лише коли блок живлення — вузьке місце (слабкий USB-C, навантаження під час зарядки). Струм заряду обмежує EC ноутбука; на штатному блоці без навантаження різниця мала. Ціна режиму — повільніша система, тому на мережі він вмикається тільки вручну.
-- Foundry VTT і Docker стартують на запит, не при boot (`docker.socket` лишається).
+- Foundry VTT і Docker стартують на запит, не при boot. Системний Docker вимкнений; rootless Docker ([§11](#хост)) — user-сервіс із socket activation.
 - fwupd: refresh timer вимкнено; оновлення тільки через `dangonix firmware update`.
 - Low-battery warning — роль: рівно один попереджувач.
 - Відкинуто: ThinkPad charge limit.
@@ -291,7 +292,7 @@ nix --extra-experimental-features 'nix-command flakes' run ~/nixos -- switch
 - опційно: авто-позначення нових з'єднань, чий шлюз у `172.20.10.0/28` (підмережа iOS Personal Hotspot), — перевірити в research spike. Override `dangonix net saver|normal` — у `$XDG_RUNTIME_DIR`, як у power.
 
 **Що робить `saver`** (той самий `dangonix-saver`):
-1. **Власні завантаження dangonix:** `update`, `switch`, `foundry add|upgrade`, `firmware` показують розмір завантаження (`nix build --dry-run`) і вимагають `--metered-ok`. Metadata refresh fwupd пропускається.
+1. **Власні завантаження dangonix:** кожна команда, що збирає або качає (`switch`, `update`, `rollback`, `theme <id>`, `pkg install|try`, `foundry add|upgrade`, `fingerprint on|off`, `firmware`), показує розмір завантаження (`nix build --dry-run`) і вимагає `--metered-ok`. Metadata refresh fwupd пропускається.
 2. **Фонові завантажувачі на паузу:** список units `dangonix.data.pauseUnits` зупиняється на вході в saver і відновлюється на виході. Склад списку визначає research spike нижче.
 3. **Застосунки, що поважають metered самі** (PackageKit, GNOME-застосунки), нічого не потребують.
 4. **Опційно, якщо spike покаже, що варто:** мережевий kill-switch для переліку застосунків — вони запускаються в `apps-metered.slice`, nftables `socket cgroupv2` відкидає їхній трафік, поки з'єднання лімітне.
@@ -383,7 +384,7 @@ PAM-стек послідовний: `pam_fprintd` чекає палець і п
 
 ### Хост
 - sysctl `kernel.kptr_restrict = 2`, `kernel.dmesg_restrict = 1`, `kernel.unprivileged_bpf_disabled = 1`, `net.core.bpf_jit_harden = 2`; `security.sudo.execWheelOnly = true`; `boot.loader.systemd-boot.editor = false`.
-- Docker rootless (`virtualisation.docker.rootless` з `setSocketVariable`); `kit` не в групі `docker` (вона дає root без пароля).
+- Docker rootless (`virtualisation.docker.rootless` з `setSocketVariable`), системний демон вимкнений; user-сервіс стартує через socket activation, а не при вході (перевірити при реалізації). `kit` не в групі `docker` (вона дає root без пароля).
 - Bluetooth `powerOnBoot = false`.
 
 ### 1Password
