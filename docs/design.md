@@ -335,8 +335,8 @@ PAM-стек послідовний: `pam_fprintd` чекає палець і п
 
 **Хост** — `hosts/nixos/fingerprint.nix`, читає `state.fingerprint`:
 - `true`: `services.fprintd.enable`; `fprintAuth = false` для `login`, `sddm` (і `hyprlock`, якщо він лишився після c1q10); `rules.auth.fprintd.args = [ "timeout=10" ]` для `sudo` і `polkit-1`. Явні `fprintAuth = true` з `desktop.nix` прибираються (вони дублюють default або тепер хибні).
-- `false`: fprintd вимкнений, `pam_fprintd` немає ніде, lock screen'и не бачать пристрою й показують тільки пароль. Записані відбитки лишаються в `/var/lib/fprint` (і на сенсорі, якщо він match-on-chip), тож `on` повертає все як було.
-- Драйвер: сенсори ThinkPad (здебільшого Synaptics `06cb:*`) працюють з libfprint без TOD. `services.fprintd.tod` — тільки якщо `fprintd-list` каже «No devices available», а USB ID є в TOD-драйвері. Firmware сенсора Synaptics оновлює `dangonix firmware`.
+- `false`: fprintd вимкнений, `pam_fprintd` немає ніде, lock screen'и не бачать пристрою й показують тільки пароль. Записані відбитки лишаються на сенсорі й у `/var/lib/fprint`, тож `on` повертає все як було.
+- Сенсор: Synaptics Prometheus `06cb:00bd` (match-on-chip, відбитки зберігаються на самому сенсорі), підтримується libfprint без TOD; fprintd його бачить (перевірено 2026-10-17). Firmware сенсора оновлює `dangonix firmware`.
 
 **CLI** `dangonix fingerprint` (рядки в [таблиці команд](#команди)):
 - без аргументів — увімкнено чи ні, пристрій (назва, USB ID), записані пальці, таблиця «де діє»;
@@ -349,7 +349,7 @@ PAM-стек послідовний: `pam_fprintd` чекає палець і п
 
 `dangonix doctor` при `state.fingerprint = true`: fprintd бачить пристрій, записано хоча б один палець, у `/etc/pam.d/login` і `/etc/pam.d/sddm` немає `pam_fprintd`.
 
-**Перевірити при реалізації:** USB ID сенсора і його підтримку libfprint; що `/run/current-system/sw/lib/security/pam_fprintd.so` існує (на нього Caelestia патчить шлях); чи агент polkit теми показує підказку «прикладіть палець»; чи Ctrl+C у `sudo` пропускає відбиток до пароля.
+**Перевірити при реалізації:** що `/run/current-system/sw/lib/security/pam_fprintd.so` існує (на нього Caelestia патчить шлях); чи агент polkit теми показує підказку «прикладіть палець»; чи Ctrl+C у `sudo` пропускає відбиток до пароля.
 
 ## 11. Безпека
 Від чого захищаємось: крадіжка чи втрата ноутбука, хтось поруч із розблокованим ноутбуком, чужа мережа, застаріле ПЗ (браузер передусім), агент робить зайве, чужий код у flake inputs, втрата даних. Не захищаємось від цілеспрямованої атаки з фізичним доступом і часом.
