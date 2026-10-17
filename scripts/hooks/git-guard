@@ -24,8 +24,9 @@ grep -qP '(?<![\w./-])git(\s+-\S+(\s+[^-\s]\S*)?)*\s+push\b' <<<"$cmd" && deny "
 # installed hooks (cmp, diff, cat) is not.
 grep -qP -- '--no-verify|core\.hooksPath|\b(CLAUDECODE|DANGONIX_AGENT)=|\b(unset|env\s+-u)\s+(CLAUDECODE|DANGONIX_AGENT)\b' <<<"$cmd" &&
   deny "hook bypass is denied"
-grep -qP '\.git/hooks' <<<"$cmd" &&
-  grep -qP '\b(cp|mv|install|ln|rm|tee|chmod|truncate|dd|patch)\b|\bsed\s+-i|(?<![0-9])>' <<<"$cmd" &&
+# A write whose target is in .git/hooks (a tripwire: a script can still write
+# there, the Edit deny rule and ref-guard are the real checks).
+grep -qP '\b(cp|mv|install|ln|rm|tee|chmod|truncate|dd|patch)\b[^;&|\n]*\.git/hooks|\bsed\s+-i[^;&|\n]*\.git/hooks|>\s*\S*\.git/hooks' <<<"$cmd" &&
   deny "writing .git/hooks is denied"
 if grep -qP '\bgit\b[^;&|]*\b(commit|tag)\b' <<<"$cmd"; then
   # Anything that can point git at another repository or branch.
