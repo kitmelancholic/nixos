@@ -1,7 +1,7 @@
 { pkgs, ... }:
 
 let
-  jdk = pkgs.jdk;
+  inherit (pkgs) jdk;
 
   # nixpkgs builds Open MPI without the Java bindings; enable them so that
   # `mpijavac` and `lib/mpi.jar` are available.
