@@ -44,3 +44,5 @@ Retry found a clean tree and blessing; scripts/quest-verify c1q00 failed commit 
 Automatic approval review rejected required hook installation as “hook bypass is denied”; no hooks or tags were changed.
 GM: resolve the historical commit-lint blocker and permit the quest-required executable hook copies, then retry c1q00.
 agent: codex gpt-6
+
+GM: commit lint fixed (5e3e6f3 exempt); hooks installed by the GM, skip that step and only check they match scripts/hooks. Tag HEAD and finish.
