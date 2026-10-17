@@ -16,3 +16,9 @@ The working tree is clean; required baseline changes are missing from flake.nix,
 flake.lock, home/packages.nix, and patches/graphify-nix-support.patch.
 GM: restore the expected baseline changes or revise the precondition, then retry c1q00.
 agent: codex gpt-6
+
+## c1q00 — провалений кидок
+Working tree is clean; c1q00 requires changes in flake.nix, flake.lock,
+home/packages.nix, and patches/graphify-nix-support.patch.
+GM: restore the baseline or revise the precondition; no retry decision is recorded.
+agent: codex gpt-6
