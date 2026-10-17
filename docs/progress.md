@@ -90,3 +90,14 @@ GM: run `kit-profile switch noctalia`; confirm the desktop comes back as before.
 agent: codex gpt-6.1-sol
 
 ## c1q02 — виконано
+
+## c1q03 — провалений кидок
+Implemented the derivation oracle and ShellCheck integration; the host and seven homes are unchanged. Rename, removal, empty-registry, Hyprland-change and added-package tests passed in temporary worktrees.
+`nix fmt`, `scripts/check --fast`, `scripts/quest-verify c1q03`, the c1q02 CI form and independent judge passed; Graphify updated. No derivations changed.
+GM: retry with writable Git metadata to stage and commit; this session mounts `.git` read-only. `scripts/review` also could not initialize its CLI on the read-only filesystem; a separate judge reported `no defects`. Quest edits retained.
+agent: codex gpt-6.1-sol
+
+## c1q03 — виконано
+Retry with writable `.git`: staged and committed the previous run's oracle. The judge found two defects: the lua diagnostic relied on `homeConfigurations`, and the id lookup hard-coded `.profiles`. Both are fixed (the lua is read from the `hyprland-<id>` check's input; ids come from `themes or profiles`).
+`scripts/check --fast`, `scripts/quest-verify c1q03` and the judge (`no defects`) passed; a changed `gaps_in` shows in the lua diff. No derivations changed.
+agent: claude claude-opus-5-5
