@@ -158,14 +158,14 @@ CI на кожен push у `redesign` і PR у `main`: лінт доків і к
 | Попередження про батарею | рівно одне, як роль теми | різні пороги в shell'ів |
 | Wallpaper Noctalia | з репо | розмір файлу |
 | Дрібниці | git identity в конфігу, Proton-GE, без Discord (Vesktop лишається), оптимізація store | — |
-| `dangonix rollback` (опц.) | відкат однією командою | — |
+| Відкат і прибирання | `dangonix rollback` — відкат однією командою; `dangonix gc` прибирає старі generations, не чіпаючи Foundry | `rollback` без зміни `state.json` розводить їх до наступного switch |
 | Фінальні доки | README = мануал | — |
 | Plymouth | красивий тихий boot | LUKS, відбиток, resume |
 
 ## 5. Кампанія III — «Щит і сховище»
 Data safety і шифрування, саме в такому порядку, бо кожен крок спирається на попередній ([design §11](design.md#11-безпека)):
 
-1. Бекапи restic на зовнішній HDD, що стартують самі при підключенні диска; `dangonix backup`.
+1. Бекапи restic на зовнішній HDD, що стартують самі при підключенні диска; `dangonix backup` (статус, `list`, `now`, `check`, `restore` в окрему теку).
 2. Перевірене відновлення з бекапу.
 3. Перевстановлення з LUKS (розмітка disko) і автологін після пароля диска.
 4. Secure Boot (lanzaboote), пароль BIOS.

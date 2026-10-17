@@ -139,45 +139,68 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 ## 5. `dangonix`
 Одна `writeShellApplication`, код у `lib/dangonix/dangonix.sh`. Nix інжектить конфіг (host, user, held inputs, шлях до репо, таблиця версій Foundry) і таблицю команд. `apps.default = dangonix`.
 
+### Граматика
+- `dangonix <іменник> [<дієслово>] [<ім'я>] [аргументи]`. Іменник без дієслова — завжди статус (`read`): `dangonix power`, `dangonix fingerprint`, `dangonix backup`.
+- Режими задаються самим словом (`power saver`, `net saver`, `theme <id>`), перемикачі — `on|off` (`fingerprint on`, `net metered off`, `foundry share main on`).
+- `<name>` інстансу Foundry можна не писати, коли інстанс один.
+- Глобальні флаги **перед** підкомандою: `--json` (один JSON на stdout, логи на stderr), `--dry` (кожна не-`read` команда: що зробила б, без змін), `--yes` (підтвердження irreversible-кроку без TTY), `--metered-ok` (дозвіл качати на лімітному з'єднанні, [§8](#8-трафік)), `--flake <path>`. Приклад: `dangonix --dry switch`. У кожної команди є `--help`; `dangonix help <команда>` — те саме.
+- **JSON:** `{ command, ok, exit, data, warnings }`; мутації додають `steps`, `failedStep`, `recovered`, `reversible`.
+- **Exit codes:** `0` — успіх; `1` — команда впала, стан відновлено; `2` — помилка використання; `3` — відновлення не вдалося, надруковано ручні кроки; `4` — відмова до будь-яких змін (lock зайнятий, не той юзер, лімітне з'єднання без `--metered-ok`, irreversible без підтвердження, немає пристрою).
+- Irreversible-крок на TTY питає `y/N`; без TTY потребує `--yes`.
+
 ### Команди
 | Команда | effect | agent | Що робить |
 |---|---|---|---|
-| `dangonix` | read | allow | статус (тема, power mode, Foundry, щит) + help |
-| `dangonix commands` | read | allow | всі команди з описом, effect, agent (`--json` — API для агентів/shell'ів) |
+| **Система** | | | |
+| `dangonix` | read | allow | `status` + коротка довідка |
+| `dangonix status` | read | allow | тема, power і net mode, Foundry, щит, чи система зібрана з поточного `state.json`; бар читає `dangonix --json status` |
+| `dangonix help [<команда>]` | read | allow | довідка з таблиці команд |
+| `dangonix commands` | read | allow | всі команди з описом, effect, agent (`--json` — API для агентів, search і shell'ів) |
+| `dangonix version` | read | allow | версія dangoNix (`git describe`), коміт, чи брудне дерево, host і home generations, дата `nixpkgs` |
 | `dangonix switch [--home\|--host] [--backup]` | host | ask | транзакція: build host + home, nvd diff, активувати хост (тільки якщо змінився), потім home |
-| `dangonix check [--fast\|--vm]` | read | allow | завжди: лінт доків і комітів, shellcheck; full: `nix flake check` (static, host, всі теми, verify, контракт); `--fast`: тільки eval; `--vm`: VM-тести транзакцій (`packages.dangonix-vm`) |
-| `dangonix doctor` | read | allow | runtime-перевірка ролей активної теми |
-| `dangonix update [input...]` | state | ask | оновити всі inputs крім held, `dangonix check`, при помилці повернути `flake.lock`; ніколи не switch'ить і не комітить |
+| `dangonix update [<input>...]` | state | ask | оновити всі inputs крім held, `dangonix check`, при помилці повернути `flake.lock`; ніколи не switch'ить і не комітить |
+| `dangonix history` | read | allow | журнал транзакцій (команда, час, результат, `failedStep`) разом з host і home generations |
+| `dangonix rollback [--host\|--home]` | host | ask | активувати попередню пару generations з журналу; `state.json` не чіпає, тож `status` попереджає, що система не з нього |
+| `dangonix gc [--older-than <14d>]` | host | ask | видалити старші generations (поточна й попередня лишаються завжди) і зібрати сміття store; GC roots Foundry не чіпає; друкує, скільки звільнено |
+| **Перевірки** | | | |
+| `dangonix check [--fast\|--vm]` | read | allow | завжди: лінт доків і комітів, shellcheck; full: `nix flake check` (static, host, всі теми, verify, контракт, політика безпеки); `--fast`: тільки eval; `--vm`: VM-тести транзакцій (`packages.dangonix-vm`) |
+| `dangonix doctor` | read | allow | наживо: ролі активної теми, відбиток ([§10](#10-відбиток-пальця)) |
+| `dangonix security [<id>]` | read | allow | щит: стан усіх перевірок безпеки з командою-виправленням ([§11](#dangonix-security)) |
+| **Теми й робочий стіл** | | | |
 | `dangonix theme` | read | allow | список тем: selected (`state.json`) і active |
 | `dangonix theme <id>` | state | ask | записати тему в `state.json`, зібрати й активувати home |
+| `dangonix keys` | read | allow | cheatsheet з реальних даних біндів |
+| `dangonix clipboard [list\|pick\|clear]` | read/runtime/state | **ask** | історія clipboard (може містити паролі) |
+| **Foundry** ([§9](#9-foundry-vtt)) | | | |
 | `dangonix foundry [list]` | read | allow | інстанси: версія, порт, стан, URL |
 | `dangonix foundry status [<name>]` | read | allow | повний звіт по інстансу, без імені — по всіх ([§9](#статус)) |
-| `dangonix foundry logs\|check <name>` | read | allow | логи / перевірка одного інстансу |
-| `dangonix foundry start\|stop\|restart\|open <name>` | runtime | **ask** | керування `foundryvtt-<name>.service` (зупинка обірве гру) |
+| `dangonix foundry logs [<name>] [-f]` | read | allow | журнал інстансу |
+| `dangonix foundry start\|stop\|restart\|open [<name>]` | runtime | **ask** | керування `foundryvtt-<name>.service` (зупинка обірве гру) |
+| `dangonix foundry share [<name>] [on\|off]` | runtime | **ask** | Tailscale Funnel для інстансу: друкує посилання для гравців; вимикається разом з інстансом ([§11](#мережа)) |
 | `dangonix foundry add <name> <zip> [--port N] [--copy-from <name>]` | host | ask | імпорт ZIP, новий інстанс у `state.json`, switch host; `--copy-from` копіює дані іншого інстансу |
-| `dangonix foundry upgrade <name> <zip>` | host | ask | імпорт ZIP, нова версія для інстансу, switch host; між major — тільки з `--backed-up` |
+| `dangonix foundry upgrade <name> <zip> [--backed-up]` | host | ask | імпорт ZIP, нова версія для інстансу, switch host; між major — тільки з `--backed-up` |
 | `dangonix foundry remove <name>` | host | ask | прибрати інстанс зі `state.json`, switch host; дані лишаються на диску |
 | `dangonix foundry import <zip>` | state | ask | тільки імпорт ZIP (store + GC root) для версії, що вже є в `state.json`; для fresh install |
+| **Енергія й мережа** | | | |
+| `dangonix power [auto\|saver\|balanced\|performance]` | runtime | allow | статус / override енергорежиму ([§7](#7-енергія-і-фон)) |
+| `dangonix net [auto\|saver\|normal]` | runtime | allow | статус з'єднання (лімітне чи ні) / override режиму трафіку ([§8](#8-трафік)) |
+| `dangonix net metered [on\|off]` | state | ask | позначити поточне з'єднання NetworkManager як лімітне назавжди |
+| **Залізо** | | | |
 | `dangonix firmware [--refresh]` | read | allow | пристрої й оновлення; metadata refresh, якщо старша за 24 год |
 | `dangonix firmware update` | host | ask | застосувати firmware updates, тільки на запит |
-| `dangonix power [auto\|saver\|balanced\|performance]` | runtime | allow | статус / override енергорежиму ([§7](#7-енергія-і-фон)) |
-| `dangonix data [auto\|saver\|normal]` | runtime | allow | статус / override режиму трафіку ([§8](#8-трафік)) |
-| `dangonix net metered [on\|off]` | state | ask | позначити поточне з'єднання NetworkManager як лімітне назавжди |
 | `dangonix fingerprint` | read | allow | стан відбитка: увімкнено, пристрій, записані пальці, де діє ([§10](#10-відбиток-пальця)) |
 | `dangonix fingerprint add [<finger>]` | state | **ask** | записати палець (default `right-index-finger`) |
 | `dangonix fingerprint remove <finger>\|--all` | state | **ask** | видалити записаний відбиток |
 | `dangonix fingerprint check` | runtime | **ask** | прикласти палець один раз: `match \| no-match \| no-device` |
 | `dangonix fingerprint on\|off` | host | ask | записати `state.fingerprint`, switch host |
-| `dangonix security [<id>]` | read | allow | щит: стан усіх перевірок безпеки з командою-виправленням ([§11](#11-безпека)) |
-| `dangonix foundry share <name> [on\|off]` | runtime | **ask** | Tailscale Funnel для інстансу: друкує посилання для гравців; вимикається разом з інстансом |
-| `dangonix backup [status\|now\|restore]` | read/state | ask | restic на зовнішній HDD ([§11](#бекапи)) |
-| `dangonix keys` | read | allow | cheatsheet з реальних даних біндів |
-| `dangonix clipboard [list\|pick\|clear]` | read/runtime/state | **ask** | історія clipboard (може містити паролі) |
-| `dangonix rollback` (опц.) | host | ask | rollback одною командою |
+| **Дані** ([§11](#бекапи)) | | | |
+| `dangonix backup` | read | allow | вік останнього бекапу, чи підключений диск, вільне місце на ньому |
+| `dangonix backup list` | read | allow | snapshots: дата, розмір, що в них |
+| `dangonix backup now` | state | ask | бекап зараз (диск має бути підключений) |
+| `dangonix backup check` | read | allow | `restic check` цілісності сховища |
+| `dangonix backup restore <snapshot> <path> [--to <dir>]` | state | ask | відновити в окрему теку (default `~/restore/<snapshot>/`), ніколи поверх живих даних |
 
-Форматування — `nix fmt`, не обгортається.
-
-Глобальні флаги **перед** підкомандою: `--json` (один JSON на stdout, логи на stderr), `--dry` (кожна не-`read` команда: що зробила б, без змін), `--flake <path>`. Приклад: `dangonix --dry switch`.
+**Свідомо не команди.** `nix fmt` — форматування, не обгортається. `scripts/` (closure-diff, quest-verify, campaign, next-version, lint-*) — інструменти розробки репо, не системи; єдиний міст — `dangonix check`. `docker`, `tailscale`, `op`, `fprintd-*` викликаються напряму: dangonix обгортає тільки те, де додає стан, транзакцію або захист. Zoom і scale моніторів, lock, suspend — бінди.
 
 ### `effect` і `agent`
 | effect | Значення | У search | `--json` перевірка | Lock |
@@ -193,8 +216,8 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 
 ### Транзакції
 Два види мутацій, обидва під lock'ом:
-- **configuration transaction** — `switch`, `theme <id>`, `update`, `foundry add|upgrade|remove`, `fingerprint on|off`. Мають recovery.
-- **irreversible operation** — `firmware update`, `clipboard clear`, `foundry import`, `fingerprint remove`. Lock + `--dry` + `ask`, без rollback; dangonix каже про це перед дією, JSON має `reversible: false`. Імпорт ZIP усередині `foundry add|upgrade` — теж irreversible крок, але транзакція навколо нього відкочується; `reversible: false` стосується тільки імпорту.
+- **configuration transaction** — `switch`, `rollback`, `theme <id>`, `update`, `foundry add|upgrade|remove`, `fingerprint on|off`. Мають recovery.
+- **irreversible operation** — `firmware update`, `gc`, `clipboard clear`, `foundry import`, `fingerprint remove`. Lock + `--dry` + `ask`, без rollback; dangonix каже про це перед дією, JSON має `reversible: false`. Імпорт ZIP усередині `foundry add|upgrade` — теж irreversible крок, але транзакція навколо нього відкочується; `reversible: false` стосується тільки імпорту.
 
 Кроки транзакції:
 1. Відмова, якщо `$USER` ≠ `kit`.
@@ -206,7 +229,7 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 7. nvd diff.
 8. Host — тільки якщо задіяний і відрізняється від `/run/current-system`: `nix-env --set` профілю + `switch-to-configuration switch`.
 9. Home: `nix-env --set` профілю + `activate --driver-version 1` (dangonix сам вирішує, куди вказує профіль).
-10. Release lock, показати `git diff` змінених файлів.
+10. Запис у журнал `~/.local/state/dangonix/journal.jsonl` (його читають `history` і `rollback`), release lock, показати `git diff` змінених файлів.
 
 **Гарантовано:** при помилці `state.json` і `flake.lock` байт-у-байт як у snapshot; lock завжди звільняється; помилка build нічого не активує; `theme` ніколи не торкається хоста. Результат містить `failedStep`, `recovered`, `reversible`.
 **Best effort:** при помилці на кроці 8/9 — повторна активація попередніх generations. Відновлюється конфіг, не side effects (перезапущені сервіси, записані файли, runtime-ключі Noctalia). На першому install немає попередньої home generation → `recovered: false` + наступний крок. Якщо recovery впав — exit 3 і точні команди, щоб доробити руками.
@@ -252,7 +275,7 @@ nix --extra-experimental-features 'nix-command flakes' run ~/nixos -- switch
 
 **Тригер.** NetworkManager тримає прапорець лімітного з'єднання (`Metered` = `yes` або `guess-yes`), і `dangonix-saver` слухає саме його. Мій телефон — iPhone, а iOS-хотспот, на відміну від Android, сам себе лімітним не оголошує. Тому:
 - `dangonix net metered on` один раз позначає поточне з'єднання (хотспот iPhone) як лімітне в його профілі NM — далі воно визначається саме;
-- опційно: авто-позначення нових з'єднань, чий шлюз у `172.20.10.0/28` (підмережа iOS Personal Hotspot), — перевірити в research spike. Override `dangonix data saver|normal` — у `$XDG_RUNTIME_DIR`, як у power.
+- опційно: авто-позначення нових з'єднань, чий шлюз у `172.20.10.0/28` (підмережа iOS Personal Hotspot), — перевірити в research spike. Override `dangonix net saver|normal` — у `$XDG_RUNTIME_DIR`, як у power.
 
 **Що робить `saver`** (той самий `dangonix-saver`):
 1. **Власні завантаження dangonix:** `update`, `switch`, `foundry add|upgrade`, `firmware` показують розмір завантаження (`nix build --dry-run`) і вимагають `--metered-ok`. Metadata refresh fwupd пропускається.
@@ -364,7 +387,7 @@ PAM-стек послідовний: `pam_fprintd` чекає палець і п
 - `.claude/settings.json` у репо лишається для allow/ask ([§12](#12-агенти)).
 
 ### Бекапи
-restic у власну теку на зовнішньому HDD (решту файлів диска не чіпає): `/home` без кешів і `/var/lib/foundryvtt-*`. Стартує сам, коли підключаю диск, і сповіщає «можна від'єднувати». `dangonix backup [status|now|restore]`. Перевірене відновлення — умова переходу до LUKS. Згодом — друга копія в хмарі (там же — важливі файли з HDD, яких більше ніде немає).
+restic у власну теку на зовнішньому HDD (решту файлів диска не чіпає): `/home` без кешів і `/var/lib/foundryvtt-*`. Стартує сам, коли підключаю диск, і сповіщає «можна від'єднувати». `dangonix backup [list|now|check|restore]`; відновлення — тільки в окрему теку. Перевірене відновлення — умова переходу до LUKS. Згодом — друга копія в хмарі (там же — важливі файли з HDD, яких більше ніде немає).
 
 ### Політика (статична перевірка в `dangonix check`)
 Падає, якщо: firewall вимкнено; відкриті порти не збігаються з задекларованим списком (кожен з причиною); порт 22 відкритий не тільки на `tailscale0`; SSH з паролем або root-логіном; NOPASSWD поза whitelist (`start|stop|restart` Foundry); `systemd-boot.editor` не `false`; `nix.settings.trusted-users` не тільки root; substituter без відомого ключа; автологін без LUKS або TPM без PIN; немає managed settings Claude Code або sandbox у них вимкнений; `kit` у групі `docker`.
@@ -389,7 +412,7 @@ restic у власну теку на зовнішньому HDD (решту фа
 Взято: одна CLI з `--json`, firmware updates, cheatsheet (SUPER+F1), zoom і scale моніторів (runtime only), clipboard history (текст і картинки), Spotlight-search на SUPER+R (apps, dangonix-команди read/runtime, калькулятор, файли; backend — пізніше, напр. Walker чи Vicinae), автоматичні power profiles.
 
 ## 14. Свідомо поза scope
-- **Відкладено:** `dangonix.textSize`; OCR, color picker, запис екрану; agent hotkey, tmux layouts, worktree helpers, timed passwordless sudo; calculator/emoji hotkeys, LocalSend, Wi-Fi QR, web apps, reminders, screensaver.
+- **Відкладено:** `dangonix.textSize`; `dangonix display` (zoom і scale з CLI, поки тільки бінди); OCR, color picker, запис екрану; agent hotkey, tmux layouts, worktree helpers, timed passwordless sudo; calculator/emoji hotkeys, LocalSend, Wi-Fi QR, web apps, reminders, screensaver.
 - **Безпека і data safety** ([§11](#11-безпека)) — кампанії II і III. До бекапів ніщо не захищає `/home`, світи Foundry і стан застосунків.
 - **Відкинуто:** screenshot-to-theme pipeline, visual regression, одна палітра для всіх shell'ів, XP title bars через plugin, ThinkPad charge limit, multi-host.
 
