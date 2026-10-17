@@ -15,7 +15,7 @@
 ## 2. Структура репо
 ```
 flake.nix               inputs + wiring (< 120 рядків); expose lib.themes
-state.json              вибір, який робить dangonix: { theme, foundry.instances }
+state.json              вибір, який робить dangonix: { theme, foundry.instances, fingerprint }
 lib/
   settings.nix          user, host, system, held inputs
   mk-home.nix           одна home-конфігурація на тему
@@ -24,7 +24,7 @@ lib/
     default.nix         пакет dangonix (writeShellApplication)
     commands.nix        таблиця команд — single source of truth
     dangonix.sh         код CLI як справжній файл, не Nix-рядок
-hosts/nixos/            єдиний хост; + boot.nix (Plymouth), foundry.nix (інстанси)
+hosts/nixos/            єдиний хост; + boot.nix (Plymouth), foundry.nix (інстанси), fingerprint.nix
 home/                   інваріантне user-середовище
   dangonix.nix          ставить dangonix, пише ~/.config/dangonix/{theme-id,roles.json}
   dangonix-saver.nix    user-сервіс ощадливого режиму (енергія + трафік)
@@ -118,7 +118,7 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 
 Відкладено до першої власної Quickshell-теми: `dangonix.textSize` (одна опція для shell, GTK і терміналу) і Qt QML agent skill (TheQtCompanyRnD/agent-skills).
 
-`docs/themes.md` — чекліст інтерв'ю для нової теми: bar (позиція, вміст), launcher, session menu, lock screen, notifications, декорації вікон (plugin так/ні), light/dark, які опційні ролі і frontend UI.
+`docs/themes.md` — чекліст інтерв'ю для нової теми: bar (позиція, вміст), launcher, session menu, lock screen (і як він веде відбиток, [§10](#10-відбиток-пальця)), notifications, декорації вікон (plugin так/ні), light/dark, які опційні ролі і frontend UI.
 
 ### Noctalia: runtime-стан
 `~/.local/state/noctalia/settings.toml` застосовується останнім, тому перемагає декларації. Activation step пише **тільки іменовані ключі**: telemetry off, вимкнення приватного clipboard store, wallpaper (з `assets/`). Решта, включно з палітрою, — runtime-стан, змінюється в GUI Noctalia. Перевірки ніколи не видаляють цей файл.
@@ -127,10 +127,11 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 Відстежуваний файл з усім, що може вибрати команда, і нічим більше:
 ```json
 { "theme": "noctalia",
-  "foundry": { "instances": { "main": { "version": "…", "port": 30000 } } } }
+  "foundry": { "instances": { "main": { "version": "…", "port": 30000 } } },
+  "fingerprint": true }
 ```
 - dangonix редагує його через `jq` (temp file + atomic rename), показує diff і **ніколи не комітить** — комічу я.
-- Хост отримує тільки `state.foundry`, ніколи `state.theme` — зміна теми не може дійти до хоста by construction.
+- Хост отримує тільки `state.foundry` і `state.fingerprint`, ніколи `state.theme` — зміна теми не може дійти до хоста by construction.
 - Foundry: тільки інстанси з `version` і `port`; порожній `instances` = Foundry немає. Ім'я інстансу — `[a-z0-9-]+`, порти унікальні. Filename і hash беруться з власної таблиці версій nix-foundryvtt. Деталі — [§9](#9-foundry-vtt).
 - Gitignored-файл відкинуто: flake бачить лише tracked файли, а fresh install втратив би вибір.
 
@@ -160,6 +161,11 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 | `dangonix power [auto\|saver\|balanced\|performance]` | runtime | allow | статус / override енергорежиму ([§7](#7-енергія-і-фон)) |
 | `dangonix data [auto\|saver\|normal]` | runtime | allow | статус / override режиму трафіку ([§8](#8-трафік)) |
 | `dangonix net metered [on\|off]` | state | ask | позначити поточне з'єднання NetworkManager як лімітне назавжди |
+| `dangonix fingerprint` | read | allow | стан відбитка: увімкнено, пристрій, записані пальці, де діє ([§10](#10-відбиток-пальця)) |
+| `dangonix fingerprint add [<finger>]` | state | **ask** | записати палець (default `right-index-finger`) |
+| `dangonix fingerprint remove <finger>\|--all` | state | **ask** | видалити записаний відбиток |
+| `dangonix fingerprint check` | runtime | **ask** | прикласти палець один раз: `match \| no-match \| no-device` |
+| `dangonix fingerprint on\|off` | host | ask | записати `state.fingerprint`, switch host |
 | `dangonix keys` | read | allow | cheatsheet з реальних даних біндів |
 | `dangonix clipboard [list\|pick\|clear]` | read/runtime/state | **ask** | історія clipboard (може містити паролі) |
 | `dangonix rollback` (опц.) | host | ask | rollback одною командою |
@@ -176,14 +182,14 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 | `state` | пише `state.json`, `flake.lock` або user data | ні | з `--dry` | так |
 | `host` | змінює або активує системну конфігурацію | ні | з `--dry` | так |
 
-`agent` (`allow | ask`) — окреме поле для Claude Code permissions. Default: `allow` для read/runtime, `ask` для state/host; винятки — Foundry service control і clipboard (`ask`). Rules генеруються з таблиці по конкретних формах аргументів (напр. ask на `dangonix theme noctalia`, але `dangonix theme` — allow). `dangonix --dry …` — один allow rule.
+`agent` (`allow | ask`) — окреме поле для Claude Code permissions. Default: `allow` для read/runtime, `ask` для state/host; винятки — Foundry service control, clipboard і `fingerprint add|remove|check` (`ask`: потрібен живий палець). Rules генеруються з таблиці по конкретних формах аргументів (напр. ask на `dangonix theme noctalia`, але `dangonix theme` — allow). `dangonix --dry …` — один allow rule.
 
 З таблиці генеруються: help, fish completions, `dangonix commands --json`, що показує search, що проганяє `--json`-перевірка, хто бере lock, permissions для Claude Code.
 
 ### Транзакції
 Два види мутацій, обидва під lock'ом:
-- **configuration transaction** — `switch`, `theme <id>`, `update`, `foundry add|upgrade|remove`. Мають recovery.
-- **irreversible operation** — `firmware update`, `clipboard clear`, `foundry import`. Lock + `--dry` + `ask`, без rollback; dangonix каже про це перед дією, JSON має `reversible: false`. Імпорт ZIP усередині `foundry add|upgrade` — теж irreversible крок, але транзакція навколо нього відкочується; `reversible: false` стосується тільки імпорту.
+- **configuration transaction** — `switch`, `theme <id>`, `update`, `foundry add|upgrade|remove`, `fingerprint on|off`. Мають recovery.
+- **irreversible operation** — `firmware update`, `clipboard clear`, `foundry import`, `fingerprint remove`. Lock + `--dry` + `ask`, без rollback; dangonix каже про це перед дією, JSON має `reversible: false`. Імпорт ZIP усередині `foundry add|upgrade` — теж irreversible крок, але транзакція навколо нього відкочується; `reversible: false` стосується тільки імпорту.
 
 Кроки транзакції:
 1. Відмова, якщо `$USER` ≠ `kit`.
@@ -267,7 +273,42 @@ nix --extra-experimental-features 'nix-command flakes' run ~/nixos -- switch
 - **Міграція:** поточний `/var/lib/foundryvtt` стає інстансом `main` (`/var/lib/foundryvtt-main`) — одноразовий ручний крок після backup.
 - Ризик: умови ліцензії Foundry щодо одночасного запуску кількох інстансів з одним ключем — перевірити до реалізації.
 
-## 10. Агенти
+## 10. Відбиток пальця
+Ціль: всюди, де система питає мій пароль і це має сенс, спершу можна прикласти палець; пароль завжди лишається запасним шляхом.
+
+**Як це працює.** `fprintd` (libfprint) тримає сенсор і дає D-Bus API; PAM-модуль `pam_fprintd` додає відбиток у стек автентифікації. На NixOS `security.pam.services.<name>.fprintAuth` за замовчуванням дорівнює `services.fprintd.enable`, тобто ввімкнений fprintd додає `pam_fprintd` (`sufficient`, перед `pam_unix`) у **кожен** PAM service. Тому хост не перелічує, де ввімкнути, а вимикає там, де відбиток заважає.
+
+PAM-стек послідовний: `pam_fprintd` чекає палець і питає пароль тільки після тайм-ауту або вичерпаних спроб. Палець **або** пароль паралельно (що раніше) вміє лише застосунок, який сам веде сенсор через D-Bus, а пароль перевіряє окремим PAM-стеком, — так роблять обидва lock screen'и.
+
+| Де | Як | Чому |
+|---|---|---|
+| Lock screen Noctalia | паралельно | Noctalia v5 сама веде сенсор через fprintd D-Bus (`lockscreen.fingerprint`, default `true`), а пароль перевіряє стеком `login` |
+| Lock screen Caelestia | паралельно | власні `assets/pam.d/fprint` (`pam_fprintd` за шляхом `/run/current-system/sw/lib/security/`) і `passwd`; відбиток активний, якщо `fprintd-list $USER` успішний (`lock.enableFprint`, default `true`) |
+| `sudo`, `su`, `run0`, діалоги polkit | спершу палець; пароль після 10 с або 3 промахів | стандартний `pam_fprintd` з `timeout=10` (дефолтні 30 с задовгі, напр. із закритою кришкою) |
+| SDDM після boot, TTY `login` | тільки пароль | пароль при вході розблоковує gnome-keyring (відбиток — ні); SDDM з `pam_fprintd` блокує поле пароля до тайм-ауту; у стеку `login` `pam_fprintd` конфліктує з lock screen Noctalia, який сам тримає сенсор (коментар у її `lock_screen.cpp`) |
+| Шифрування диска, Plymouth | неможливо | сенсор не дає ключа диска; LUKS зараз немає |
+
+**Правило для тем** (доповнює [контракт](#ролі-контракт)): lock screen, що вміє відбиток, веде сенсор сам; PAM service, яким він перевіряє пароль, не має `pam_fprintd`. Інтерв'ю нової теми питає, який це service.
+
+**Хост** — `hosts/nixos/fingerprint.nix`, читає `state.fingerprint`:
+- `true`: `services.fprintd.enable`; `fprintAuth = false` для `login`, `sddm` (і `hyprlock`, якщо він лишився після c1q10); `rules.auth.fprintd.args = [ "timeout=10" ]` для `sudo` і `polkit-1`. Явні `fprintAuth = true` з `desktop.nix` прибираються (вони дублюють default або тепер хибні).
+- `false`: fprintd вимкнений, `pam_fprintd` немає ніде, lock screen'и не бачать пристрою й показують тільки пароль. Записані відбитки лишаються в `/var/lib/fprint` (і на сенсорі, якщо він match-on-chip), тож `on` повертає все як було.
+- Драйвер: сенсори ThinkPad (здебільшого Synaptics `06cb:*`) працюють з libfprint без TOD. `services.fprintd.tod` — тільки якщо `fprintd-list` каже «No devices available», а USB ID є в TOD-драйвері. Firmware сенсора Synaptics оновлює `dangonix firmware`.
+
+**CLI** `dangonix fingerprint` (рядки в [таблиці команд](#команди)):
+- без аргументів — увімкнено чи ні, пристрій (назва, USB ID), записані пальці, таблиця «де діє»;
+- `add [<finger>]` — `fprintd-enroll -f <finger>`; імена пальців як у fprintd (`right-index-finger`, `left-thumb`, …); polkit питає мій пароль (`auth_self_keep`); відмова з підказкою, якщо `state.fingerprint` false або пристрою немає;
+- `remove <finger>|--all` — `fprintd-delete`, без відкату;
+- `check` — одна спроба `fprintd-verify`; `runtime`, а не `read`, щоб `--json`-перевірка запускала його з `--dry`, а не чекала на палець;
+- `on|off` — configuration transaction: `state.fingerprint`, build і switch хоста.
+
+`add`, `remove` і `check` потребують живого пальця, тому агенту — `ask`.
+
+`dangonix doctor` при `state.fingerprint = true`: fprintd бачить пристрій, записано хоча б один палець, у `/etc/pam.d/login` і `/etc/pam.d/sddm` немає `pam_fprintd`.
+
+**Перевірити при реалізації:** USB ID сенсора і його підтримку libfprint; що `/run/current-system/sw/lib/security/pam_fprintd.so` існує (на нього Caelestia патчить шлях); чи агент polkit теми показує підказку «прикладіть палець»; чи Ctrl+C у `sudo` пропускає відбиток до пароля.
+
+## 11. Агенти
 - **Тільки Claude Code.** Graphify і Codex repo tooling видалено (Zed `codex-acp` лишається — це фіча редактора). CLI з nixpkgs-unstable, self-updater off, оновлюється через `dangonix update`.
 - **`CLAUDE.md`** англійською, < 60 рядків, описує тільки те, що вже існує. Будь-яка зміна, на яку покладаються агенти, оновлює його в тому самому коміті. README — для мене, CLAUDE.md — для агентів; не дублюють одне одного.
 - **Інваріанти для агентів:** не чіпати `hardware-configuration.nix`; тема не змінює хост; кожна тема проходить `dangonix check`; не прибирати й не перебиндовувати наявні клавіші; clipboard і search — core; `settings.toml` Noctalia — тільки через named keys; `ask`-команди і `sudo` — тільки на запит; `state.json` — тільки на запит.
@@ -276,18 +317,18 @@ nix --extra-experimental-features 'nix-command flakes' run ~/nixos -- switch
 - **Tooling:** `mcp-nixos` (опційно, канал 26.05; не знає options з flake inputs), плагін `claude-md-management` — єдиний. Без hookify і formatting hook.
 - Discovery: `dangonix commands --json`.
 
-## 11. Запозичено з Omarchy 4.0
+## 12. Запозичено з Omarchy 4.0
 Ідея: один Quickshell-процес, CLI — джерело правди, shell — її клієнт. **Логіка живе в CLI і core-сервісах; shell лише малює UI.**
 
 Взято: одна CLI з `--json`, firmware updates, cheatsheet (SUPER+F1), zoom і scale моніторів (runtime only), clipboard history (текст і картинки), Spotlight-search на SUPER+R (apps, dangonix-команди read/runtime, калькулятор, файли; backend — пізніше, напр. Walker чи Vicinae), автоматичні power profiles.
 
-## 12. Свідомо поза scope
+## 13. Свідомо поза scope
 - **Відкладено:** `dangonix.textSize`; OCR, color picker, запис екрану; agent hotkey, tmux layouts, worktree helpers, timed passwordless sudo, декларативні налаштування Claude Code; calculator/emoji hotkeys, LocalSend, Wi-Fi QR, web apps, reminders, screensaver.
 - **Data safety — окремий етап після phase 2:** backups `/home` і даних Foundry, snapshots, secrets у репо (sops-nix/agenix), FIDO2 для sudo. До того ніщо не захищає `/home`, світи Foundry і стан застосунків.
 - **Відкинуто:** screenshot-to-theme pipeline, visual regression, одна палітра для всіх shell'ів, XP title bars через plugin, ThinkPad charge limit, multi-host.
 
-## 13. Ручні кроки, що лишаються (inherent)
+## 14. Ручні кроки, що лишаються (inherent)
 - Згенерувати `hardware-configuration.nix`, створити юзера `kit` в installer'і.
 - Завантажити ліцензований Foundry ZIP для кожного інстансу; ліцензія, admin password, світи (`/var/lib/foundryvtt-<name>`) — дані.
-- Fingerprint, Wi-Fi, Bluetooth, логіни в застосунки, SSH keys, `gh auth`, логін у Claude Code.
+- Записати відбитки (`dangonix fingerprint add`), Wi-Fi, Bluetooth, логіни в застосунки, SSH keys, `gh auth`, логін у Claude Code.
 - Палітра Noctalia (runtime-стан за рішенням); Noctalia plugins і EasyEffects presets — задекларувати, якщо можливо.

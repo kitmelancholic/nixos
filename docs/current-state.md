@@ -83,6 +83,7 @@
 - `scripts/list-packages.py` (180 рядків) парсить Nix регулярками.
 - Stylix і `dms` input потрібні лише темам, які йдуть під видалення.
 - Host `hyprlock` і невикористаний системний `hyprpolkitagent`.
+- Відбиток: `sudo/login/sddm.fprintAuth = true` дублюють default NixOS; `pam_fprintd` у `login` конфліктує з lock screen Noctalia, який сам тримає сенсор; на SDDM блокує поле пароля і не розблоковує keyring; записати палець можна лише руками (`fprintd-enroll`).
 
 ## 4. Ручні кроки на fresh install (ціль 4: кожен — дефект)
 

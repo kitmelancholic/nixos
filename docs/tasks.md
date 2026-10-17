@@ -165,7 +165,7 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=-graphify
 
 **Goal.** Graphify and every Codex-specific repo file are gone; Zed's `codex-acp` stays.
 
-**Why.** Claude Code only ([design §10](design.md#10-агенти)); Graphify cost far more than it gave for 3.3k lines of Nix.
+**Why.** Claude Code only ([design §11](design.md#11-агенти)); Graphify cost far more than it gave for 3.3k lines of Nix.
 
 **Read first.** `home/kit.nix` (line 15), `home/graphify.nix`, `home/pdf2md.nix` (line 32), `.gitignore`, `README.md` (around line 178).
 
@@ -190,7 +190,7 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=+mcp-nixo
 
 **Goal.** `CLAUDE.md`, permissions, a fail-closed Bash guard, `mcp-nixos` and `scripts/opt` give agents safe, short guidance.
 
-**Why.** Lands right after c1q04 so old and new agent tooling never coexist. Design: [§10](design.md#10-агенти).
+**Why.** Lands right after c1q04 so old and new agent tooling never coexist. Design: [§11](design.md#11-агенти).
 
 **Read first.** `CLAUDE.md`, `.claude/settings.json`, `.claude/settings.local.json` (if present), `home/packages.nix`.
 
