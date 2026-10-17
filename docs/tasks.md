@@ -35,7 +35,7 @@ GM's turn      checklist for the GM with exact commands (omitted if none).
 
 **Checks.** `scripts/check --fast` while editing (doc and commit lint, shellcheck, flake evaluation without building); `scripts/check` is the full one (`nix flake check`), and `scripts/quest-verify` runs it. From c1q13 `dangonix check` is the same thing. CI on GitHub runs `scripts/check --fast` on every push and, once `scripts/closure-diff` exists, the oracle for every quest commit; the hero never pushes, so CI is the signal for the GM and the scribe.
 
-**Models.** `tier=` names a row of the model table in `AGENTS.md` (`hero`, `cleric`; the judge behind `scripts/review` is `judge`), with a full model id per agent, so a campaign never changes model halfway. `scripts/campaign [--agent claude|codex] [--judge claude|codex]` picks the CLI; the journal records which agent and model ran each entry.
+**Models.** `tier=` names a row of the model table in `AGENTS.md` (`hero`; `cleric` for retries and for the quests whose code the rest depends on: c1q03, c1q13, c1q14; the judge behind `scripts/review` is `judge`), with a full model id per agent, so a campaign never changes model halfway. `scripts/campaign [--agent claude|codex] [--judge claude|codex]` picks the CLI; the journal records which agent and model ran each entry.
 
 **Shared rules.** Tests that change `state.json`, `flake.lock` or Nix code on purpose run in a temporary worktree: `wt=$(mktemp -d) && git worktree add --detach "$wt" "$(git stash create)"`, then `git worktree remove --force "$wt"`; `git status` in the checkout must be unchanged afterwards. `hosts/nixos/hardware-configuration.nix` is never touched.
 
@@ -111,7 +111,7 @@ meta: tier=hero effort=medium boss=no diff=source-only
 **Steps.**
 1. Remove `profileFlakeSource` and every use of it.
 2. Add the flake output `lib.themes` = the theme registry attrset.
-3. `kit-profile` reads the flake **and** the theme list from the checkout: `$KIT_PROFILE_FLAKE`, else `~/nixos`, via `nix eval <flake>#lib.themes --json`. Remove the baked-in registry case tables. A missing checkout is a clear error. Keep the `KIT_THEME_FLAKE` fallback (removed in c1q16).
+3. `kit-profile` reads the flake **and** the theme list from the checkout: `$KIT_PROFILE_FLAKE`, else `~/nixos`, via `nix eval <flake>#lib.themes --json`. Remove the baked-in registry case tables. A missing checkout is a clear error. Keep the `KIT_THEME_FLAKE` fallback (removed in c1q18).
 
 **Do not.** Change anything a theme builds besides `kit-profile` and the source path.
 
@@ -131,11 +131,11 @@ meta: tier=hero effort=medium boss=no diff=source-only
 ---
 
 ## c1q03 — Eye of the oracle ⚔️
-meta: tier=hero effort=high boss=yes diff=none
+meta: tier=cleric effort=high boss=yes diff=none
 
 **Goal.** `scripts/closure-diff` proves "the system would not change" or names exactly what changes, by evaluation alone.
 
-**Why.** Every later quest's expected diff is enforced by this script through `scripts/quest-verify`, and by CI on every pushed quest commit. Comparing derivation paths instead of out paths needs no build: equal `drvPath` means equal output, it runs without the Foundry ZIP, and it runs on GitHub's runners. It must survive the renames of c1q17.
+**Why.** Every later quest's expected diff is enforced by this script through `scripts/quest-verify`, and by CI on every pushed quest commit. Comparing derivation paths instead of out paths needs no build: equal `drvPath` means equal output, it runs without the Foundry ZIP, and it runs on GitHub's runners. It must survive the renames of c1q19.
 
 **Read first.** `scripts/quest-verify` (its use of `--assert-same`, `--removed`, `--names`).
 
@@ -387,7 +387,7 @@ meta: tier=hero effort=medium boss=no diff=none
 1. Add `state.json`: `{ "theme": "noctalia", "foundry": { "instances": { "main": { "version": <current>, "port": <current> } } } }` and nothing else.
 2. `homeConfigurations.kit` builds `state.theme`; the registry `default` goes away.
 3. The host gets only `state.foundry` (via `specialArgs`). Today's Foundry module reads `instances.main`; an assertion fails evaluation with "several Foundry instances arrive in campaign II" if there is more than one, and empty `instances` disables Foundry.
-4. Delete `shortVersion`, `filename`, `hash` from `lib/settings.nix`; the payload check (`foundry-check`, until c1q16) derives filename and hash from the nix-foundryvtt table.
+4. Delete `shortVersion`, `filename`, `hash` from `lib/settings.nix`; the payload check (`foundry-check`, until c1q18) derives filename and hash from the nix-foundryvtt table.
 5. Check `registry` gains "`state.json`'s theme exists".
 
 **Do not.** Change the Foundry unit name, data dir or port.
@@ -401,24 +401,78 @@ meta: tier=hero effort=medium boss=no diff=none
 ---
 
 ## c1q13 — Forging dangonix ⚔️
-meta: tier=hero effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_.configfishcompletionsdangonix.fish rest=c1r2
+meta: tier=cleric effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_.configfishcompletionsdangonix.fish
 
-**Goal.** `dangonix` v1 runs every mutation as a transaction, next to the old commands.
+**Goal.** `dangonix` v1 exists next to the old commands: every subcommand, the grammar, `--json` and `--dry`; the read commands and `check` work for real, and every `state`/`host` command so far only plans (`--dry`).
+
+**Why.** The single CLI is the heart of the design: [§5](design.md#5-dangonix), [transactions](design.md#транзакції), [§6](design.md#6-стабільність). This is the first of three quests (c1q14 transactions, c1q15 VM tests); later campaigns extend this code, so its structure matters more than in any other quest.
+
+**Read first.** Design §5 in full; `home/theme-switcher.nix`, `lib/settings.nix` (held inputs), `scripts/check`.
+
+**Steps.**
+1. `lib/dangonix/` (`default.nix`, `commands.nix` with `effect`, `agent` and `wraps` (the raw commands a row wraps, [design §11 agents](design.md#агенти); only data until campaign II), `dangonix.sh`) and `home/dangonix.nix`; `apps.default = dangonix`; option `kit.repo` (default `~/nixos`, renamed in c1q19).
+2. Subcommands: `switch`, `check [--fast|--vm]` (absorbs `scripts/check`: the same steps and modes, plus `host`; `scripts/check` becomes `exec nix run "$(git rev-parse --show-toplevel)" -- check "$@"` so CI and `quest-verify` keep working), `update` (held list, reports held), `theme`, `commands`, `status`, `help`, `version`, `history` (reads the transaction journal), and `foundry` limited to one instance: `list`, `status|logs|start|stop|restart|open [main]`, where `status` and `foundry status` show only what exists by now (power, net, shield, Funnel and backup arrive with their features in campaign II and III), `import <zip>`, `upgrade main <zip>`, `add main <zip>`, `remove main`. Every command has `--json`; every non-`read` command has `--dry`. Grammar, global flags (`--yes`, `--metered-ok` included), the JSON envelope and exit codes follow [design §5 grammar](design.md#граматика).
+3. In this quest every `state`/`host` command only plans: without `--dry` it refuses with exit 4 ("not available before c1q14") and changes nothing; `check --vm` refuses the same way until c1q15.
+
+**Do not.** Remove or change any old command. Implement any `state`/`host` effect (that is c1q14).
+
+**Verify.** `dangonix check` and `dangonix check --fast` give the same results as `scripts/check`; `dangonix theme` marks noctalia; every command in `dangonix commands --json` runs (`read` with `--json`, others with `--dry --json`) without a prompt and its output passes `jq -e .`.
+
+**AGENTS.md.** Loop becomes `edit → nix fmt → dangonix check --fast → dangonix check → scripts/closure-diff`; discovery `dangonix commands --json`.
+
+**Commit.** `feat(c1q13): dangonix v1 commands`
+
+**GM's turn.**
+- `just home-switch`; `dangonix status`, `dangonix help`, `dangonix --dry switch` look right to you.
+- All good → `## c1q13 — виконано`.
+
+---
+
+## c1q14 — Tempering the blade ⚔️
+meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*
+
+**Goal.** Every `state`/`host` command of `dangonix` runs as a transaction, and the permission files are generated from the command table.
 
 **Why.** The single CLI is the heart of the design: [§5](design.md#5-dangonix), [transactions](design.md#транзакції), [§6](design.md#6-стабільність).
 
-**Read first.** Design §5 and §6 in full; `home/theme-switcher.nix` (lock, activation), `lib/settings.nix` (held inputs).
+**Read first.** Design §5 (transactions) and §6 in full; `lib/dangonix/`; `home/theme-switcher.nix` (lock, activation).
 
 **Steps.**
-1. `lib/dangonix/` (`default.nix`, `commands.nix` with `effect`, `agent` and `wraps` (the raw commands a row wraps, [design §11 agents](design.md#агенти); only data until campaign II), `dangonix.sh`) and `home/dangonix.nix`; `apps.default = dangonix`; option `kit.repo` (default `~/nixos`, renamed in c1q17).
-2. Subcommands: `switch`, `check [--fast|--vm]` (absorbs `scripts/check`: the same steps and modes, plus `host`; `scripts/check` becomes `exec nix run "$(git rev-parse --show-toplevel)" -- check "$@"` so CI and `quest-verify` keep working), `update` (held list, reports held), `theme`, `commands`, `status`, `help`, `version`, `history` (reads the transaction journal), and `foundry` limited to one instance: `list`, `status|logs|start|stop|restart|open [main]`, where `status` and `foundry status` show only what exists by now (power, net, shield, Funnel and backup arrive with their features in campaign II and III), `import <zip>`, `upgrade main <zip>`, `add main <zip>`, `remove main`. Every command has `--json`; every non-`read` command has `--dry`. Grammar, global flags (`--yes`, `--metered-ok` included), the JSON envelope and exit codes follow [design §5 grammar](design.md#граматика).
-3. Every `state`/`host` command is the transaction from design §5: one lock (reuse `kit-home-activation.lock`) around snapshot, preflight, `state.json` edit, build, nvd diff, host activation, home activation, recovery, and the journal line in `~/.local/state/dangonix/journal.jsonl`.
-4. Generate the `.claude/settings.json` permission block and `.codex/rules/dangonix.rules` from the command table's `agent` field + the registry (per-id ask rules) + `allow dangonix --dry …` + the hand-written non-dangonix rules from c1q05 (keep the quest-loop allow list: headless runs deny everything else); add design check 7 for both files.
-5. VM harness for the transaction cases that break activation on purpose: `pkgs.testers.runNixOSTest` exposed as `packages.x86_64-linux.dangonix-vm` (not in `checks`, so `dangonix check` stays fast) and run by `dangonix check --vm`. The node is a small NixOS with Home Manager, user `kit` and `dangonix`, switching between fixture configurations under `tests/dangonix-vm/` (a tiny host and home on the same nixpkgs, not the real host: no Foundry, no Hyprland). The VM is offline: put every fixture variant's build closure in the image (`system.includeBuildDependencies` or `virtualisation.additionalPaths`, `nix.settings.substituters = [ ]`); nixpkgs' own `nixos/tests/nixos-rebuild-*.nix` show the pattern. Cannot make the VM rebuild work → `провалений кидок` with what blocks it; the GM decides whether cases 1-4 run live instead.
+1. Every `state`/`host` command is the transaction from design §5: one lock (reuse `kit-home-activation.lock`) around snapshot, preflight, `state.json` edit, build, nvd diff, host activation, home activation, recovery, and the journal line in `~/.local/state/dangonix/journal.jsonl`.
+2. Generate the `.claude/settings.json` permission block and `.codex/rules/dangonix.rules` from the command table's `agent` field + the registry (per-id ask rules) + `allow dangonix --dry …` + the hand-written non-dangonix rules from c1q05 (keep the quest-loop allow list: headless runs deny everything else); add design check 7 for both files.
 
 **Do not.** Remove or change any old command. Test failures in the checkout.
 
-**Verify (checkout).** `dangonix check`; `dangonix theme` marks noctalia; `dangonix theme noctalia` leaves `git diff` empty; `dangonix --dry switch` reports no change; `sudo -u nobody dangonix switch` refuses; every command in `dangonix commands --json` runs (`read` with `--json`, others with `--dry --json`) without a prompt and its output passes `jq -e .`; check 7 fails after a hand edit of the permission block.
+**Verify (checkout).** `dangonix theme noctalia` leaves `git diff` empty; `dangonix --dry switch` reports no change; `sudo -u nobody dangonix switch` refuses; check 7 fails after a hand edit of either permission file.
+
+**Verify (temporary worktree on the laptop, `dangonix --flake "$wt"`; nothing here breaks activation).**
+5. `update`: held inputs byte-identical in `flake.lock`, JSON `held` lists them; `update hyprland` changes only `hyprland`; with a broken check, `update` exits non-zero and `sha256sum flake.lock` is unchanged.
+6. Foundry: version in the table but not in the store → `failedStep: "preflight"` naming `dangonix foundry import <zip>`; a ZIP with one changed byte or an unsupported version is rejected with `state.json` unchanged and no GC root; `remove main` then `add main <zip>` round-trips with an empty `state.json` diff.
+7. Afterwards `dangonix switch` from the checkout restores the normal system; `git -C ~/nixos status` unchanged.
+
+**AGENTS.md.** One line on `agent` allow/ask.
+
+**Commit.** `feat(c1q14): dangonix transactions`
+
+**GM's turn.**
+- `dangonix switch` (sudo); try `dangonix theme caelestia` and back.
+- All good → `## c1q14 — виконано`.
+
+---
+
+## c1q15 — Trial by fire
+meta: tier=hero effort=high boss=no diff=leaves leaves=~dangonix*? rest=c1r2
+
+**Goal.** The transaction cases that break activation on purpose are tested in a VM by `dangonix check --vm`.
+
+**Why.** Recovery after a failed host or home activation cannot be tested on the laptop without risk ([design §5 transactions](design.md#транзакції)).
+
+**Read first.** Design §5 (transactions); `lib/dangonix/` (the transaction code from c1q14).
+
+**Steps.**
+1. VM harness for the transaction cases that break activation on purpose: `pkgs.testers.runNixOSTest` exposed as `packages.x86_64-linux.dangonix-vm` (not in `checks`, so `dangonix check` stays fast) and run by `dangonix check --vm`. The node is a small NixOS with Home Manager, user `kit` and `dangonix`, switching between fixture configurations under `tests/dangonix-vm/` (a tiny host and home on the same nixpkgs, not the real host: no Foundry, no Hyprland). The VM is offline: put every fixture variant's build closure in the image (`system.includeBuildDependencies` or `virtualisation.additionalPaths`, `nix.settings.substituters = [ ]`); nixpkgs' own `nixos/tests/nixos-rebuild-*.nix` show the pattern. Cannot make the VM rebuild work → `провалений кидок` with what blocks it; the GM decides whether cases 1-4 run live instead.
+
+**Do not.** Change the transaction code to make a case pass without saying why in the commit body. Test failures in the checkout.
 
 **Verify (VM, `dangonix check --vm`, against the fixture flake).**
 1. Changed host (`environment.etc."dangonix-test".text = "1";`), `switch`: `/etc/dangonix-test` exists; JSON `steps` are host before home.
@@ -426,24 +480,18 @@ meta: tier=hero effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_.configfi
 3. Host change + `xdg.configFile."dangonix-test".text = "1";` + a `home.activation` step after `linkGeneration` that exits 1: `failedStep: "home"`, `recovered: true`; `~/.config/dangonix-test` gone; generations unchanged.
 4. While a `theme` switch builds, a second `theme` and `foundry remove main` fail at once with "another … is running".
 
-**Verify (temporary worktree on the laptop, `dangonix --flake "$wt"`; nothing here breaks activation).**
-5. `update`: held inputs byte-identical in `flake.lock`, JSON `held` lists them; `update hyprland` changes only `hyprland`; with a broken check, `update` exits non-zero and `sha256sum flake.lock` is unchanged.
-6. Foundry: version in the table but not in the store → `failedStep: "preflight"` naming `dangonix foundry import <zip>`; a ZIP with one changed byte or an unsupported version is rejected with `state.json` unchanged and no GC root; `remove main` then `add main <zip>` round-trips with an empty `state.json` diff.
-7. Afterwards `dangonix switch` from the checkout restores the normal system; `git -C ~/nixos status` unchanged.
+**AGENTS.md.** One line: `dangonix check --vm` runs the VM transaction tests (slow; run it when transaction code changes).
 
-**AGENTS.md.** Loop becomes `edit → nix fmt → dangonix check --fast → dangonix check → scripts/closure-diff`; discovery `dangonix commands --json`; one line on `agent` allow/ask.
-
-**Commit.** `feat(c1q13): dangonix v1`
+**Commit.** `test(c1q15): dangonix VM transaction tests`
 
 **GM's turn.**
-- `dangonix switch` (sudo); try `dangonix theme caelestia` and back.
 - Decide whether `hyprland` tracks release tags (`github:hyprwm/Hyprland?ref=v0.x.y`) instead of git master; tell the scribe in the project.
 - Long rest: read the reviewer's findings, push `redesign`, merge into `main` as a merge commit, sync `main`.
-- All good → `## c1q13 — виконано`.
+- All good → `## c1q15 — виконано`.
 
 ---
 
-## c1q14 — Vow of silence
+## c1q16 — Vow of silence
 meta: tier=hero effort=medium boss=no diff=leaves leaves=+noctalia-runtime-keys*,+python3*-env?,~hm_.configsystemdusernoctalia.service?
 
 **Goal.** Noctalia telemetry is off through one named runtime key; nothing else in its `settings.toml` changes.
@@ -465,16 +513,16 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=+noctalia-runtime-keys*
 
 **AGENTS.md.** "Noctalia's `settings.toml` wins over declarations; enforce runtime keys only through the named list."
 
-**Commit.** `feat(c1q14): Noctalia telemetry off`
+**Commit.** `feat(c1q16): Noctalia telemetry off`
 
 **GM's turn.**
 - `cp -a ~/.local/state/noctalia/settings.toml ~/settings.toml.bak`; `dangonix switch`; restart Noctalia.
 - `telemetry_enabled` is false in the file and in Noctalia's settings UI; `diff ~/settings.toml.bak ~/.local/state/noctalia/settings.toml` shows only that line; the palette looks the same.
-- All good → `## c1q14 — виконано`.
+- All good → `## c1q16 — виконано`.
 
 ---
 
-## c1q15 — Spirit in the iron
+## c1q17 — Spirit in the iron
 meta: tier=hero effort=medium boss=no diff=leaves leaves=+fwupd*,+unit-fwupd.service,~dangonix*
 
 **Goal.** Firmware updates exist, but only on request through `dangonix firmware`.
@@ -490,15 +538,15 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=+fwupd*,+unit-fwupd.ser
 
 **AGENTS.md.** No change.
 
-**Commit.** `feat(c1q15): firmware`
+**Commit.** `feat(c1q17): firmware`
 
 **GM's turn.**
 - `dangonix switch` (sudo); `dangonix firmware` lists the ThinkPad UEFI/EC; a second run within 24 h does not refresh; `systemctl list-timers | grep fwupd` is empty.
-- All good → `## c1q15 — виконано`.
+- All good → `## c1q17 — виконано`.
 
 ---
 
-## c1q16 — Walling up the old gates
+## c1q18 — Walling up the old gates
 meta: tier=hero effort=medium boss=no diff=leaves leaves=-kit-profile*,-hm_.localbinkit-theme,-hm_kittheme-id,-foundry*,~hm_applicationsfoundryvtt*,~hm_fishconfig.fish
 
 **Goal.** `dangonix` is the only entry point.
@@ -518,15 +566,15 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=-kit-profile*,-hm_.loca
 
 **AGENTS.md.** Drop every pre-dangonix command.
 
-**Commit.** `refactor(c1q16)!: remove old entry points`
+**Commit.** `refactor(c1q18)!: remove old entry points`
 
 **GM's turn.**
 - `dangonix switch`; `command -v kit-profile` fails; the three Foundry launcher entries work.
-- All good → `## c1q16 — виконано`.
+- All good → `## c1q18 — виконано`.
 
 ---
 
-## c1q17 — True name
+## c1q19 — True name
 meta: tier=hero effort=medium boss=no diff=leaves leaves=-hm_kitprofile-id,+hm_dangonixtheme-id,~dangonix*
 
 **Goal.** Everything is named dangoNix / theme.
@@ -544,15 +592,15 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=-hm_kitprofile-id,+hm_d
 
 **AGENTS.md.** New names (theme, `themes/`).
 
-**Commit.** `refactor(c1q17)!: full rename`
+**Commit.** `refactor(c1q19)!: full rename`
 
 **GM's turn.**
 - `dangonix switch`; `cat ~/.config/dangonix/theme-id`; two competing `dangonix` commands still exclude each other.
-- All good → `## c1q17 — виконано`.
+- All good → `## c1q19 — виконано`.
 
 ---
 
-## c1q18 — Seal of the pact ⚔️
+## c1q20 — Seal of the pact ⚔️
 meta: tier=hero effort=high boss=yes diff=leaves leaves=~dangonix*,+hm_.configdangonixroles.json
 
 **Goal.** The theme contract exists as options, Noctalia declares every role, and `dangonix doctor` checks them live.
@@ -572,15 +620,15 @@ meta: tier=hero effort=high boss=yes diff=leaves leaves=~dangonix*,+hm_.configda
 
 **AGENTS.md.** "Experimental themes produce role warnings until Caelestia meets the contract; do not add new ones. Run `dangonix doctor` after switching a theme."
 
-**Commit.** `feat(c1q18): contract options and doctor`
+**Commit.** `feat(c1q20): contract options and doctor`
 
 **GM's turn.**
 - `dangonix switch`; `dangonix doctor` passes in Noctalia; `systemctl --user stop noctalia` → doctor fails naming notifications, polkit, idle; start it → passes.
-- All good → `## c1q18 — виконано`.
+- All good → `## c1q20 — виконано`.
 
 ---
 
-## c1q19 — Oath of keys
+## c1q21 — Oath of keys
 meta: tier=hero effort=medium boss=no diff=none
 
 **Goal.** Core binds are one list that calls roles; every bind has a description; `hyprland.lua` is byte-identical.
@@ -600,15 +648,15 @@ meta: tier=hero effort=medium boss=no diff=none
 
 **AGENTS.md.** No change.
 
-**Commit.** `refactor(c1q19): binds generated from roles`
+**Commit.** `refactor(c1q21): binds generated from roles`
 
 **GM's turn.**
 - `dangonix switch`; `dangonix doctor` passes; a few keys behave as before.
-- All good → `## c1q19 — виконано`.
+- All good → `## c1q21 — виконано`.
 
 ---
 
-## c1q20 — Sealing the pact
+## c1q22 — Sealing the pact
 meta: tier=hero effort=medium boss=no diff=none rest=c1r3
 
 **Goal.** Contract checks 3, 4 and 5 run for every theme, and `docs/themes.md` explains the contract.
@@ -625,9 +673,9 @@ meta: tier=hero effort=medium boss=no diff=none rest=c1r3
 
 **AGENTS.md.** Point at `docs/themes.md` for theme work.
 
-**Commit.** `feat(c1q20): contract checks and themes doc`
+**Commit.** `feat(c1q22): contract checks and themes doc`
 
 **GM's turn.**
 - `dangonix switch`; `dangonix doctor` passes.
 - Long rest: read the reviewer's findings, push `redesign`, merge into `main`, sync. The scribe then writes campaign II's quests.
-- All good → `## c1q20 — виконано`.
+- All good → `## c1q22 — виконано`.

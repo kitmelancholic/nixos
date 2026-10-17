@@ -69,7 +69,7 @@ themes.noctalia = {
   variant = { };
 };
 ```
-`experimental` лише ховає тему з `dangonix theme` без `--all` і ніколи не послаблює перевірки. Виняток — тимчасовий warning mode для Caelestia (з c1q18 до кампанії II).
+`experimental` лише ховає тему з `dangonix theme` без `--all` і ніколи не послаблює перевірки. Виняток — тимчасовий warning mode для Caelestia (з c1q20 до кампанії II).
 
 ### Ролі (контракт)
 Ядро (Hyprland, apps, input, frontend-сервіси) викликає **ролі**, а не провайдерів. Нова тема = "заповни ролі й пройди перевірки". Чотири види:
@@ -421,7 +421,7 @@ restic у власну теку на зовнішньому HDD (решту фа
 - **`AGENTS.md`** англійською, < 60 рядків, описує тільки те, що вже існує; `CLAUDE.md` — один рядок `@AGENTS.md`. Будь-яка зміна, на яку покладаються агенти, оновлює його в тому самому коміті. README — для мене, AGENTS.md — для агентів; не дублюють одне одного.
 - **Інваріанти для агентів:** не чіпати `hardware-configuration.nix`; тема не змінює хост; кожна тема проходить `dangonix check`; не прибирати й не перебиндовувати наявні клавіші; clipboard і search — core; `settings.toml` Noctalia — тільки через named keys; `ask`-команди і `sudo` — тільки на запит; `state.json` — тільки на запит.
 - **Цикл:** edit → `nix fmt` → `dangonix check --fast` → `dangonix check` → `scripts/closure-diff --assert-same HEAD` (або очікувані зміни); після зміни теми — `dangonix doctor`. Тести, що навмисно змінюють стан, — у тимчасовому worktree.
-- **Guards однакові для обох:** permissions у `.claude/settings.json` і `.codex/rules/dangonix.rules` (генеруються з таблиці команд); git hooks `scripts/hooks/` спрацьовують за `CLAUDECODE=1` або `DANGONIX_AGENT` (Codex ставить його з `.codex/config.toml`); `git-guard` і fail-closed hook `~/.config/dangonix/hooks/bash-guard || exit 2` в обох CLI (новий шлях одразу, бо нові речі з початку звуться по-новому; rename у c1q17 стосується тільки наявних `kit`-шляхів) блокує команди з `hardware-configuration.nix`. Це сильний guard, не гарантія — фінальна перевірка мій review diff'у.
+- **Guards однакові для обох:** permissions у `.claude/settings.json` і `.codex/rules/dangonix.rules` (генеруються з таблиці команд); git hooks `scripts/hooks/` спрацьовують за `CLAUDECODE=1` або `DANGONIX_AGENT` (Codex ставить його з `.codex/config.toml`); `git-guard` і fail-closed hook `~/.config/dangonix/hooks/bash-guard || exit 2` в обох CLI (новий шлях одразу, бо нові речі з початку звуться по-новому; rename у c1q19 стосується тільки наявних `kit`-шляхів) блокує команди з `hardware-configuration.nix`. Це сильний guard, не гарантія — фінальна перевірка мій review diff'у.
 - **Tooling:** `mcp-nixos` (опційно, канал 26.05; не знає options з flake inputs, для них — `scripts/opt`), плагін `claude-md-management` — єдиний (тільки Claude). Без hookify і formatting hook.
 - Discovery: `dangonix commands --json`.
 
