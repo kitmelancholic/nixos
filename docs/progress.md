@@ -38,3 +38,9 @@ Uncommitted changes outside this quest's paths: scripts/agent, scripts/campaign 
 Preserved both paths; baseline tags and hook installation were not performed.
 GM: finish or set aside those changes, then run $quest retry c1q00.
 agent: codex gpt-6
+
+## c1q00 — провалений кидок
+Retry found a clean tree and blessing; scripts/quest-verify c1q00 failed commit lint on existing commit 5e3e6f3 (scope tasks.md).
+Automatic approval review rejected required hook installation as “hook bypass is denied”; no hooks or tags were changed.
+GM: resolve the historical commit-lint blocker and permit the quest-required executable hook copies, then retry c1q00.
+agent: codex gpt-6
