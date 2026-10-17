@@ -112,7 +112,7 @@ CI на кожен push у `redesign` і PR у `main`: лінт доків і к
 
 **c1q12 · Книга вибору.** Файл `state.json` — все, що вибирає команда: тема і Foundry. Foundry одразу в новій формі з інстансами, але поки один `main` з тими самими даними, тож поведінка не змінюється.
 
-**c1q13 · Кування dangonix** ⚔️. Перша версія `dangonix`: `switch`, `check`, `update`, `theme`, `foundry`, `commands`. Кожна зміна — транзакція: або все, або відкат. Перевіряється у віртуальній машині. Старі команди ще працюють паралельно.
+**c1q13 · Кування dangonix** ⚔️. Перша версія `dangonix`: `switch`, `check`, `update`, `theme`, `foundry` (поки один інстанс), `commands`, `status`, `help`, `version`, `history`. Кожна зміна — транзакція: або все, або відкат. Перевіряється у віртуальній машині. Старі команди ще працюють паралельно.
 - Для тебе: з'являється `dangonix`; switch тепер завжди «хост, потім home»; `switch` відмовляється, якщо немає ZIP Foundry.
 - Твій хід: switch, sudo, спробувати транзакції.
 
@@ -151,7 +151,7 @@ CI на кожен push у `redesign` і PR у `main`: лінт доків і к
 | Ощадливий режим енергії | на батареї сам; на мережі — вручну, щоб швидше зарядитись ([design §7](design.md#7-енергія-і-фон)) | другий «водій» режиму в shell або ppd |
 | Ощадливий режим трафіку | на хотспоті iPhone не качає зайвого ([design §8](design.md#8-трафік)) | спершу замір, що реально качає |
 | Foundry-інстанси | кілька версій поруч, кожна зі своїми світами; `dangonix foundry status` показує все про кожен інстанс ([design §9](design.md#9-foundry-vtt)) | ліцензія; переїзд даних у `main` — твій ручний крок після backup |
-| Відбиток пальця | палець замість пароля в `sudo`, polkit і на lock screen; `dangonix fingerprint add\|remove\|check\|on\|off` ([design §10](design.md#10-відбиток-пальця)) | сенсор може не підтримуватись libfprint; вхід у SDDM лишається з паролем (keyring) |
+| Відбиток пальця | палець замість пароля в `sudo`, polkit і на lock screen; `dangonix fingerprint add\|remove\|check\|on\|off` ([design §10](design.md#10-відбиток-пальця)) | вхід у SDDM лишається з паролем (keyring), поки немає LUKS і автологіну |
 | Вартовий | `dangonix security` — один екран зі станом безпеки і командами-виправленнями; статична політика безпеки в `dangonix check`; закритий firewall, дрібне посилення ядра, Docker rootless; sandbox агентів через managed settings з Nix ([design §11](design.md#11-безпека)) | rootless ламає окремі compose-файли; точні ключі sandbox Claude Code |
 | 1Password і SSH з Windows | паролі, SSH-ключі й токен `gh` в 1Password з відбитком, браузер без master-пароля; `ssh kit@nixos` з Windows через Tailscale | master-пароль раз після перезавантаження (обмеження Linux); ім'я бінарника Zen для інтеграції |
 | Foundry для гравців | `dangonix foundry share` дає постійне посилання через Tailscale Funnel, без білої IP | спершу тестова гра з 5–6 гравцями: швидкість великих карт |

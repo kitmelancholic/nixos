@@ -41,7 +41,7 @@ themes/
 tests/binds/<id>.json   frozen fixture біндів
 tests/dangonix-vm/      fixture-flake і VM-тест транзакцій
 scripts/closure-diff    oracle: порівнює drvPath, тільки eval
-scripts/quest-verify, campaign, lint-docs, lint-commits, next-version
+scripts/quest-verify, campaign, lint-docs, lint-commits, next-version, opt
 .github/workflows/ci.yml  eval + лінт + oracle на кожен push, без збірки
 docs/themes.md          довідка по контракту + інтерв'ю для нової теми
 .mcp.json, .claude/settings.json, CLAUDE.md
@@ -67,7 +67,7 @@ themes.noctalia = {
   variant = { };
 };
 ```
-`experimental` лише ховає тему з `dangonix theme` без `--all` і ніколи не послаблює перевірки. Виняток — тимчасовий warning mode для Caelestia (stage 18 → P2.3).
+`experimental` лише ховає тему з `dangonix theme` без `--all` і ніколи не послаблює перевірки. Виняток — тимчасовий warning mode для Caelestia (з c1q18 до кампанії II).
 
 ### Ролі (контракт)
 Ядро (Hyprland, apps, input, frontend-сервіси) викликає **ролі**, а не провайдерів. Нова тема = "заповни ролі й пройди перевірки". Чотири види:
@@ -78,14 +78,14 @@ themes.noctalia = {
 
 | Роль | Вид | Обов'язкова | Де використовується |
 |---|---|---|---|
-| `launcher` | command | так (→ `search` у P2.5) | SUPER+R |
+| `launcher` | command | так (→ `search` у кампанії II) | SUPER+R |
 | `session` | command | так | SUPER+Escape, SUPER+Shift+W |
 | `osd` | command ×8 | так | XF86 (гучність, мікрофон, яскравість, підсвітка) |
 | `screenshot` | command | так (`region`, `full`; `window` опц.) | Print, Shift+Print, SUPER+Print |
 | `lock` | provider | рівно один | `loginctl lock-session`, idle, suspend |
 | `idle`, `bar`, `notifications`, `polkit` | provider | рівно один | checks, `dangonix doctor` |
 | `wallpaper` | provider | так | checks |
-| `batteryWarning` | provider | так (з P2.8) | shell або `themes/common/low-battery-notify.nix` |
+| `batteryWarning` | provider | так (з кампанії II) | shell або `themes/common/low-battery-notify.nix` |
 | `palette` | declaration | так | `shell \| static` |
 | `toolkit` | declaration | так | GTK/Qt/cursor: `shell \| none` |
 | `keybindings`, `clipboard`, `search` | frontend with default | ні | SUPER+F1, `dangonix clipboard`, SUPER+R |
@@ -213,7 +213,7 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 - `search` шукає в назві й описі по обох зафіксованих nixpkgs, тож показана версія — та, що встановиться (перший пошук після `update` — десятки секунд, далі eval cache). «Встановлено» — за зібраною системою: `home.packages` і `environment.systemPackages`.
 - `install` перевіряє, що атрибут існує в зафіксованому nixpkgs, і відмовляє (exit 4) з назвою опції, якщо для програми є опція NixOS чи Home Manager (`programs.<name>.enable`): такій програмі мало пакета. Тільки `home.packages`; системні пакети й сервіси — лише в коді.
 
-**Свідомо не команди.** `nix fmt` — форматування, не обгортається. `scripts/` (closure-diff, quest-verify, campaign, next-version, lint-*) — інструменти розробки репо, не системи; єдиний міст — `dangonix check`. `docker`, `tailscale`, `op`, `fprintd-*` викликаються напряму: dangonix обгортає тільки те, де додає стан, транзакцію або захист. Zoom і scale моніторів, lock, suspend — бінди.
+**Свідомо не команди.** `nix fmt` — форматування, не обгортається. `scripts/` (closure-diff, quest-verify, campaign, next-version, opt, lint-*) — інструменти розробки репо, не системи; єдиний міст — `dangonix check`. `docker`, `tailscale`, `op`, `fprintd-*` викликаються напряму: dangonix обгортає тільки те, де додає стан, транзакцію або захист. Zoom і scale моніторів, lock, suspend — бінди.
 
 ### `effect` і `agent`
 | effect | Значення | У search | `--json` перевірка | Lock |
@@ -341,8 +341,8 @@ PAM-стек послідовний: `pam_fprintd` чекає палець і п
 | Lock screen Noctalia | паралельно | Noctalia v5 сама веде сенсор через fprintd D-Bus (`lockscreen.fingerprint`, default `true`), а пароль перевіряє стеком `login` |
 | Lock screen Caelestia | паралельно | власні `assets/pam.d/fprint` (`pam_fprintd` за шляхом `/run/current-system/sw/lib/security/`) і `passwd`; відбиток активний, якщо `fprintd-list $USER` успішний (`lock.enableFprint`, default `true`) |
 | `sudo`, `su`, `run0`, діалоги polkit | спершу палець; пароль після 10 с або 3 промахів | стандартний `pam_fprintd` з `timeout=10` (дефолтні 30 с задовгі, напр. із закритою кришкою) |
-| SDDM після boot, TTY `login` | тільки пароль | пароль при вході розблоковує gnome-keyring (відбиток — ні); SDDM з `pam_fprintd` блокує поле пароля до тайм-ауту; у стеку `login` `pam_fprintd` конфліктує з lock screen Noctalia, який сам тримає сенсор (коментар у її `lock_screen.cpp`) |
-| Шифрування диска, Plymouth | неможливо | сенсор не дає ключа диска; LUKS зараз немає |
+| SDDM після boot, TTY `login` | тільки пароль; після LUKS SDDM робить автологін ([§11](#диск-і-вхід)) | пароль при вході розблоковує gnome-keyring (відбиток — ні); SDDM з `pam_fprintd` блокує поле пароля до тайм-ауту; у стеку `login` `pam_fprintd` конфліктує з lock screen Noctalia, який сам тримає сенсор (коментар у її `lock_screen.cpp`) |
+| Шифрування диска, Plymouth | неможливо | сенсор не дає ключа диска; диск відкриває пароль LUKS або TPM2 + PIN ([§11](#диск-і-вхід)) |
 
 **Правило для тем** (доповнює [контракт](#ролі-контракт)): lock screen, що вміє відбиток, веде сенсор сам; PAM service, яким він перевіряє пароль, не має `pam_fprintd`. Інтерв'ю нової теми питає, який це service.
 
@@ -417,7 +417,7 @@ restic у власну теку на зовнішньому HDD (решту фа
 - **Інваріанти для агентів:** не чіпати `hardware-configuration.nix`; тема не змінює хост; кожна тема проходить `dangonix check`; не прибирати й не перебиндовувати наявні клавіші; clipboard і search — core; `settings.toml` Noctalia — тільки через named keys; `ask`-команди і `sudo` — тільки на запит; `state.json` — тільки на запит.
 - **Цикл:** edit → `nix fmt` → `dangonix check --fast` → `dangonix check` → `scripts/closure-diff --assert-same HEAD` (або очікувані зміни); після зміни теми — `dangonix doctor`. Тести, що навмисно змінюють стан, — у тимчасовому worktree.
 - **Guards:** permissions у `.claude/settings.json` (генеруються з таблиці команд); fail-closed Bash hook `~/.config/dangonix/hooks/bash-guard || exit 2` (новий шлях одразу, бо нові речі з початку звуться по-новому; rename у c1q17 стосується тільки наявних `kit`-шляхів) блокує команди з `hardware-configuration.nix`. Це сильний guard, не гарантія — фінальна перевірка мій review diff'у.
-- **Tooling:** `mcp-nixos` (опційно, канал 26.05; не знає options з flake inputs), плагін `claude-md-management` — єдиний. Без hookify і formatting hook.
+- **Tooling:** `mcp-nixos` (опційно, канал 26.05; не знає options з flake inputs, для них — `scripts/opt`), плагін `claude-md-management` — єдиний. Без hookify і formatting hook.
 - Discovery: `dangonix commands --json`.
 
 ## 13. Запозичено з Omarchy 4.0

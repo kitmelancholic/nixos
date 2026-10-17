@@ -165,7 +165,7 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=-graphify
 
 **Goal.** Graphify and every Codex-specific repo file are gone; Zed's `codex-acp` stays.
 
-**Why.** Claude Code only ([design §11](design.md#12-агенти)); Graphify cost far more than it gave for 3.3k lines of Nix.
+**Why.** Claude Code only ([design §12](design.md#12-агенти)); Graphify cost far more than it gave for 3.3k lines of Nix.
 
 **Read first.** `home/kit.nix` (line 15), `home/graphify.nix`, `home/pdf2md.nix` (line 32), `.gitignore`, `README.md` (around line 178).
 
@@ -190,7 +190,7 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=+mcp-nixo
 
 **Goal.** `CLAUDE.md`, permissions, a fail-closed Bash guard, `mcp-nixos` and `scripts/opt` give agents safe, short guidance.
 
-**Why.** Lands right after c1q04 so old and new agent tooling never coexist. Design: [§11](design.md#12-агенти).
+**Why.** Lands right after c1q04 so old and new agent tooling never coexist. Design: [§12](design.md#12-агенти).
 
 **Read first.** `CLAUDE.md`, `.claude/settings.json`, `.claude/settings.local.json` (if present), `home/packages.nix`.
 
@@ -337,7 +337,7 @@ meta: model=claude-sonnet-5-5 effort=medium boss=yes diff=leaves leaves=-hyprpol
 
 **GM's turn.**
 - `just switch` (sudo).
-- In Noctalia and Caelestia: lock, unlock with password, unlock with fingerprint, suspend and resume.
+- In Noctalia and Caelestia: lock, unlock with password, unlock with fingerprint (only if `fprintd-list kit` shows an enrolled finger), suspend and resume.
 - Long rest: read the reviewer's findings, push `redesign`, merge the PR into `main` as a merge commit, `git switch main && git pull --ff-only && git switch redesign`.
 - All good → `## c1q10 — виконано`.
 
@@ -408,8 +408,8 @@ meta: model=claude-sonnet-5-5 effort=high boss=yes diff=leaves leaves=+dangonix*
 
 **Steps.**
 1. `lib/dangonix/` (`default.nix`, `commands.nix` with `effect` and `agent`, `dangonix.sh`) and `home/dangonix.nix`; `apps.default = dangonix`; option `kit.repo` (default `~/nixos`, renamed in c1q17).
-2. Subcommands: `switch`, `check [--fast|--vm]` (absorbs `scripts/check`: the same steps and modes, plus `host`; `scripts/check` becomes `exec nix run "$(git rev-parse --show-toplevel)" -- check "$@"` so CI and `quest-verify` keep working), `update` (held list, reports held), `theme`, `commands`, `status`, `help`, `version`, `history` (reads the transaction journal), and `foundry` limited to one instance: `list`, `status|logs|start|stop|restart|open [main]`, `import <zip>`, `upgrade main <zip>`, `add main <zip>`, `remove main`. Every command has `--json`; every non-`read` command has `--dry`. Grammar, global flags (`--yes`, `--metered-ok` included), the JSON envelope and exit codes follow [design §5 grammar](design.md#граматика).
-3. Every `state`/`host` command is the transaction from design §5: one lock (reuse `kit-home-activation.lock`) around snapshot, preflight, `state.json` edit, build, host activation, home activation, recovery.
+2. Subcommands: `switch`, `check [--fast|--vm]` (absorbs `scripts/check`: the same steps and modes, plus `host`; `scripts/check` becomes `exec nix run "$(git rev-parse --show-toplevel)" -- check "$@"` so CI and `quest-verify` keep working), `update` (held list, reports held), `theme`, `commands`, `status`, `help`, `version`, `history` (reads the transaction journal), and `foundry` limited to one instance: `list`, `status|logs|start|stop|restart|open [main]`, where `status` and `foundry status` show only what exists by now (power, net, shield, Funnel and backup arrive with their features in campaign II and III), `import <zip>`, `upgrade main <zip>`, `add main <zip>`, `remove main`. Every command has `--json`; every non-`read` command has `--dry`. Grammar, global flags (`--yes`, `--metered-ok` included), the JSON envelope and exit codes follow [design §5 grammar](design.md#граматика).
+3. Every `state`/`host` command is the transaction from design §5: one lock (reuse `kit-home-activation.lock`) around snapshot, preflight, `state.json` edit, build, nvd diff, host activation, home activation, recovery, and the journal line in `~/.local/state/dangonix/journal.jsonl`.
 4. Generate the `.claude/settings.json` permission block from the command table's `agent` field + the registry (per-id ask rules) + `allow dangonix --dry …` + the hand-written non-dangonix rules from c1q05 (keep the quest-loop allow list: headless runs deny everything else); add design check 7.
 5. VM harness for the transaction cases that break activation on purpose: `pkgs.testers.runNixOSTest` exposed as `packages.x86_64-linux.dangonix-vm` (not in `checks`, so `dangonix check` stays fast) and run by `dangonix check --vm`. The node is a small NixOS with Home Manager, user `kit` and `dangonix`, switching between fixture configurations under `tests/dangonix-vm/` (a tiny host and home on the same nixpkgs, not the real host: no Foundry, no Hyprland). The VM is offline: put every fixture variant's build closure in the image (`system.includeBuildDependencies` or `virtualisation.additionalPaths`, `nix.settings.substituters = [ ]`); nixpkgs' own `nixos/tests/nixos-rebuild-*.nix` show the pattern. Cannot make the VM rebuild work → `провалений кидок` with what blocks it; the GM decides whether cases 1-4 run live instead.
 
@@ -480,7 +480,7 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=+fwupd*,+
 **Steps.**
 1. `services.fwupd.enable = true`; its metadata-refresh timer off.
 2. `dangonix firmware [--refresh]` (`read`, `allow`): refresh metadata only if older than 24 h (`--refresh` forces), then list devices and updates.
-3. `dangonix firmware update` (`host`, `ask`, takes the lock, `reversible: false`): `fwupdmgr update`.
+3. `dangonix firmware update` (`host`, `ask`, takes the lock, `reversible: false`; asks `y/N` on a TTY and needs `--yes` otherwise, [design §5 grammar](design.md#граматика)): `fwupdmgr update`.
 
 **Verify.** Regenerated permissions ask for `dangonix firmware update`, not for `dangonix firmware`.
 
@@ -506,7 +506,7 @@ meta: model=claude-sonnet-5-5 effort=medium boss=no diff=leaves leaves=-kit-prof
 **Steps.**
 1. Delete `justfile`, `just` from the devShell, every flake app except `default`, `home/theme-switcher.nix` (`kit-profile`, `kit-theme`, the `kit/theme-id` file), `KIT_PROFILE_FLAKE`/`KIT_THEME_FLAKE`, the `foundry*` scripts, `scripts/list-packages.py`, the `homeConfigurations.kit-<id>` outputs, the fish abbreviations `jc jf jp js nfu`.
 2. Foundry desktop entries call `dangonix foundry open|stop|restart`.
-3. Remove the pre-dangonix ask rules.
+3. Remove the pre-dangonix permission rules (the ask rules for the old commands and the `foundry-status` allow rule).
 4. README: replace the command sections with a short `dangonix` section.
 5. Delete `scripts/check`; `.github/workflows/ci.yml` and `scripts/quest-verify` call `nix run . -- check …` instead.
 

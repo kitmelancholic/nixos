@@ -4,7 +4,7 @@
 
 ## Документи
 - [vision](docs/vision.md) — що це, цілі, чому NixOS.
-- [design](docs/design.md) — цільова архітектура: контракт тем, `dangonix`, енергія, трафік, Foundry.
+- [design](docs/design.md) — цільова архітектура: контракт тем, `dangonix`, енергія, трафік, Foundry, відбиток, безпека.
 - [current-state](docs/current-state.md) — теперішній стан репо і його недоліки.
 - [remake](docs/remake.md) — кампанія перебудови: квести, правила, твоя участь.
 - [tasks](docs/tasks.md) — завдання для агентів (англ.), по розділу на квест.

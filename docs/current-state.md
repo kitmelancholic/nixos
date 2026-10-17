@@ -1,6 +1,6 @@
 # dangoNix — поточний стан репозиторію
 
-Стан на 2026-10-16. Код — ще kitOS (`flake.nix`: `description = "kitOS v0.16.3"`), жоден stage remake'у не виконано. Ціль — [design](design.md).
+Стан на 2026-10-16. Код — ще kitOS (`flake.nix`: `description = "kitOS v0.16.3"`), жоден квест remake'у не виконано. Ціль — [design](design.md).
 
 **Гілки.** На GitHub `main` = `ff258ef` (plan + routine). Гілка `redesign` теж на GitHub: доки, правила кампанії і tooling перед c1q00. Хмарний писар пушить туди доки й скрипти; на ноутбуці лежать незакомічені `flake.lock`, `flake.nix`, `home/packages.nix` (їх закомітить c1q00).
 
@@ -73,6 +73,15 @@
 
 ### Foundry
 Один інстанс, одна версія, один `/var/lib/foundryvtt`: тримати світи під різні версії поруч неможливо.
+
+### Безпека
+Ціль — [design §11](design.md#11-безпека).
+- Диск не зашифровано: `/` — ext4, swap без шифрування; Secure Boot немає, `systemd-boot.editor` явно не вимкнено.
+- Firewall увімкнений, але в кожній мережі відкриті TCP 30000 (Foundry, HTTP) і порти Steam Remote Play та LAN transfers.
+- `kit` у групі `docker`, тобто root без пароля для будь-якої програми від його імені, зокрема агента.
+- Бекапів немає.
+- Агенти обмежені лише текстовими правилами й hooks, sandbox Claude Code вимкнений: агент може читати `~/.ssh` і токен `gh`. Ніщо не ловить коміт, який послаблює захист.
+- Bluetooth вмикається при старті (`powerOnBoot = true`).
 
 ### Agent tooling (ціль 6)
 - Graphify: 1287-рядковий Nix extractor + тести, patch проти upstream internals, flake input, 92-рядковий модуль, hook на кожен Codex Bash call, 37 MB output — для 3.3k рядків Nix. Запит "how are desktop themes selected" дав 245 вузлів, переважно Zed syntax colours.
