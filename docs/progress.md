@@ -10,3 +10,9 @@ per quest run, appended, never edited:
 After you handle a `хід майстра` or `провалений кидок` entry, append
 `## <quest id> — виконано` yourself (or your decision, then `/quest retry
 <id>`) so the next run continues.
+
+## c1q00 — провалений кидок
+The working tree is clean; required baseline changes are missing from flake.nix,
+flake.lock, home/packages.nix, and patches/graphify-nix-support.patch.
+GM: restore the expected baseline changes or revise the precondition, then retry c1q00.
+agent: codex gpt-6
