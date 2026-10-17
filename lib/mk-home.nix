@@ -6,7 +6,6 @@
   pkgsUnstable,
   homeManagerPackage,
   hyprlandPkg,
-  profileFlakeSource,
   profileRegistry,
 }:
 
@@ -31,6 +30,5 @@ home-manager.lib.homeManagerConfiguration {
       hyprlandPkg
       profileRegistry
       ;
-    inherit profileFlakeSource;
   };
 }

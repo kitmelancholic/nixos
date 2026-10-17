@@ -136,7 +136,6 @@
           hyprlandPkg
           profileRegistry
           ;
-        profileFlakeSource = self.outPath;
       };
       profileHomes = lib.genAttrs profileIds mkHomeConfiguration;
       homeConfigurations = {
@@ -233,6 +232,7 @@
     {
       nixosConfigurations.${settings.hostname} = nixosConfiguration;
       inherit homeConfigurations;
+      lib.themes = profileRegistry;
 
       formatter.${settings.system} = repoApps.scripts.fmt;
 

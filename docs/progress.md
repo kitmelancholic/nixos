@@ -74,3 +74,9 @@ Only docs/progress.md changed; no derivations changed by this quest.
 agent: codex gpt-6.1-sol
 
 GM: guard fixed in 9683e6c. pre-push and reference-transaction must match scripts/hooks/ref-guard (not git-guard); finish.
+
+## c1q02 — провалений кидок
+README stability failed for catppuccin, gruvbox, kit-dark and tokyo-night: classic-wallpaper.service X-Restart-Triggers embeds the whole flake source hash in its wallpaper path.
+Fast/full quest checks, repository-free activation closures and selector runtime checks passed; source-only verification has no derivation oracle.
+GM: extend the quest scope to inspect/fix the wallpaper source reference, then retry; edits retained in flake.nix, lib/mk-home.nix and home/theme-switcher.nix.
+agent: codex gpt-6.1-sol
