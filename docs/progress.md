@@ -117,3 +117,10 @@ agent: claude claude-opus-5-5
 Writes to `.claude/settings.json` and `.mcp.json` were denied (sensitive files, no approval surface); also blocked: reading `~/.codex`, `~/.local/bin`, `/nix/store` outside the checkout. Done and left uncommitted: `home/agents.nix` (bash-guard, new), `home/kit.nix`, `home/packages.nix` (codex, mcp-nixos), `.codex/{config.toml,hooks.json,rules/dangonix.rules}`. Not done: `.claude/settings.json` keys/hook/permissions, `.mcp.json`, `scripts/opt` + check list, `AGENTS.md`, step 7 (codex loading), verify. Claude wrapper sets `DISABLE_AUTOUPDATER=1` (seen in the drv).
 GM: allow edits to `.claude/settings.json` and `.mcp.json` for this run (or apply them by hand), then `/quest retry c1q05`.
 agent: claude claude-sonnet-5-5
+
+## c1q05 — провалений кидок
+Steps 1–8 done and staged (not committed): `.claude/settings.json` (MCP, plugin, deny Write, `foundry-status`, `scripts/opt *`), `.mcp.json`, `scripts/opt` (+ shellcheck list), `AGENTS.md` (60 lines). Codex 0.161 loads the project config, hooks, rules and `.agents/skills`, so no `~/.codex` links; `scripts/check --fast` passes in its workspace-write sandbox. Claude's wrapper sets `DISABLE_AUTOUPDATER=1`; no non-Nix claude/codex copies.
+`quest-verify` fails: `closure-diff --names` has 337 entries, mostly build inputs of codex (crates) and mcp-nixos (131 `python3.13-*`, lua, ruff…), plus `~cargo-vendor-dir ~flatbuffers* ~kit-fish-completions ~lua* ~man-paths ~source ~utils.sh`; the `hm_` bash-guard entry is never listed (same as c1q04). Kept staged, not reverted: a rerun fails the same way.
+The `bash-guard` hook entry is not in `.claude/settings.json` yet: once in, every Bash call fails until `just home-switch` installs the guard. Codex trusts hooks by hash, so in `codex` `/hooks` the new one must be trusted. Codex has no file-edit hook (AGENTS.md says so). `~/.codex/rules/default.rules` allows `sudo nixos-rebuild switch`.
+GM: change c1q05's oracle (e.g. `diff=none`, or leaves `+bash-guard*,+python3.13-*,+*`, dropping `hm_`), run `just home-switch`, then retry c1q05: the run adds the hook as its last edit, then verifies and commits.
+agent: claude claude-opus-5-5
