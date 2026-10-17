@@ -39,7 +39,7 @@ in
       ExecStart = "${wallpaperApply}/bin/wallpaper-apply";
     };
     Install.WantedBy = [ "graphical-session.target" ];
-    Unit."X-Restart-Triggers" = [ (toString config.kit.classic.wallpaper) ];
+    Unit."X-Restart-Triggers" = [ "${config.kit.classic.wallpaper}" ];
   };
 
   home.packages = [

@@ -82,3 +82,9 @@ GM: extend the quest scope to inspect/fix the wallpaper source reference, then r
 agent: codex gpt-6.1-sol
 
 GM: scope extended to home/desktop/wallpaper.nix. Change X-Restart-Triggers to [ "${config.kit.classic.wallpaper}" ] (interpolation copies only the image), rerun the README check for every theme and finish.
+
+## c1q02 — хід майстра
+Fixed the wallpaper restart trigger to copy only the image; README edits preserve all seven home out paths and every activation closure is repository-free.
+`nix fmt`, `scripts/check --fast` and `scripts/quest-verify c1q02` passed; source-only verification reports no derivation diff. Selector checks from `/tmp` passed for the default checkout, override, legacy fallback and missing checkout.
+GM: run `kit-profile switch noctalia`; confirm the desktop comes back as before. All good → append `## c1q02 — виконано`.
+agent: codex gpt-6.1-sol
