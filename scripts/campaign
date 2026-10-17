@@ -78,14 +78,16 @@ invoke() {
 for _ in $(seq 25); do
   id=$(next_quest)
   [[ -n $id ]] || stop "Campaign complete" 0
-  # A dirty tree makes the quest fail on someone else's changes.
-  [[ -z $(git status --porcelain --untracked-files=no) ]] ||
-    stop "Uncommitted changes: commit or stash them first"
   meta=$(awk -v id="$id" '$0 ~ "^## " id " " {f=1; next} f && /^meta:/ {print; exit}' docs/tasks.md)
   tier=$(grep -oP 'tier=\K\S+' <<<"$meta")
   effort=$(grep -oP 'effort=\K\S+' <<<"$meta")
   arg=$id
-  case $(quest_state "$id") in
+  state=$(quest_state "$id")
+  # A new quest on a dirty tree fails on someone else's changes; a retry keeps
+  # the failed run's uncommitted work on purpose.
+  [[ $state != new || -z $(git status --porcelain --untracked-files=no) ]] ||
+    stop "Uncommitted changes: commit or stash them first"
+  case $state in
   gm) stop "$(grep -E "^## $id — " docs/progress.md | tail -n 1): waiting for the GM" 0 ;;
   retry) arg="retry $id" tier=cleric ;;
   esac
