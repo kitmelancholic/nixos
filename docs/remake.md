@@ -151,6 +151,9 @@ CI на кожен push у `redesign` і PR у `main`: лінт доків і к
 | Ощадливий режим трафіку | на хотспоті iPhone не качає зайвого ([design §8](design.md#8-трафік)) | спершу замір, що реально качає |
 | Foundry-інстанси | кілька версій поруч, кожна зі своїми світами ([design §9](design.md#9-foundry-vtt)) | ліцензія; переїзд даних у `main` — твій ручний крок після backup |
 | Відбиток пальця | палець замість пароля в `sudo`, polkit і на lock screen; `dangonix fingerprint add\|remove\|check\|on\|off` ([design §10](design.md#10-відбиток-пальця)) | сенсор може не підтримуватись libfprint; вхід у SDDM лишається з паролем (keyring) |
+| Вартовий | `dangonix security` — один екран зі станом безпеки і командами-виправленнями; статична політика безпеки в `dangonix check`; закритий firewall, дрібне посилення ядра, Docker rootless; sandbox агентів через managed settings з Nix ([design §11](design.md#11-безпека)) | rootless ламає окремі compose-файли; точні ключі sandbox Claude Code |
+| 1Password і SSH з Windows | паролі, SSH-ключі й токен `gh` в 1Password з відбитком, браузер без master-пароля; `ssh kit@nixos` з Windows через Tailscale | master-пароль раз після перезавантаження (обмеження Linux); ім'я бінарника Zen для інтеграції |
+| Foundry для гравців | `dangonix foundry share` дає постійне посилання через Tailscale Funnel, без білої IP | спершу тестова гра з 5–6 гравцями: швидкість великих карт |
 | Foundry і Docker на запит | не стартують при boot | контейнери з `restart:` не піднімуться самі |
 | Попередження про батарею | рівно одне, як роль теми | різні пороги в shell'ів |
 | Wallpaper Noctalia | з репо | розмір файлу |
@@ -160,4 +163,13 @@ CI на кожен push у `redesign` і PR у `main`: лінт доків і к
 | Plymouth | красивий тихий boot | LUKS, відбиток, resume |
 
 ## 5. Кампанія III — «Щит і сховище»
-Data safety: backups `/home` і світів Foundry, snapshots, secrets у репо, FIDO2 для sudo. Туман війни: план пишеться після кампанії II.
+Data safety і шифрування, саме в такому порядку, бо кожен крок спирається на попередній ([design §11](design.md#11-безпека)):
+
+1. Бекапи restic на зовнішній HDD, що стартують самі при підключенні диска; `dangonix backup`.
+2. Перевірене відновлення з бекапу.
+3. Перевстановлення з LUKS (розмітка disko) і автологін після пароля диска.
+4. Secure Boot (lanzaboote), пароль BIOS.
+5. TPM2 + PIN замість пароля диска.
+6. Друга копія бекапів у хмарі.
+
+Туман війни: квести пишуться після кампанії II.

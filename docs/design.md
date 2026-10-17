@@ -19,12 +19,13 @@ state.json              вибір, який робить dangonix: { theme, fou
 lib/
   settings.nix          user, host, system, held inputs
   mk-home.nix           одна home-конфігурація на тему
-  checks.nix            всі flake checks, generic по реєстру, + host build
+  checks.nix            всі flake checks, generic по реєстру, + host build, + політика безпеки
   dangonix/
     default.nix         пакет dangonix (writeShellApplication)
     commands.nix        таблиця команд — single source of truth
     dangonix.sh         код CLI як справжній файл, не Nix-рядок
-hosts/nixos/            єдиний хост; + boot.nix (Plymouth), foundry.nix (інстанси), fingerprint.nix
+hosts/nixos/            єдиний хост; + boot.nix (Plymouth, LUKS, Secure Boot), foundry.nix (інстанси), fingerprint.nix,
+                        security.nix (firewall, Tailscale, SSH, sysctl, 1Password, managed settings Claude Code), backup.nix
 home/                   інваріантне user-середовище
   dangonix.nix          ставить dangonix, пише ~/.config/dangonix/{theme-id,roles.json}
   dangonix-saver.nix    user-сервіс ощадливого режиму (енергія + трафік)
@@ -141,7 +142,7 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 ### Команди
 | Команда | effect | agent | Що робить |
 |---|---|---|---|
-| `dangonix` | read | allow | статус (тема, power mode, Foundry) + help |
+| `dangonix` | read | allow | статус (тема, power mode, Foundry, щит) + help |
 | `dangonix commands` | read | allow | всі команди з описом, effect, agent (`--json` — API для агентів/shell'ів) |
 | `dangonix switch [--home\|--host] [--backup]` | host | ask | транзакція: build host + home, nvd diff, активувати хост (тільки якщо змінився), потім home |
 | `dangonix check [--fast\|--vm]` | read | allow | завжди: лінт доків і комітів, shellcheck; full: `nix flake check` (static, host, всі теми, verify, контракт); `--fast`: тільки eval; `--vm`: VM-тести транзакцій (`packages.dangonix-vm`) |
@@ -166,6 +167,9 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 | `dangonix fingerprint remove <finger>\|--all` | state | **ask** | видалити записаний відбиток |
 | `dangonix fingerprint check` | runtime | **ask** | прикласти палець один раз: `match \| no-match \| no-device` |
 | `dangonix fingerprint on\|off` | host | ask | записати `state.fingerprint`, switch host |
+| `dangonix security [<id>]` | read | allow | щит: стан усіх перевірок безпеки з командою-виправленням ([§11](#11-безпека)) |
+| `dangonix foundry share <name> [on\|off]` | runtime | **ask** | Tailscale Funnel для інстансу: друкує посилання для гравців; вимикається разом з інстансом |
+| `dangonix backup [status\|now\|restore]` | read/state | ask | restic на зовнішній HDD ([§11](#бекапи)) |
 | `dangonix keys` | read | allow | cheatsheet з реальних даних біндів |
 | `dangonix clipboard [list\|pick\|clear]` | read/runtime/state | **ask** | історія clipboard (може містити паролі) |
 | `dangonix rollback` (опц.) | host | ask | rollback одною командою |
@@ -265,7 +269,7 @@ nix --extra-experimental-features 'nix-command flakes' run ~/nixos -- switch
 Кілька версій поруч, кожна зі своїми конфігами і світами, запускаються окремо.
 
 - Модуль nix-foundryvtt однoінстансний (один `foundryvtt.service`, один `dataDir`), тому хост має власний `hosts/nixos/foundry.nix`. Він з `state.foundry.instances` генерує по unit'у на інстанс і перевикористовує пакети nix-foundryvtt (`foundryvtt_<major>` + `overrideAttrs` на точну версію).
-- **Інстанс `<name>`:** unit `foundryvtt-<name>.service`, дані `/var/lib/foundryvtt-<name>/{Config,Data,Logs}` (свої `options.json`, ліцензія, світи, модулі), порт зі `state.json`. Firewall відкриває порти всіх інстансів.
+- **Інстанс `<name>`:** unit `foundryvtt-<name>.service`, дані `/var/lib/foundryvtt-<name>/{Config,Data,Logs}` (свої `options.json`, ліцензія, світи, модулі), порт зі `state.json`. Firewall портів інстансів не відкриває: гравці заходять через `foundry share` ([§11](#мережа)).
 - Один системний юзер і група `foundryvtt`; `kit` у групі (group-writable дані, як зараз) і має NOPASSWD sudo тільки на `start|stop|restart` кожного unit'а.
 - Жоден інстанс не стартує при boot. Кілька можуть працювати одночасно на різних портах.
 - **Major upgrade** мігрує світи in-place без дороги назад, тому `foundry upgrade` між major вимагає `--backed-up`. Безпечніший шлях — `foundry add v14 <zip> --copy-from main`: новий інстанс з копією даних, старий лишається.
@@ -308,7 +312,53 @@ PAM-стек послідовний: `pam_fprintd` чекає палець і п
 
 **Перевірити при реалізації:** USB ID сенсора і його підтримку libfprint; що `/run/current-system/sw/lib/security/pam_fprintd.so` існує (на нього Caelestia патчить шлях); чи агент polkit теми показує підказку «прикладіть палець»; чи Ctrl+C у `sudo` пропускає відбиток до пароля.
 
-## 11. Агенти
+## 11. Безпека
+Від чого захищаємось: крадіжка чи втрата ноутбука, хтось поруч із розблокованим ноутбуком, чужа мережа, застаріле ПЗ (браузер передусім), агент робить зайве, чужий код у flake inputs, втрата даних. Не захищаємось від цілеспрямованої атаки з фізичним доступом і часом.
+
+### Диск і вхід
+- **LUKS2** на весь диск разом зі swap; розмітка — disko, тому [fresh install](#fresh-install) отримує крок розмітки. Шлях — перевстановлення після перевіреного відновлення з [бекапу](#бекапи).
+- **Secure Boot** — lanzaboote: власні ключі плюс ключі Microsoft (оновлення BIOS). Пароль BIOS supervisor — ручний крок ([§15](#15-ручні-кроки-що-лишаються-inherent)).
+- **Розблокування диска:** пароль LUKS; після Secure Boot — TPM2 + PIN (`systemd-cryptenroll --tpm2-with-pin`). Dictionary-attack lockout TPM тимчасовий (`tpm2_dictionarylockout`: 5 спроб, далі одна раз на 10 хв). Пароль LUKS лишається в окремому слоті, recovery key (`--recovery-key`) — в 1Password. TPM без PIN заборонений.
+- **Один вхід:** після LUKS SDDM робить автологін; gnome-keyring з порожнім паролем, бо його захищає LUKS (відбитком keyring не відкрити: відбиток не секрет). Автологін дозволений тільки разом з LUKS.
+- **Блокування екрана:** idle, перед сном, при закритті кришки — роль `lock` ([§3](#ролі-контракт)), живу перевірку робить `dangonix doctor`.
+
+### Мережа
+- Firewall увімкнений; на звичайних інтерфейсах вхідних портів немає. Steam Remote Play і LAN transfers без `openFirewall`.
+- **Tailscale:** єдиний інтерфейс з вхідним портом — `tailscale0` (22). Key expiry ноутбука вимкнено, на акаунті 2FA, ACL пускає до :22 тільки мої пристрої.
+- **Foundry для гравців** — Tailscale Funnel: постійне HTTPS-посилання без білої IP, гравцям нічого не треба ставити. Funnel слухає тільки 443, 8443, 10000, тож одночасно до трьох інстансів. `dangonix foundry share <name> on|off` (runtime) вмикає Funnel на порт інстансу і друкує посилання; зупинка інстансу вимикає Funnel; на лімітному з'єднанні — попередження ([§8](#8-трафік)). Admin-пароль і паролі гравців у світах обов'язкові. Запасний варіант — Cloudflare Tunnel з власним доменом.
+- **SSH з Windows:** `services.openssh`, `openFirewall = false`, порт 22 тільки на `tailscale0`; лише ключі, без root, `AllowUsers = [ "kit" ]`; публічні ключі — `users.users.kit.openssh.authorizedKeys.keys`. На Windows: Tailscale + 1Password SSH agent з Windows Hello, `ssh kit@nixos`. Поки є SSH-сесія, idle-suspend інгібується (кришка все одно присипляє). `sudo` по SSH — паролем.
+- Wi-Fi MAC: `networking.networkmanager.wifi.macAddress = "stable"`.
+
+### Хост
+- sysctl `kernel.kptr_restrict = 2`, `kernel.dmesg_restrict = 1`, `kernel.unprivileged_bpf_disabled = 1`, `net.core.bpf_jit_harden = 2`; `security.sudo.execWheelOnly = true`; `boot.loader.systemd-boot.editor = false`.
+- Docker rootless (`virtualisation.docker.rootless` з `setSocketVariable`); `kit` не в групі `docker` (вона дає root без пароля).
+- Bluetooth `powerOnBoot = false`.
+
+### 1Password
+- `programs._1password-gui` (`polkitPolicyOwners = [ "kit" ]`) і `programs._1password` (`op`). Розблокування — system authentication: polkit → fprintd ([§10](#10-відбиток-пальця)).
+- User-сервіс `1password --silent` у `graphical-session.target`, застосунок живе в треї, автоблокування на максимум. Master-пароль — раз після старту застосунку (на Linux system authentication не переживає перезапуск), далі відбиток.
+- Zen у `/etc/1password/custom_allowed_browsers` (root, 0755; ім'я бінарника з `ps`), розширення з'єднане з застосунком, тому браузер master-пароль не питає.
+- SSH: `IdentityAgent ~/.1password/agent.sock`, SSH-агент gnome-keyring вимкнено, приватних ключів у `~/.ssh` немає. Git підписує коміти SSH-ключем (`gpg.format = ssh`, `gpg.ssh.program = op-ssh-sign`).
+- `gh` — через 1Password Shell Plugins, токена в `~/.config/gh` немає. Quick Access — бінд Hyprland на вільну клавішу → `1password --quick-access`. Секрети для `dangonix` — `op read op://…`.
+- Поза 1Password: пароль restic (файл тільки для root, копія в 1Password), Wi-Fi (NetworkManager), паролі застосунків (gnome-keyring: 1Password не дає Secret Service на Linux). sops-nix/agenix не потрібні, поки немає системних секретів для boot.
+
+### Агенти
+- **Managed settings Claude Code** генерує NixOS-модуль: `/etc/claude-code/managed-settings.json`, змінюється тільки через switch, налаштування репо його не послаблять. Вміст: sandbox `enabled`, `failIfUnavailable`, `allowUnsandboxedCommands: false`; `credentials.files` deny для `~/.ssh`, `~/.config/gh`, `~/.local/share/keyrings`, `~/.1password`, профілю Zen; `network.allowedDomains` — GitHub, `cache.nixos.org`, cachix; `network.allowUnixSockets` — тільки сокет nix-daemon (сокети Docker і 1Password — ні); `Read(...)` deny на ті самі шляхи, бо інструмент Read працює поза sandbox. `bubblewrap` і `socat` — у системі. Точні ключі звірити з документацією Claude Code під час реалізації.
+- `scripts/campaign` запускає `claude` цілком у bubblewrap: видно тільки `~/nixos`, `~/.claude` і сокет nix-daemon.
+- `.claude/settings.json` у репо лишається для allow/ask ([§12](#12-агенти)).
+
+### Бекапи
+restic у власну теку на зовнішньому HDD (решту файлів диска не чіпає): `/home` без кешів і `/var/lib/foundryvtt-*`. Стартує сам, коли підключаю диск, і сповіщає «можна від'єднувати». `dangonix backup [status|now|restore]`. Перевірене відновлення — умова переходу до LUKS. Згодом — друга копія в хмарі (там же — важливі файли з HDD, яких більше ніде немає).
+
+### Політика (статична перевірка в `dangonix check`)
+Падає, якщо: firewall вимкнено; відкриті порти не збігаються з задекларованим списком (кожен з причиною); порт 22 відкритий не тільки на `tailscale0`; SSH з паролем або root-логіном; NOPASSWD поза whitelist (`start|stop|restart` Foundry); `systemd-boot.editor` не `false`; `nix.settings.trusted-users` не тільки root; substituter без відомого ключа; автологін без LUKS або TPM без PIN; немає managed settings Claude Code або sandbox у них вимкнений; `kit` у групі `docker`.
+
+### `dangonix security`
+Один екран «щит»: рядок на перевірку (диск, Secure Boot, бекап, Foundry Funnel, SSH, оновлення, firewall-політика, блокування, відбиток, firmware, 1Password, агент) зі станом `✓ ! ✗ –` і командою-виправленням. Перевірки — таблиця даних, як таблиця команд: з неї вивід, `--json` і рядок «щит: N ✗ M !» у статусі `dangonix`; бар малює іконку щита з `dangonix --json security`. Оновлення: `!`, якщо `nixpkgs` або `zen-browser` у `flake.lock` старші за 14 днів. Firmware: рівень HSI з `fwupdmgr security`. 1Password: застосунок запущений, агент відповідає, приватних ключів у `~/.ssh` і токена в `~/.config/gh` немає.
+
+**Не робимо:** антивірус, USBGuard, AppArmor/firejail, hardened kernel і профіль `hardened` (ламають Steam, Proton, `nix-ld`), `security.protectKernelImage` (вимикає гібернацію), VPN за замовчуванням, FIDO2-ключ (немає), DNS over TLS (поки).
+
+## 12. Агенти
 - **Тільки Claude Code.** Graphify і Codex repo tooling видалено (Zed `codex-acp` лишається — це фіча редактора). CLI з nixpkgs-unstable, self-updater off, оновлюється через `dangonix update`.
 - **`CLAUDE.md`** англійською, < 60 рядків, описує тільки те, що вже існує. Будь-яка зміна, на яку покладаються агенти, оновлює його в тому самому коміті. README — для мене, CLAUDE.md — для агентів; не дублюють одне одного.
 - **Інваріанти для агентів:** не чіпати `hardware-configuration.nix`; тема не змінює хост; кожна тема проходить `dangonix check`; не прибирати й не перебиндовувати наявні клавіші; clipboard і search — core; `settings.toml` Noctalia — тільки через named keys; `ask`-команди і `sudo` — тільки на запит; `state.json` — тільки на запит.
@@ -317,18 +367,19 @@ PAM-стек послідовний: `pam_fprintd` чекає палець і п
 - **Tooling:** `mcp-nixos` (опційно, канал 26.05; не знає options з flake inputs), плагін `claude-md-management` — єдиний. Без hookify і formatting hook.
 - Discovery: `dangonix commands --json`.
 
-## 12. Запозичено з Omarchy 4.0
+## 13. Запозичено з Omarchy 4.0
 Ідея: один Quickshell-процес, CLI — джерело правди, shell — її клієнт. **Логіка живе в CLI і core-сервісах; shell лише малює UI.**
 
 Взято: одна CLI з `--json`, firmware updates, cheatsheet (SUPER+F1), zoom і scale моніторів (runtime only), clipboard history (текст і картинки), Spotlight-search на SUPER+R (apps, dangonix-команди read/runtime, калькулятор, файли; backend — пізніше, напр. Walker чи Vicinae), автоматичні power profiles.
 
-## 13. Свідомо поза scope
-- **Відкладено:** `dangonix.textSize`; OCR, color picker, запис екрану; agent hotkey, tmux layouts, worktree helpers, timed passwordless sudo, декларативні налаштування Claude Code; calculator/emoji hotkeys, LocalSend, Wi-Fi QR, web apps, reminders, screensaver.
-- **Data safety — окремий етап після phase 2:** backups `/home` і даних Foundry, snapshots, secrets у репо (sops-nix/agenix), FIDO2 для sudo. До того ніщо не захищає `/home`, світи Foundry і стан застосунків.
+## 14. Свідомо поза scope
+- **Відкладено:** `dangonix.textSize`; OCR, color picker, запис екрану; agent hotkey, tmux layouts, worktree helpers, timed passwordless sudo; calculator/emoji hotkeys, LocalSend, Wi-Fi QR, web apps, reminders, screensaver.
+- **Безпека і data safety** ([§11](#11-безпека)) — кампанії II і III. До бекапів ніщо не захищає `/home`, світи Foundry і стан застосунків.
 - **Відкинуто:** screenshot-to-theme pipeline, visual regression, одна палітра для всіх shell'ів, XP title bars через plugin, ThinkPad charge limit, multi-host.
 
-## 14. Ручні кроки, що лишаються (inherent)
+## 15. Ручні кроки, що лишаються (inherent)
 - Згенерувати `hardware-configuration.nix`, створити юзера `kit` в installer'і.
 - Завантажити ліцензований Foundry ZIP для кожного інстансу; ліцензія, admin password, світи (`/var/lib/foundryvtt-<name>`) — дані.
-- Записати відбитки (`dangonix fingerprint add`), Wi-Fi, Bluetooth, логіни в застосунки, SSH keys, `gh auth`, логін у Claude Code.
+- Записати відбитки (`dangonix fingerprint add`), Wi-Fi, Bluetooth, логіни в застосунки, логін у Claude Code.
+- Безпека: пароль LUKS і TPM2 + PIN (`systemd-cryptenroll`), recovery key в 1Password, пароль BIOS supervisor, ключі Secure Boot (`sbctl`); вхід у 1Password (SSH-ключі в сховище, `op plugin init gh`, з'єднання розширення Zen); вхід у Tailscale (Funnel, ACL, вимкнений key expiry ноутбука); пароль restic.
 - Палітра Noctalia (runtime-стан за рішенням); Noctalia plugins і EasyEffects presets — задекларувати, якщо можливо.
