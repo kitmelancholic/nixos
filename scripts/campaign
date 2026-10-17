@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Autopilot: run quests from docs/tasks.md one fresh Claude Code session at a
+# time, with the model and effort from each quest's meta line, until a journal
+# entry is anything but `виконано`. Each run's JSON result (cost, permission
+# denials, final message) goes to .campaign/<id>.json (gitignored).
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+mkdir -p .campaign
+limit=${QUEST_TIMEOUT:-3h}
+
+stop() {
+  notify-send "dangoNix" "$1"
+  echo "$1"
+  exit "${2:-1}"
+}
+
+next_quest() {
+  grep -oP '^## \Kc\d+q\d+(?= )' docs/tasks.md | while read -r id; do
+    grep -q "^## $id — виконано" docs/progress.md || {
+      echo "$id"
+      break
+    }
+  done
+}
+
+for _ in $(seq 25); do
+  id=$(next_quest)
+  [[ -n $id ]] || stop "Campaign complete" 0
+  meta=$(awk -v id="$id" '$0 ~ "^## " id " " {f=1; next} f && /^meta:/ {print; exit}' docs/tasks.md)
+  model=$(grep -oP 'model=\K\S+' <<<"$meta")
+  effort=$(grep -oP 'effort=\K\S+' <<<"$meta")
+  before=$(git rev-parse HEAD)
+  log=.campaign/$id.json
+  echo "== $id ($model, $effort) → $log"
+  # -p cannot ask: anything not allowed by .claude/settings.json is denied.
+  timeout --foreground "$limit" claude -p "/quest $id" --model "$model" \
+    --effort "$effort" --permission-mode acceptEdits \
+    --permission-prompts none --output-format json >"$log"
+  rc=$?
+  ((rc == 124)) && stop "$id: timed out after $limit"
+  ((rc == 0)) || stop "$id: claude exited $rc (see $log)"
+  denied=$(jq '.permission_denials | length' "$log" 2>/dev/null || echo "?")
+  [[ $denied == 0 ]] || stop "$id: $denied permission denials (see $log)"
+  [[ $(git rev-parse HEAD) != "$before" ]] || stop "$id: no new commit"
+  last=$(grep -E '^## c[0-9]+q[0-9]+ — ' docs/progress.md | tail -n 1)
+  case $last in
+  *"— виконано"*) continue ;;
+  *) stop "$last" 0 ;;
+  esac
+done
+stop "Stopped after 25 quests" 0

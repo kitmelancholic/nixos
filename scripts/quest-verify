@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# Mechanical gate for one quest: the full check, then the oracle in the mode
+# named by the quest's meta line in docs/tasks.md.
+#   quest-verify [--oracle-only] [--base <rev>] <id>
+# --base   compare with <rev> instead of HEAD (CI: the quest commit's parent)
+# --oracle-only   skip scripts/check (CI runs it as its own job)
+set -euo pipefail
+base=HEAD
+full=1
+while [[ ${1:-} == --* ]]; do
+  case $1 in
+  --base)
+    base=${2:?--base needs a rev}
+    shift 2
+    ;;
+  --oracle-only)
+    full=0
+    shift
+    ;;
+  *)
+    echo "quest-verify: unknown flag $1" >&2
+    exit 2
+    ;;
+  esac
+done
+id=${1:?usage: quest-verify [--oracle-only] [--base <rev>] <quest id>}
+cd "$(git rev-parse --show-toplevel)"
+
+meta=$(awk -v id="$id" '
+  $0 ~ "^## " id " " { found = 1; next }
+  found && /^meta:/   { sub(/^meta: */, ""); print; exit }
+  found && /^## /     { exit }
+' docs/tasks.md)
+[[ -n $meta ]] || {
+  echo "quest-verify: no meta line for $id" >&2
+  exit 2
+}
+
+get() { tr ' ' '\n' <<<"$meta" | sed -n "s/^$1=//p"; }
+mode=$(get diff)
+removed=$(get removed)
+leaves=$(get leaves)
+
+if ((full)); then
+  echo "== $id: scripts/check"
+  scripts/check --full
+fi
+
+case $mode in
+baseline | source-only)
+  echo "== $id: no oracle in mode $mode"
+  ;;
+none)
+  args=(--assert-same)
+  if [[ -n $removed ]]; then
+    IFS=, read -ra ids <<<"$removed"
+    args+=(--removed "${ids[@]}")
+  fi
+  echo "== $id: closure-diff ${args[*]} $base"
+  scripts/closure-diff "${args[@]}" "$base"
+  ;;
+leaves)
+  echo "== $id: closure-diff --names $base"
+  # Captured first: inside `< <(…)` a failing closure-diff would go unnoticed.
+  out=$(scripts/closure-diff --names "$base") || {
+    echo "quest-verify: closure-diff failed" >&2
+    exit 1
+  }
+  changed=()
+  [[ -n $out ]] && mapfile -t changed <<<"$out"
+  IFS=, read -ra globs <<<"$leaves"
+  fail=0
+  for name in "${changed[@]}"; do
+    ok=0
+    for g in "${globs[@]}"; do
+      # shellcheck disable=SC2053  # glob match is intended
+      [[ $name == ${g%\?} ]] && {
+        ok=1
+        break
+      }
+    done
+    ((ok)) || {
+      echo "unexpected change: $name"
+      fail=1
+    }
+  done
+  for g in "${globs[@]}"; do
+    [[ $g == *\? ]] && continue
+    hit=0
+    for name in "${changed[@]}"; do
+      # shellcheck disable=SC2053
+      [[ $name == $g ]] && {
+        hit=1
+        break
+      }
+    done
+    ((hit)) || {
+      echo "expected change missing: $g"
+      fail=1
+    }
+  done
+  exit "$fail"
+  ;;
+*)
+  echo "quest-verify: unknown diff mode '$mode'" >&2
+  exit 2
+  ;;
+esac

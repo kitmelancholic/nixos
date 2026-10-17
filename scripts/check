@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# The one check entry point until `dangonix check` absorbs it (c1q13).
+#   check --docs   docs, commit messages since origin/main, shellcheck
+#   check --fast   --docs + the derivation of every check and of every host,
+#                  evaluated without building. `nix flake check --no-build`
+#                  cannot do it: Hyprland's flake reads ${src}/VERSION, which
+#                  needs its source in the store (import-from-derivation).
+#   check          --docs + full `nix flake check` (builds every theme)
+# Logs go to a temp file; only the last 40 lines are printed on failure.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+mode=${1:---full}
+case $mode in --docs | --fast | --full) ;; *)
+  echo "usage: check [--docs|--fast|--full]" >&2
+  exit 2
+  ;;
+esac
+
+log=$(mktemp)
+trap 'rm -f "$log"' EXIT
+step() { # $1 = name, rest = command
+  local name=$1
+  shift
+  echo "== $name"
+  if ! "$@" >"$log" 2>&1; then
+    tail -n 40 "$log"
+    echo "check: $name failed" >&2
+    exit 1
+  fi
+}
+
+shellcheck_scripts() {
+  local sc=(shellcheck)
+  command -v shellcheck >/dev/null || sc=(nix run nixpkgs#shellcheck --)
+  "${sc[@]}" scripts/check scripts/lint-docs scripts/lint-commits \
+    scripts/quest-verify scripts/campaign scripts/next-version \
+    .claude/hooks/git-guard .claude/hooks/ref-guard .claude/hooks/commit-msg
+}
+
+step docs scripts/lint-docs
+if git rev-parse -q --verify origin/main >/dev/null; then
+  step commits scripts/lint-commits origin/main..HEAD
+fi
+step shellcheck shellcheck_scripts
+
+eval_all() {
+  nix eval --no-write-lock-file --json .#checks.x86_64-linux \
+    --apply 'builtins.mapAttrs (_: c: c.drvPath)'
+  nix eval --no-write-lock-file --json .#nixosConfigurations \
+    --apply 'builtins.mapAttrs (_: h: h.config.system.build.toplevel.drvPath)'
+}
+
+case $mode in
+--fast)
+  step eval eval_all
+  ;;
+--full)
+  step flake nix flake check --no-write-lock-file
+  ;;
+esac
+echo "check: ok ($mode)"
