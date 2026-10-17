@@ -64,3 +64,5 @@ Required paths, CLAUDE.md content and quest symlink passed; commit-msg matches i
 scripts/check --fast failed at shellcheck: Nix could not write /home/kit/.cache/nix/flake-registry.json (read-only filesystem).
 Automatic guard rejected read-only hook comparison as “git push is denied”; GM: enable required checks and verify reference-transaction/pre-push against scripts/hooks/ref-guard and git-guard, then retry.
 agent: codex gpt-6.1-sol
+
+GM: fixed in 0ebac19 (guard and nix cache); rerun the checks and finish.
