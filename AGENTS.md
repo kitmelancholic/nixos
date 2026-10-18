@@ -30,6 +30,7 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
 
   | tier   | claude            | codex          |
   |--------|-------------------|----------------|
+  | squire | claude-haiku-5-5  | gpt-6.1-sol    |
   | hero   | claude-sonnet-5-5 | gpt-6.1-sol    |
   | cleric | claude-opus-5-5   | gpt-6.1-sol    |
   | judge  | claude-opus-5-5   | gpt-6.1-sol    |
@@ -45,16 +46,15 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
 - Same Bash rules in `.claude/settings.json` and `.codex/rules/dangonix.rules`;
   change both together. Headless runs refuse anything not allowed.
 - Both run `git-guard` and the fail-closed `bash-guard` (no hook = no Bash).
+  Claude also runs `scripts/context-watch`: obey its 80k/95k-token warnings.
 - Edit/Write deny rules exist only in Claude Code; Codex has no file-edit
   hook, so its sandbox and the GM's review guard those paths.
 
 ## Layout
 
-- `hosts/` NixOS host configuration (one host).
-- `home/` Home Manager modules shared by every theme.
+- `hosts/` the one NixOS host; `home/` Home Manager modules for every theme.
 - `profiles/` theme registry (default `catppuccin`) and shell themes.
 - `themes/` colour variants of the classic desktop.
-- `lib/` flake helpers: settings, home builder, repo apps.
-- `scripts/` checks, quest tooling, git hooks, `opt`.
+- `lib/` flake helpers; `scripts/` checks, quest tooling, git hooks, `opt`.
 - `assets/` wallpapers. `docs/` vision, design, plan, journal.
 - `.agents/skills/` shared skills; `.claude/`, `.codex/` per-CLI config.
