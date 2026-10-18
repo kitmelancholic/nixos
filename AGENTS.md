@@ -16,7 +16,7 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
 
 - `git add` new files before any check (flakes ignore untracked files);
   stage paths explicitly, never `git commit -a`.
-- State-changing tests (switch, lock, rebuild) run in a temporary worktree.
+- State-changing tests run in a worktree under `.campaign/` (tasks.md rules).
 - Never print full build logs (`tail -n 40`); full check via `quest-verify`.
 - Unsure of an option or package name: ask the `nixos` MCP server (mcp-nixos,
   26.05 channel). It does not know flake-input options (Noctalia, Caelestia,
