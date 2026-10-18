@@ -11,7 +11,7 @@ This file links to the design and never restates it.
 
 ```
 ## <id> — <quest name>
-meta: tier=hero|cleric effort=… boss=yes|no diff=<mode> [removed=<ids>] [leaves=<globs>] [rest=<tag>]
+meta: tier=squire|hero|cleric effort=… boss=yes|no diff=<mode> [removed=<ids>] [leaves=<globs>] [rest=<tag>]
 Goal           one sentence: the end state.
 Why            enough context to resolve ambiguity in the steps.
 Read first     files or design sections to read before editing.
@@ -35,7 +35,7 @@ GM's turn      checklist for the GM with exact commands (omitted if none).
 
 **Checks.** `scripts/check --fast` while editing (doc and commit lint, shellcheck, flake evaluation without building); `scripts/check` is the full one (`nix flake check`), and `scripts/quest-verify` runs it. From c1q13 `dangonix check` is the same thing. CI on GitHub runs `scripts/check --fast` on every push and, once `scripts/closure-diff` exists, the oracle for every quest commit; the hero never pushes, so CI is the signal for the GM and the scribe.
 
-**Models.** `tier=` names a row of the model table in `AGENTS.md` (`hero`; `cleric` for retries and for the quests whose code the rest depends on: c1q03, c1q13, c1q14; the judge behind `scripts/review` is `judge`), with a full model id per agent, so a campaign never changes model halfway. `scripts/campaign [--agent claude|codex] [--judge claude|codex]` picks the CLI; the journal records which agent and model ran each entry.
+**Models.** `tier=` names a row of the model table in `AGENTS.md` (`squire` for short mechanical quests with a strict oracle (`diff=none`, few steps, nothing to judge): c1q06, c1q07, c1q09; `hero` by default; `cleric` for retries and for the quests whose code the rest depends on: c1q03, c1q13, c1q14; the judge behind `scripts/review` is `judge`), with a full model id per agent, so a campaign never changes model halfway. Claude Code's `scripts/context-watch` hook warns at 80k context tokens (stop exploring) and 95k (finish or hand the quest back with `провалений кидок`); the retry by the cleric keeps the uncommitted work. `scripts/campaign [--agent claude|codex] [--judge claude|codex]` picks the CLI; the journal records which agent and model ran each entry.
 
 **Shared rules.** Tests that change `state.json`, `flake.lock` or Nix code on purpose run in a temporary worktree: `wt=$(mktemp -d) && git worktree add --detach "$wt" "$(git stash create)"`, then `git worktree remove --force "$wt"`; `git status` in the checkout must be unchanged afterwards. `hosts/nixos/hardware-configuration.nix` is never touched.
 
@@ -223,7 +223,7 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=+mcp-nixos*,+bash-guard
 ---
 
 ## c1q06 — Under one banner
-meta: tier=hero effort=medium boss=no diff=none
+meta: tier=squire effort=medium boss=no diff=none
 
 **Goal.** The default theme (`.#kit`, fresh install) is `noctalia`, and the classic-only override canary is gone.
 
@@ -248,7 +248,7 @@ meta: tier=hero effort=medium boss=no diff=none
 ---
 
 ## c1q07 — Fall of the Dark Master
-meta: tier=hero effort=medium boss=no diff=none removed=dms
+meta: tier=squire effort=medium boss=no diff=none removed=dms
 
 **Goal.** The `dms` theme (Dank Material Shell) no longer exists in the repo.
 
@@ -297,7 +297,7 @@ meta: tier=hero effort=medium boss=no diff=none removed=catppuccin,tokyo-night,g
 ---
 
 ## c1q09 — Dispelling Stylix
-meta: tier=hero effort=medium boss=no diff=none
+meta: tier=squire effort=medium boss=no diff=none
 
 **Goal.** Stylix is gone.
 

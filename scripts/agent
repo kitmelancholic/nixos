@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One interface over Claude Code and Codex, so the quest workflow does not
 # depend on which CLI runs it. The tier → model table lives in AGENTS.md.
-#   agent model <claude|codex> <hero|cleric|judge>
+#   agent model <claude|codex> <squire|hero|cleric|judge>
 #   agent run   <claude|codex> <tier> <effort> <log> <prompt>   edits allowed
 #   agent ask   <claude|codex> <tier> <effort> <log> <prompt>   read-only;
 #                                                  prints the final message
