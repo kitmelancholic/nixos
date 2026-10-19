@@ -34,7 +34,8 @@ shellcheck_scripts() {
   command -v shellcheck >/dev/null || sc=(nix run nixpkgs#shellcheck --)
   "${sc[@]}" scripts/check scripts/lint-docs scripts/lint-commits \
     scripts/quest-verify scripts/campaign scripts/next-version \
-    scripts/agent scripts/review \
+    scripts/agent scripts/review scripts/closure-diff scripts/opt \
+    scripts/context-watch \
     scripts/hooks/git-guard scripts/hooks/ref-guard scripts/hooks/commit-msg
 }
 

@@ -29,7 +29,7 @@ let
         ]
       );
 
-  # Only expose bin/pdf2md so the venv's python3 does not collide with graphify's.
+  # Only expose bin/pdf2md so the venv's python3 does not collide with other Python environments.
   pdf2md = pkgs.runCommand "pdf2md" { } ''
     mkdir -p "$out/bin"
     ln -s ${pythonSet.mkVirtualEnv "pdf2md-env" workspace.deps.default}/bin/pdf2md "$out/bin/pdf2md"

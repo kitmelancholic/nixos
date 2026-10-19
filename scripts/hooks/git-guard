@@ -17,9 +17,17 @@ deny() {
 }
 
 grep -qP '\bgit\b' <<<"$cmd" || exit 0
-grep -qP '\bgit\b.*\bpush\b' <<<"$cmd" && deny "git push is denied"
-grep -qP -- '--no-verify|\b(CLAUDECODE|DANGONIX_AGENT)\b|core\.hooksPath|\.git/hooks' <<<"$cmd" &&
+# The git command, not a path such as .git/hooks/pre-push; options may sit
+# between `git` and `push` (git -c k=v push).
+grep -qP '(?<![\w./-])git(\s+-\S+(\s+[^-\s]\S*)?)*\s+push\b' <<<"$cmd" && deny "git push is denied"
+# Changing what makes the hooks run is a bypass; reading the variables or the
+# installed hooks (cmp, diff, cat) is not.
+grep -qP -- '--no-verify|core\.hooksPath|\b(CLAUDECODE|DANGONIX_AGENT)=|\b(unset|env\s+-u)\s+(CLAUDECODE|DANGONIX_AGENT)\b' <<<"$cmd" &&
   deny "hook bypass is denied"
+# A write whose target is in .git/hooks (a tripwire: a script can still write
+# there, the Edit deny rule and ref-guard are the real checks).
+grep -qP '\b(cp|mv|install|ln|rm|tee|chmod|truncate|dd|patch)\b[^;&|\n]*\.git/hooks|\bsed\s+-i[^;&|\n]*\.git/hooks|>\s*\S*\.git/hooks' <<<"$cmd" &&
+  deny "writing .git/hooks is denied"
 if grep -qP '\bgit\b[^;&|]*\b(commit|tag)\b' <<<"$cmd"; then
   # Anything that can point git at another repository or branch.
   grep -qP -- '\s-C\s|--git-dir|--work-tree|\bGIT_(DIR|WORK_TREE)\b|(^|[;&|(]|\s)cd\s|\b(checkout|switch)\b|\b(bash|sh|eval|xargs)\b' <<<"$cmd" &&

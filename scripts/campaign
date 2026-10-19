@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Autopilot: run quests from docs/tasks.md one fresh agent session at a time,
 # with the tier and effort from each quest's meta line, until a journal entry
-# is anything but `виконано`.
+# is anything but `виконано`. A quest whose last entry the GM has answered
+# (see quest_state) is retried by the cleric; one still waiting for the GM
+# stops the run before any agent starts.
 #   campaign [--agent claude|codex] [--judge claude|codex]
 # --agent  the hero's CLI (default claude); --judge  the CLI behind
 # scripts/review (default: the hero's). Models per tier: AGENTS.md. Each
@@ -31,7 +33,9 @@ mkdir -p .campaign
 limit=${QUEST_TIMEOUT:-3h}
 
 stop() {
-  notify-send "dangoNix" "$1"
+  if command -v notify-send >/dev/null 2>&1; then
+    notify-send "dangoNix" "$1" 2>/dev/null || true
+  fi
   echo "$1"
   exit "${2:-1}"
 }
@@ -43,6 +47,24 @@ next_quest() {
       break
     }
   done
+}
+
+# The quest's state from its last journal entry: `new` (none yet), `retry`
+# (the GM answered it: a `благословення` entry, or any text the GM wrote
+# below the entry's closing `agent:` line), or `gm` (it waits for the GM).
+quest_state() {
+  awk -v id="$1" '
+    $0 ~ "^## " id " — " { kind = $0; sub(/^## [^ ]+ — /, "", kind); gm = after = stop = 0; next }
+    /^## / { if (kind != "") stop = 1 }
+    stop || kind == "" { next }
+    /^agent:/ { after = 1; next }
+    after && NF { gm = 1 }
+    END {
+      if (kind == "") print "new"
+      else if (kind == "виконано") print "done"
+      else if (kind == "благословення" || gm) print "retry"
+      else print "gm"
+    }' docs/progress.md
 }
 
 # Each CLI has its own skill syntax; both load .agents/skills/quest.
@@ -59,23 +81,42 @@ for _ in $(seq 25); do
   meta=$(awk -v id="$id" '$0 ~ "^## " id " " {f=1; next} f && /^meta:/ {print; exit}' docs/tasks.md)
   tier=$(grep -oP 'tier=\K\S+' <<<"$meta")
   effort=$(grep -oP 'effort=\K\S+' <<<"$meta")
+  arg=$id
+  state=$(quest_state "$id")
+  # A new quest on a dirty tree fails on someone else's changes; a retry keeps
+  # the failed run's uncommitted work on purpose.
+  [[ $state != new || -z $(git status --porcelain --untracked-files=no) ]] ||
+    stop "Uncommitted changes: commit or stash them first"
+  case $state in
+  gm) stop "$(grep -E "^## $id — " docs/progress.md | tail -n 1): waiting for the GM" 0 ;;
+  retry) arg="retry $id" tier=cleric ;;
+  esac
   before=$(git rev-parse HEAD)
   log=.campaign/$id.json
   echo "== $id ($agent $(scripts/agent model "$agent" "$tier"), $effort) → $log"
   timeout --foreground "$limit" scripts/agent run "$agent" "$tier" "$effort" \
-    "$log" "$(invoke "$id")"
+    "$log" "$(invoke "$arg")"
   rc=$?
   ((rc == 124)) && stop "$id: timed out after $limit"
   ((rc == 0)) || stop "$id: $agent exited $rc (see $log)"
+  denied=0
   if [[ $agent == claude ]]; then
     denied=$(jq '.permission_denials | length' "$log" 2>/dev/null || echo "?")
-    [[ $denied == 0 ]] || stop "$id: $denied permission denials (see $log)"
   fi
-  [[ $(git rev-parse HEAD) != "$before" ]] || stop "$id: no new commit"
+  [[ $(git rev-parse HEAD) != "$before" ]] ||
+    stop "$id: no new commit ($denied permission denials, see $log)"
   last=$(grep -E '^## c[0-9]+q[0-9]+ — ' docs/progress.md | tail -n 1)
+  # A denial the agent worked around (quest-verify passed, `виконано`) is
+  # noted, not fatal; on any other outcome it is the likely cause.
   case $last in
-  *"— виконано"*) continue ;;
-  *) stop "$last" 0 ;;
+  *"— виконано"*)
+    [[ $denied == 0 ]] || echo "$id: $denied permission denials (see $log)"
+    continue
+    ;;
+  *)
+    [[ $denied == 0 ]] || last="$last; $denied permission denials (see $log)"
+    stop "$last" 0
+    ;;
   esac
 done
 stop "Stopped after 25 quests" 0

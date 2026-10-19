@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+# Compare evaluated derivations, not built outputs. Only --build builds.
+# Wrapper names omitted by --names (docs/tasks.md): home-manager-files,
+# home-manager-path, home-manager-generation, etc, system-path, system-units,
+# nixos-system-*.
+# Usage: closure-diff [--assert-same] [--added <id>…] [--removed <id>…]
+#                     [--names] [--build] <rev>
+set -euo pipefail
+export LC_ALL=C
+original_args=("$@")
+
+die() { echo "closure-diff: $*" >&2; exit 2; }
+assert_same=0 names=0 build=0
+added=() removed=() positional=()
+while (($#)); do
+  case $1 in
+  --assert-same) assert_same=1; shift ;;
+  --names) names=1; shift ;;
+  --build) build=1; shift ;;
+  --added | --removed)
+    flag=$1
+    shift
+    count=0
+    # The final positional argument is always the revision. This also accepts
+    # the quest-verify form: --removed id1 id2 HEAD.
+    while (($# > 1)) && [[ $1 != --* ]]; do
+      if [[ $flag == --added ]]; then added+=("$1"); else removed+=("$1"); fi
+      count=$((count + 1))
+      shift
+    done
+    ((count)) || die "$flag needs at least one theme id (and a final revision)"
+    ;;
+  --) shift; positional+=("$@"); break ;;
+  --*) die "unknown flag $1" ;;
+  *) positional+=("$1"); shift ;;
+  esac
+done
+((${#positional[@]} == 1)) || die "usage: closure-diff [flags] <rev>"
+((!names || !build)) || die "--names and --build cannot be combined"
+
+# Keep the helper self-contained on CI and outside the devShell. The marker
+# avoids recursion if a dependency is unavailable even inside nix shell.
+if ! command -v jq >/dev/null || ! command -v nix-diff >/dev/null; then
+  [[ ${CLOSURE_DIFF_DEPS:-0} == 0 ]] || die "jq or nix-diff missing from nix shell"
+  export CLOSURE_DIFF_DEPS=1
+  exec nix shell --no-write-lock-file --inputs-from "$(git rev-parse --show-toplevel)" \
+    nixpkgs#jq nixpkgs#nix-diff --command bash "$0" "${original_args[@]}"
+fi
+
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+rev=$(git rev-parse --verify "${positional[0]}^{commit}")
+tmp=$(mktemp -d)
+# shellcheck disable=SC2317,SC2329 # Invoked by the EXIT trap.
+cleanup() {
+  git worktree remove --force "$tmp/old" >/dev/null 2>&1 || true
+  rm -rf "$tmp"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+git worktree add --quiet --detach "$tmp/old" "$rev"
+old=$tmp/old
+
+eval_raw() { nix eval --no-write-lock-file --raw "$1#$2" "${@:3}"; }
+theme_ids() {
+  nix eval --no-write-lock-file --json "$1#lib.themes" \
+    --apply 'r: builtins.attrNames (r.themes or r.profiles)' >"$2.json"
+  jq -r '.[]' "$2.json" | LC_ALL=C sort -u >"$2"
+}
+theme_ids "$old" "$tmp/old.ids"
+theme_ids "$root" "$tmp/new.ids"
+comm -12 "$tmp/old.ids" "$tmp/new.ids" >"$tmp/common.ids"
+comm -13 "$tmp/old.ids" "$tmp/new.ids" >"$tmp/added.ids"
+comm -23 "$tmp/old.ids" "$tmp/new.ids" >"$tmp/removed.ids"
+printf '%s\n' "${added[@]}" | sed '/^$/d' | LC_ALL=C sort -u >"$tmp/expected-added.ids"
+printf '%s\n' "${removed[@]}" | sed '/^$/d' | LC_ALL=C sort -u >"$tmp/expected-removed.ids"
+fail=0
+if ((assert_same)); then
+  if [[ ! -s $tmp/common.ids ]]; then
+    echo "closure-diff: compared zero themes" >&2
+    fail=1
+  fi
+  for kind in added removed; do
+    if ! diff -u "$tmp/expected-$kind.ids" "$tmp/$kind.ids" >&2; then
+      echo "closure-diff: $kind themes do not match --$kind" >&2
+      fail=1
+    fi
+  done
+fi
+
+old_drvs=() new_drvs=() changed_labels=() changed_old=() changed_new=()
+compare() {
+  local label=$1 attr=$2 a b
+  a=$(eval_raw "$old" "$attr.drvPath")
+  b=$(eval_raw "$root" "$attr.drvPath")
+  old_drvs+=("$a") new_drvs+=("$b")
+  if [[ $a != "$b" ]]; then
+    changed_labels+=("$label") changed_old+=("$a") changed_new+=("$b")
+    ((assert_same)) && fail=1
+  fi
+  return 0
+}
+compare host nixosConfigurations.nixos.config.system.build.toplevel
+while IFS= read -r id; do
+  compare "home-$id" "checks.x86_64-linux.\"home-$id\""
+done <"$tmp/common.ids"
+# Added/removed themes are not compared, but their leaves belong in diagnostics.
+while IFS= read -r id; do
+  old_drvs+=("$(eval_raw "$old" "checks.x86_64-linux.\"home-$id\".drvPath")")
+done <"$tmp/removed.ids"
+while IFS= read -r id; do
+  new_drvs+=("$(eval_raw "$root" "checks.x86_64-linux.\"home-$id\".drvPath")")
+done <"$tmp/added.ids"
+
+changed_names() {
+  local side
+  for side in old new; do
+    local -n roots="${side}_drvs"
+    nix-store -qR "${roots[@]}" | sed -n '/\.drv$/p' | LC_ALL=C sort -u >"$tmp/$side.closure"
+  done
+  comm -23 "$tmp/old.closure" "$tmp/new.closure" >"$tmp/old.only"
+  comm -13 "$tmp/old.closure" "$tmp/new.closure" >"$tmp/new.only"
+  # Include unchanged variants of changed names as well: one closure can
+  # contain several derivations with the same name.
+  cat "$tmp/old.only" "$tmp/new.only" | sed -E 's@.*/[a-z0-9]{32}-@@; s/\.drv$//' \
+    | LC_ALL=C sort -u >"$tmp/changed-names"
+  [[ -s $tmp/changed-names ]] || return 0
+  for side in old new; do
+    : >"$tmp/$side.jsonl"
+    awk 'NR == FNR { names[$0] = 1; next }
+      { name = $0; sub(/^.*\/[a-z0-9]+-/, "", name); sub(/\.drv$/, "", name)
+        if (name in names) printf "%s%c", $0, 0 }
+    ' "$tmp/changed-names" "$tmp/$side.closure" >"$tmp/$side.paths"
+    if [[ -s $tmp/$side.paths ]]; then
+      xargs -0 -r -n 100 nix derivation show <"$tmp/$side.paths" \
+        | jq -c '(.derivations // .) | to_entries[] | {
+          name: (.key | split("/")[-1] | sub("^[^-]*-"; "") | sub("\\.drv$"; "")),
+          own: (.value | del(.inputDrvs, .inputSrcs, .inputs) |
+            .outputs |= with_entries(.value |= del(.path)) |
+            walk(if type == "string" then
+              gsub("/nix/store/[a-z0-9]{32}-[A-Za-z0-9+._?=-]+"; "<store-path>")
+            else . end))
+        }' >"$tmp/$side.jsonl"
+    fi
+  done
+  jq -sr --slurpfile old "$tmp/old.jsonl" --slurpfile new "$tmp/new.jsonl" '
+    def index_names: group_by(.name) | map({key: .[0].name, value: (map(.own) | unique)}) | from_entries;
+    ($old | index_names) as $a | ($new | index_names) as $b |
+    (($a | keys) + ($b | keys) | unique)[] as $name |
+    select($name | test("^(home-manager-(files|path|generation)|etc|system-path|system-units|nixos-system-.*)$") | not) |
+    if ($a | has($name) | not) then "+" + $name
+    elif ($b | has($name) | not) then "-" + $name
+    elif $a[$name] != $b[$name] then "~" + $name
+    else empty end
+  ' /dev/null
+}
+
+if ((names || !assert_same)); then changed_names; fi
+show_diffs() {
+  local i rc
+  for i in "${!changed_labels[@]}"; do
+    echo "== ${changed_labels[i]}: ${changed_old[i]} -> ${changed_new[i]}"
+    # nix-diff can return 1 to indicate a difference. Other failures are errors.
+    rc=0
+    nix-diff "${changed_old[i]}" "${changed_new[i]}" || rc=$?
+    ((rc <= 1)) || return "$rc"
+  done
+  return 0
+}
+if ((names)); then
+  # Preserve --names' machine-readable stdout even when assertions are enabled.
+  if ((assert_same)); then show_diffs >&2; fi
+  exit "$fail"
+fi
+show_diffs
+
+hyprland_lua() {
+  local check input
+  if ! check=$(eval_raw "$1" "checks.x86_64-linux.\"hyprland-$2\".drvPath" 2>/dev/null); then
+    echo "closure-diff: no hyprland-$2 check in $1; skipping its hyprland.lua" >&2
+    return 0
+  fi
+  # Newer Nix nests input derivations under .inputs.drvs.
+  input=$(nix derivation show "$check" | jq -r '(.derivations // .) | .[]
+    | (.inputDrvs // .inputs.drvs // {}) | keys[]
+    | select(endswith("-hyprland.lua.drv"))' | head -n 1)
+  if [[ -z $input ]]; then
+    echo "closure-diff: hyprland-$2 has no hyprland.lua input; skipping" >&2
+    return 0
+  fi
+  [[ $input == /* ]] || input=/nix/store/$input
+  nix derivation show "$input" | jq -r '(.derivations // .) | .[].env.text'
+}
+if ((!assert_same)); then
+  while IFS= read -r id; do
+    for side in old new; do
+      path=$old
+      [[ $side == new ]] && path=$root
+      # Read the text the flake's hyprland-<id> check embeds (the evaluated
+      # xdg.configFile."hypr/hyprland.lua"), independent of homeConfigurations.
+      hyprland_lua "$path" "$id" >"$tmp/$side.lua"
+    done
+    rc=0
+    diff -u --label "old/$id/hypr/hyprland.lua" --label "new/$id/hypr/hyprland.lua" \
+      "$tmp/old.lua" "$tmp/new.lua" || rc=$?
+    ((rc <= 1)) || exit "$rc"
+  done <"$tmp/common.ids"
+fi
+
+if ((build)); then
+  for i in "${!old_drvs[@]}"; do
+    nix build --no-link "${old_drvs[i]}^*"
+  done
+  for i in "${!new_drvs[@]}"; do
+    nix build --no-link "${new_drvs[i]}^*"
+  done
+  # The paired roots are the host and the common themes; additions/removals
+  # have no counterpart for diff-closures.
+  pairs=$(($(wc -l <"$tmp/common.ids") + 1))
+  for ((i=0; i<pairs; i++)); do
+    a=$(nix-store -q --outputs "${old_drvs[i]}")
+    b=$(nix-store -q --outputs "${new_drvs[i]}")
+    nix store diff-closures "$a" "$b"
+  done
+fi
+exit "$fail"

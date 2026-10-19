@@ -34,12 +34,6 @@
         description = "Command used to launch the file explorer.";
       };
 
-      launcher.command = lib.mkOption {
-        type = lib.types.str;
-        default = "wofi --show drun";
-        description = "Command used to launch the application launcher.";
-      };
-
       fileManager.desktop = lib.mkOption {
         type = lib.types.str;
         default = "org.gnome.Nautilus.desktop";

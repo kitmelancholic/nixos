@@ -5,7 +5,7 @@
 # Commits that are ancestors of $LINT_COMMITS_SINCE (the last commit before the
 # convention) are exempt.
 set -euo pipefail
-since=${LINT_COMMITS_SINCE:-c5c5ea34b2e761915c426778a1a70e7057928c62}
+since=${LINT_COMMITS_SINCE:-5e3e6f3566a8c29dbfc7353ef336f8c568873d1f}
 types='feat|fix|refactor|test|chore|docs|ci|build|perf|style|revert'
 
 check() { # $1 = label, stdin = full message

@@ -7,6 +7,10 @@
           {
             "type": "command",
             "command": "top=$(git rev-parse --show-toplevel 2>/dev/null) && [ -f \"$top/.codex/rules/dangonix.rules\" ] || exit 0; \"$top/scripts/hooks/git-guard\" || exit 2"
+          },
+          {
+            "type": "command",
+            "command": "\"$HOME/.config/dangonix/hooks/bash-guard\" || exit 2"
           }
         ]
       }

@@ -8,22 +8,28 @@
 let
   miriamLibre = pkgs.runCommand "miriam-libre-fonts" { } ''
     mkdir -p $out/share/fonts/truetype
-    cp ${pkgs.fetchurl {
-      url = "https://raw.githubusercontent.com/MichalSahar/Miriam-Libre/abffef7af612f9eba8120919bff2d1f2ec3d590d/fonts/ttf/MiriamLibre-Regular.ttf";
-      hash = "sha256-pn6orXtt4PNU1X4mxYahiWVacW+/rTcWYLCH6p2FjAk=";
-    }} $out/share/fonts/truetype/MiriamLibre-Regular.ttf
-    cp ${pkgs.fetchurl {
-      url = "https://raw.githubusercontent.com/MichalSahar/Miriam-Libre/abffef7af612f9eba8120919bff2d1f2ec3d590d/fonts/ttf/MiriamLibre-Bold.ttf";
-      hash = "sha256-/z6ZHQyg2gIjzT7epIRZaMrribsOeLrRzXNFb3bROqk=";
-    }} $out/share/fonts/truetype/MiriamLibre-Bold.ttf
+    cp ${
+      pkgs.fetchurl {
+        url = "https://raw.githubusercontent.com/MichalSahar/Miriam-Libre/abffef7af612f9eba8120919bff2d1f2ec3d590d/fonts/ttf/MiriamLibre-Regular.ttf";
+        hash = "sha256-pn6orXtt4PNU1X4mxYahiWVacW+/rTcWYLCH6p2FjAk=";
+      }
+    } $out/share/fonts/truetype/MiriamLibre-Regular.ttf
+    cp ${
+      pkgs.fetchurl {
+        url = "https://raw.githubusercontent.com/MichalSahar/Miriam-Libre/abffef7af612f9eba8120919bff2d1f2ec3d590d/fonts/ttf/MiriamLibre-Bold.ttf";
+        hash = "sha256-/z6ZHQyg2gIjzT7epIRZaMrribsOeLrRzXNFb3bROqk=";
+      }
+    } $out/share/fonts/truetype/MiriamLibre-Bold.ttf
   '';
 
   libron = pkgs.runCommand "libron-fonts-0.31" { nativeBuildInputs = [ pkgs.unzip ]; } ''
     mkdir -p $out/share/fonts/truetype
-    unzip -j ${pkgs.fetchurl {
-      url = "https://github.com/nicoverbruggen/libron/releases/download/v0.31/Libron.zip";
-      hash = "sha256-zpo1W0axHCy+FY6RSe4To/qBPKKGYdh4cj1y9HcyQDM=";
-    }} '*.ttf' -d $out/share/fonts/truetype
+    unzip -j ${
+      pkgs.fetchurl {
+        url = "https://github.com/nicoverbruggen/libron/releases/download/v0.31/Libron.zip";
+        hash = "sha256-zpo1W0axHCy+FY6RSe4To/qBPKKGYdh4cj1y9HcyQDM=";
+      }
+    } '*.ttf' -d $out/share/fonts/truetype
   '';
 in
 {

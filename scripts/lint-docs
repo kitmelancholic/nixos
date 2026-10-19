@@ -56,7 +56,7 @@ for id in "${ids[@]}"; do
   *) err "$id: unknown diff mode '$diff'" ;;
   esac
   tier=$(grep -oP '\btier=\K\S+' <<<"$meta" || true)
-  [[ $tier == hero || $tier == cleric ]] || err "$id: tier must be hero or cleric, got '$tier'"
+  [[ $tier =~ ^(squire|hero|cleric)$ ]] || err "$id: tier must be squire, hero or cleric, got '$tier'"
   grep -qP '\bmodel=' <<<"$meta" && err "$id: models live in AGENTS.md, not in meta"
   # shellcheck disable=SC2016  # literal backticks
   subject=$(grep -oP '^\*\*Commit\.\*\* `\K[^`]+' <<<"$section" || true)

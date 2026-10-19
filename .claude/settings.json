@@ -40,7 +40,19 @@
       "Bash(git restore *)",
       "Bash(rg *)",
       "Bash(jq *)",
-      "Bash(mktemp *)"
+      "Bash(mktemp *)",
+      "Bash(foundry-status)",
+      "Bash(scripts/opt *)",
+      "Bash(nix run .#foundry-check)",
+      "Bash(nix run . -- --dry *)",
+      "Bash(nix run . -- check)",
+      "Bash(nix run . -- check *)",
+      "Bash(nix run . -- --flake ./.campaign/wt-c1q14 update*)",
+      "Bash(nix run . -- --flake ./.campaign/wt-c1q14 foundry *)",
+      "Bash(nix run . -- --flake ./.campaign/wt-c1q22 check *)",
+      "Bash(dangonix --dry *)",
+      "Bash(dangonix check)",
+      "Bash(dangonix check *)"
     ],
     "ask": [
       "Bash(sudo *)",
@@ -64,11 +76,11 @@
       "Bash(git checkout .)",
       "Bash(git commit -a *)",
       "Edit(**/hardware-configuration.nix)",
-      "Write(**/hardware-configuration.nix)",
       "Edit(**/.git/**)",
-      "Write(**/.git/**)",
-      "Edit(**/scripts/hooks/**)",
-      "Write(**/scripts/hooks/**)"
+      "Edit(**/scripts/hooks/**)"
+    ],
+    "additionalDirectories": [
+      "/nix/store"
     ]
   },
   "hooks": {
@@ -79,9 +91,39 @@
           {
             "type": "command",
             "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || \"$CLAUDE_PROJECT_DIR\"/scripts/hooks/git-guard || exit 2"
+          },
+          {
+            "type": "command",
+            "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || \"$HOME/.config/dangonix/hooks/bash-guard\" || exit 2"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/context-watch"
           }
         ]
       }
     ]
+  },
+  "enabledMcpjsonServers": [
+    "nixos"
+  ],
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      },
+      "autoUpdate": false
+    }
+  },
+  "enabledPlugins": {
+    "claude-md-management@claude-plugins-official": true
   }
 }

@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Print an option of the real configuration as JSON: type, description,
+# default and current value. Unlike mcp-nixos it knows options from flake
+# inputs (Noctalia, Caelestia, Home Manager).
+#   scripts/opt <option path>                 host (nixosConfigurations)
+#   scripts/opt --home [<theme id>] <path>    home configuration of a theme
+#                                             (default theme if no id)
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+usage() {
+  echo "usage: scripts/opt [--home [<theme id>]] <option path>" >&2
+  exit 2
+}
+
+attr=nixosConfigurations
+id=
+if [ "${1:-}" = --home ]; then
+  attr=homeConfigurations
+  shift
+  if [ $# -eq 2 ]; then
+    id=$1
+    shift
+  fi
+fi
+[ $# -eq 1 ] || usage
+path=$1
+[[ $path =~ ^[A-Za-z0-9_.\<\>*-]+$ ]] || usage
+[[ $id =~ ^[a-z0-9-]*$ ]] || usage
+
+# One host; home configurations are <user> (default theme) and <user>-<id>.
+nix eval --no-write-lock-file --json ".#$attr" --apply "
+  cfgs: let
+    names = builtins.attrNames cfgs;
+    shortest = builtins.foldl' (a: b: if builtins.stringLength b < builtins.stringLength a then b else a) (builtins.head names) names;
+    matching = builtins.filter (n: n == \"\${shortest}-$id\") names;
+    name =
+      if \"$attr\" == \"nixosConfigurations\" then builtins.head names
+      else if \"$id\" == \"\" then shortest
+      else if matching == [ ] then throw \"scripts/opt: no home configuration for '$id' (have: \${toString names})\"
+      else builtins.head matching;
+    steps = builtins.filter builtins.isString (builtins.split \"[.]\" \"$path\");
+    opt = builtins.foldl' (o: s: o.\${s} or (throw \"scripts/opt: no option '$path' in \${name}\")) cfgs.\${name}.options steps;
+    text = d: if builtins.isAttrs d then d.text or null else d;
+    # Functions are not JSON; nested sets are cut at depth 3.
+    plain = depth: v:
+      if builtins.isFunction v then \"<function>\"
+      else if v ? outPath then toString v
+      else if builtins.isAttrs v then (if depth <= 0 then \"<attrs>\" else builtins.mapAttrs (_: plain (depth - 1)) v)
+      else if builtins.isList v then map (plain (depth - 1)) v
+      else v;
+  in
+    if !(opt ? _type && opt._type == \"option\") then throw \"scripts/opt: '$path' is not an option\"
+    else {
+      configuration = name;
+      type = opt.type.description or null;
+      description = text (opt.description or null);
+      default = if opt ? defaultText then text opt.defaultText else if opt ? default then plain 3 opt.default else null;
+      value = plain 3 opt.value;
+    }
+" | jq .

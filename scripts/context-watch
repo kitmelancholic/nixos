@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# PostToolUse hook (Claude Code): warns the agent once per threshold when its
+# context passes 80k and 95k tokens, so a quest is finished or handed back
+# before it grows expensive. Only Haiku (the squire tier) is watched: other
+# models exit silently. Thresholds: $DANGONIX_CTX_WARN ("80000 95000").
+# Advisory: it never blocks, and any error exits 0 silently.
+set -uo pipefail
+trap 'exit 0' ERR
+
+input=$(cat)
+session=$(jq -r '.session_id // empty' <<<"$input")
+transcript=$(jq -r '.transcript_path // empty' <<<"$input")
+[[ -n $session && -r $transcript ]] || exit 0
+
+# The last assistant turn's prompt size is the current context. jq stops at
+# the first match, so tac dies of SIGPIPE: ignore the pipeline's status.
+model=$(tac "$transcript" | jq -rn 'first(inputs
+  | .message | select(.usage? != null) | .model // empty) // ""') || true
+[[ $model == *haiku* ]] || exit 0
+used=$(tac "$transcript" | jq -n 'first(inputs | .message.usage? // empty
+  | (.input_tokens // 0) + (.cache_creation_input_tokens // 0)
+    + (.cache_read_input_tokens // 0)) // 0') || true
+[[ $used =~ ^[0-9]+$ ]] || exit 0
+
+read -r soft hard <<<"${DANGONIX_CTX_WARN:-80000 95000}"
+state=${XDG_RUNTIME_DIR:-/tmp}/dangonix-ctx-$session
+warned=$(cat "$state" 2>/dev/null || echo 0)
+
+if ((used >= hard && warned < hard)); then
+  msg="Context is at $used tokens (limit $hard). If you are running a quest: finish only if scripts/quest-verify is one step away; otherwise append \`провалений кидок\` to docs/progress.md naming what is left (the retry keeps your uncommitted work), commit only that file, and stop."
+  echo "$hard" >"$state"
+elif ((used >= soft && warned < soft)); then
+  msg="Context is at $used tokens (warning at $soft, limit $hard). Stop exploring: read nothing the quest section does not name, and head for scripts/quest-verify."
+  echo "$soft" >"$state"
+else
+  exit 0
+fi
+jq -n --arg m "$msg" \
+  '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $m}}'

@@ -1,8 +1,3 @@
-# Generated Graphify index, reports, backups, and caches.
-/graphify-out/
-
-# Python bytecode generated while developing the Graphify Nix integration.
-/graphify-nix/__pycache__/
 .claude/settings.local.json
 
 # Autopilot run logs (scripts/campaign).
