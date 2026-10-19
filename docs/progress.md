@@ -135,3 +135,7 @@ Retry with the GM's `leaves=` line: added the `bash-guard` hook to `.claude/sett
 - Negative: `mv ~/.config/dangonix/hooks/bash-guard ~/.config/dangonix/hooks/bash-guard.off` → every Bash command is blocked in both CLIs; `just home-switch` restores it.
 - All good → `## c1q05 — виконано`.
 agent: claude claude-opus-5-5
+
+## c1q05 — виконано
+GM confirmed the c1q05 checklist and closed the quest.
+agent: claude claude-opus-5-5
