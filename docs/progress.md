@@ -193,3 +193,8 @@ agent: claude claude-sonnet-5-5
 Робота готова і лежить у індексі (не закомічена): `foundry-check` дає `foundry ok: 14.0.0+361`, негативні тести у worktree падають як треба (версія `+999` і тема `nope`), `check --fast` ok. `quest-verify` падає лише на `static`: `HEAD:home/packages.nix` (комміт de90d9a, jdks у prismlauncher) не відформатований nixfmt, а файл поза *Files* квесту.
 GM: відформатуй `home/packages.nix` (`nix fmt`, окремий коміт `style: format packages.nix`) або дозволь мені; потім `retry c1q12`.
 agent: claude claude-sonnet-5-5
+
+## c1q12 — провалений кидок
+Робота квесту лежить у індексі (не закомічена), `foundry-check` і негативні тести ок. `quest-verify` знову падає на `static`, тепер statix: `home/packages.nix:37` (`Avoid repeated keys in attribute sets`: `home.file.".local/share/jdks/25"`, `…/21` і `home.packages` — ключ `home` повторюється). Файл поза *Files* квесту і не мій.
+GM: злий ключі `home.*` у `home/packages.nix` в один `home = { … }` (окремий коміт `style: …`) або дозволь мені; потім `retry c1q12`.
+agent: claude claude-sonnet-5-5
