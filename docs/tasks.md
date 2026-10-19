@@ -473,13 +473,13 @@ meta: tier=hero effort=medium boss=no diff=none
 
 **Read first.** `lib/settings.nix`, `hosts/nixos/foundryvtt.nix`, `home/foundry.nix`, `lib/repo-apps.nix` (`foundryCheckScript`), `profiles/default.nix`.
 
-**Preconditions.** `nix eval --raw .#nixosConfigurations.nixos._module.specialArgs.inputs.foundryvtt.outPath` gives the nix-foundryvtt source; find its version table (`rg -n '14\.361|sha256' <path>`) and confirm it carries, per version, the payload filename and hash its package uses. Not so, or reading the path is refused → stop.
+**Preconditions.** `nix eval --raw .#nixosConfigurations.nixos._module.specialArgs.inputs.foundryvtt.outPath` gives the nix-foundryvtt source; find its version table (`pkgs/foundryvtt/versions.json`) and confirm it carries, per version key (e.g. `"14.361"`), the `hash`. The table has no filename: the package builds it as `FoundryVTT-${platform}-${shortVersion}.zip` (`platform` = the entry's `.platform`, else `Linux`), so derive `filename` from the key by that formula. No `hash` for the key, or reading the path is refused → stop.
 
 **Steps.**
 1. Add `state.json`: `{ "theme": "noctalia", "foundry": { "instances": { "main": { "version": "14.0.0+361", "port": 30000 } } } }` and nothing else (the values are today's `settings.foundry.version` and `port`); `git add state.json`.
 2. `flake.nix` reads it once (`state = lib.importJSON ./state.json;`). `homeConfigurations.kit` builds `state.theme`; delete `default` from `profiles/default.nix`. The flake output `lib.themes` stays the registry plus `default = state.theme;`, so `kit-profile` keeps working until c1q18.
 3. The host gets only `state.foundry` (via `specialArgs`), never `state.theme`. `lib/settings.nix` derives `foundry.version` and `foundry.port` from `state.foundry.instances.main` and keeps `service` and `url`; an assertion fails evaluation with "several Foundry instances arrive in campaign II" if there is more than one instance, and empty `instances` disables Foundry (`services.foundryvtt.enable = false`, no firewall port, no sudo rules).
-4. Delete `shortVersion`, `filename`, `hash` from `lib/settings.nix`; `foundryCheckScript` derives filename and hash from the nix-foundryvtt table.
+4. Delete `shortVersion`, `filename`, `hash` from `lib/settings.nix`; `foundryCheckScript` takes `hash` from the nix-foundryvtt table and derives `filename` as `FoundryVTT-<platform or Linux>-<key>.zip` from the table key.
 5. Check `registry` gains "`state.json`'s theme exists in the registry".
 
 **Do not.** Change the Foundry unit name, data dir or port.
