@@ -22,11 +22,6 @@
       description = "The classic kitOS desktop with Kit Dark colors.";
       module = ../themes/kit-dark;
     };
-    dms = {
-      name = "DankMaterialShell";
-      description = "DankMaterialShell as the complete Wayland desktop shell.";
-      module = ./dms;
-    };
     noctalia = {
       name = "Noctalia";
       description = "Noctalia v5 as the complete Wayland desktop shell.";

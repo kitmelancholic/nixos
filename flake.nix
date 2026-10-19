@@ -65,7 +65,6 @@
 
     thyx.url = "github:rccyx/thyx";
 
-    dms.url = "github:AvengeMedia/DankMaterialShell/stable";
     noctalia.url = "github:noctalia-dev/noctalia";
     caelestia.url = "github:caelestia-dots/shell";
   };
@@ -181,7 +180,6 @@
           "dunst.service"
           "swayosd.service"
           "wallpaper-apply"
-          "dms.service"
           "noctalia.service"
           "caelestia.service"
         ];
@@ -190,10 +188,6 @@
       profileOwnershipCheck =
         assert profileHomes.catppuccin.config.programs.waybar.enable;
         assert profileHomes.catppuccin.config.services.dunst.enable;
-        assert profileHomes.dms.config.programs.dank-material-shell.enable;
-        assert profileHomes.dms.config.programs.dank-material-shell.systemd.enable;
-        assert !profileHomes.dms.config.programs.waybar.enable;
-        assert !profileHomes.dms.config.services.dunst.enable;
         assert profileHomes.noctalia.config.programs.noctalia.enable;
         assert profileHomes.noctalia.config.programs.noctalia.systemd.enable;
         assert

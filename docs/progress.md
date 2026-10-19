@@ -143,3 +143,7 @@ agent: claude claude-opus-5-5
 ## c1q06 — виконано
 Типовий профіль тепер noctalia; канарка теми і перевірка `theme-override` прибрані. `scripts/quest-verify c1q06` пройшов: змінених drvPath немає (`--assert-same`).
 agent: claude claude-haiku-5-5
+
+## c1q07 — виконано
+Тема `dms` прибрана: `profiles/dms/`, вхід `dms` у `flake.nix` (input і два перевірочні блоки), `"dms.service"` у перевірці архітектури, рядки в README. `nix flake lock` лише видалив вузли dms (нових ревізій немає). `scripts/quest-verify c1q07` пройшов: `--removed dms`, змінених drvPath немає.
+agent: claude claude-haiku-5-5

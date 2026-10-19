@@ -52,7 +52,7 @@ nix run .#switch
 
 The desktop is one invariant Home Manager environment plus exactly one
 ordinary selected profile module. The registry currently provides
-`catppuccin`, `tokyo-night`, `gruvbox`, `kit-dark`, `dms`,
+`catppuccin`, `tokyo-night`, `gruvbox`, `kit-dark`,
 `noctalia` (default), and `caelestia`.
 
 The four classic palettes share one profile family, including Waybar, Dunst,
@@ -82,7 +82,7 @@ kit-profile current
 kit-profile switch gruvbox
 ```
 
-The available IDs are `catppuccin`, `tokyo-night`, `gruvbox`, `kit-dark`, `dms`,
+The available IDs are `catppuccin`, `tokyo-night`, `gruvbox`, `kit-dark`,
 `noctalia`, and `caelestia`.
 Missing generated identity reports the default `noctalia`; a malformed or
 unknown identity is an error. Every Home Manager generation writes its
@@ -101,7 +101,6 @@ home-manager switch --flake .#kit-catppuccin
 home-manager switch --flake .#kit-tokyo-night
 home-manager switch --flake .#kit-gruvbox
 home-manager switch --flake .#kit-dark
-home-manager switch --flake .#kit-dms
 home-manager switch --flake .#kit-noctalia
 home-manager switch --flake .#kit-caelestia
 ```
