@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # PostToolUse hook (Claude Code): warns the agent once per threshold when its
 # context passes 80k and 95k tokens, so a quest is finished or handed back
-# before it grows expensive. Thresholds: $DANGONIX_CTX_WARN ("80000 95000").
+# before it grows expensive. Only Haiku (the squire tier) is watched: other
+# models exit silently. Thresholds: $DANGONIX_CTX_WARN ("80000 95000").
 # Advisory: it never blocks, and any error exits 0 silently.
 set -uo pipefail
 trap 'exit 0' ERR
@@ -13,6 +14,9 @@ transcript=$(jq -r '.transcript_path // empty' <<<"$input")
 
 # The last assistant turn's prompt size is the current context. jq stops at
 # the first match, so tac dies of SIGPIPE: ignore the pipeline's status.
+model=$(tac "$transcript" | jq -rn 'first(inputs
+  | .message | select(.usage? != null) | .model // empty) // ""') || true
+[[ $model == *haiku* ]] || exit 0
 used=$(tac "$transcript" | jq -n 'first(inputs | .message.usage? // empty
   | (.input_tokens // 0) + (.cache_creation_input_tokens // 0)
     + (.cache_read_input_tokens // 0)) // 0') || true
