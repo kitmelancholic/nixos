@@ -562,6 +562,92 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangon
 
 ---
 
+## c1s1 — Unbroken thread ⚔️
+meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangonix*?,~dangonix-config.json?,~caelestia.service
+
+**Goal.** A `dangonix` transaction runs to its end (done or recovered) even when the terminal it was started from, or the user unit that terminal lives in, dies halfway; and the Caelestia shell no longer takes the apps it launched down with it.
+
+**Why.** Incident on 2026-10-19 18:11 (journal entry `theme noctalia`, `exit 3`, `failedStep: null`, `recovered: false`): the GM ran `dangonix theme noctalia` in a ghostty opened from the Caelestia launcher. Caelestia starts apps with `Quickshell.execDetached` / `entry.execute()` (`modules/launcher/services/Apps.qml` in the caelestia source), so they live in the cgroup of `caelestia.service`. Home activation stopped `caelestia.service`; systemd killed its whole cgroup (`KillMode=control-group`): the terminal, `dangonix` mid-activation and the running campaign. The INT/TERM trap started recovery; `nix-env --set` back to the old generation worked, `activate` did not. Result: home profile = Caelestia (gen 47), files in `~` = Noctalia (gen 46), no shell running, black screen with only the pointer until a hard reset. Noctalia already guards against this (`launch_apps_as_systemd_services`, asserted in `profiles/noctalia/default.nix`); Caelestia has no such option, so its unit has to let the launched apps go. [Design §5, transactions](design.md#транзакції): the lock, recovery and journal must not depend on who started the command.
+
+**Files.** `lib/dangonix/`, `profiles/caelestia/default.nix`, `docs/design.md`, `docs/progress.md`.
+
+**Read first.** Design §5 (transactions); `lib/dangonix/dangonix.sh` (`execute`, `tx_begin`, `fail`, `recover`, the `trap` lines before `noun=`); `profiles/caelestia/default.nix`; `profiles/noctalia/default.nix` (the assertion to mirror).
+
+**Preconditions.** `systemd-run --user --scope --quiet --collect -- true` exits 0 in the run's shell. Refused or no user bus → stop.
+
+**Steps.**
+1. Keep the original arguments at the top of `dangonix.sh` (before any parsing) for a re-exec.
+2. In `execute`, before `tx_begin`: unless `DANGONIX_SCOPE` is set, re-exec the same command line as `DANGONIX_SCOPE=1 systemd-run --user --scope --quiet --collect --unit=dangonix-<pid> -- "$0" <original args>`, so the transaction leaves the caller's cgroup (a scope keeps the TTY for `sudo`). When `systemd-run --user` itself fails (no user manager, e.g. a bare TTY on first install) run in place with a warning; never in `--dry` (it plans only).
+3. From `tx_begin` on, ignore SIGHUP (`trap '' HUP`, inherited by `activate` and `switch-to-configuration`); INT and TERM keep their meaning (cancel → recover).
+4. From `tx_begin` on, copy stderr to `~/.local/state/dangonix/last.log` (truncated per transaction) through `tee --output-error=warn`, so a closed terminal neither stops the transaction nor loses its log; the error text names that file.
+5. `profiles/caelestia/default.nix`: `systemd.user.services.caelestia.Service.KillMode = "process";` with an assertion next to the existing ones (message `Caelestia profile: caelestia.service must keep KillMode=process (apps launched from the shell live in its cgroup)`).
+6. `docs/design.md`, «Кроки транзакції», step 2: add that the transaction runs in its own user scope `dangonix-<pid>`, ignores SIGHUP and logs to `~/.local/state/dangonix/last.log`.
+
+**Do not.** Use `nohup`, `setsid` or `disown` instead of the scope (the process would stay in the caller's cgroup). Wrap `--dry` or `read` commands. Change Noctalia. Activate anything (GM's turn).
+
+**Verify.**
+1. `nix eval --raw .#homeConfigurations.kit-caelestia.config.systemd.user.services.caelestia.Service.KillMode` → `process`.
+2. `nix run . -- --dry --json theme noctalia` → same steps as before this quest; `git diff state.json` unchanged.
+3. `scripts/check --fast` passes (shellcheck included).
+
+**Stop if.** A re-exec changes what `--json` prints on stdout (one envelope, nothing else).
+
+**AGENTS.md.** No change.
+
+**Commit.** `fix(c1s1): dangonix transactions outlive their caller`
+
+**GM's turn.**
+- From a terminal opened with `Super+Return` (Hyprland's, not the shell's): `dangonix switch`. It puts home back in line with `state.json` and the host back on generation 36 (the laptop booted generation 34 after the incident).
+- Kill test: `systemd-run --user --unit=dangonix-victim --pty dangonix theme noctalia`; while it activates, from another terminal `systemctl --user stop dangonix-victim`. `dangonix history` → the line ends `ok`; `systemctl --user list-units 'dangonix-*'` is empty afterwards.
+- Real case: switch to Caelestia, open ghostty from the Caelestia launcher, run `dangonix theme noctalia` in it: the desktop comes up in Noctalia and that ghostty is still open.
+- All good → `## c1s1 — виконано`.
+
+---
+
+## c1s2 — Gatekeeper's lantern ⚔️
+meta: tier=cleric effort=high boss=yes diff=leaves leaves=~sddm-unwrapped*,~sddm-wrapped*,~sddm.conf,~sddm.pam,+bibata-cursors*,~unit-display-manager.service?,~*pam*?,~source?
+
+**Goal.** At the SDDM greeter the pointer is visible and clicks work, and password and fingerprint are accepted at the same time: a typed password logs in at once even while the greeter waits for a finger.
+
+**Why.** Seen on 2026-10-19 after the reboot (`journalctl -t sddm`): the `thyx` theme has `AutoFingerprintOnLoad=true`, so on load it calls `sddm.login(user, "")`; `/etc/pam.d/sddm` is only `auth substack login`, and in `login` `pam_fprintd` (sufficient, order 11400) runs before `pam_unix`, so that call waits for a finger. Every password login meanwhile is dropped by SDDM 0.21's `Display::startAuth` (`"Existing authentication ongoing, aborting"`: 16 and 24 times in the two boots after the incident), so the password "did not work" while the fingerprint did. A real parallel needs both halves: SDDM must cancel a pending empty-password (fingerprint) authentication when a login with a password arrives, and for a non-empty password the sddm stack must try `pam_unix` before `pam_fprintd`. A plain `Auth::stop()` is not enough: `slotHelperFinished` then calls `Display::stop()` and restarts the greeter. The pointer: the greeter runs `weston --shell=kiosk`; `services.displayManager.sddm.settings` is `{}`, nixpkgs sets `Theme.CursorTheme` only for `breeze`, and the system profile has no cursor theme (`/run/current-system/sw/share/icons` holds only `hicolor`), so weston and the greeter get no cursor images. The cursor every theme uses is `Bibata-Modern-Ice` (`home/desktop/cursor.nix`). Design §6: login is SDDM + `thyx`, shared by every theme, so this is host-only.
+
+**Files.** `hosts/nixos/desktop.nix`, `hosts/nixos/sddm/` (new: the patch and its Nix), `tests/greeter-vm/` (new), `flake.nix`, `flake.lock`, `docs/progress.md`.
+
+**Read first.** Design §6; `hosts/nixos/desktop.nix` (`displayManager`, `security.pam.services`); nixpkgs `nixos/modules/services/display-managers/sddm.nix` (PAM rules, `Theme`, weston) and `pkgs/applications/display-managers/sddm/default.nix` (the wrapper, its `sddm-unwrapped` argument); SDDM source (`nix build --no-link --print-out-paths .#nixosConfigurations.nixos.pkgs.kdePackages.sddm.unwrapped.src`): `src/daemon/Display.cpp` `startAuth`, `slotHelperFinished`, `slotAuthenticationFinished`; `src/auth/Auth.cpp` `stop`; thyx `src/components/buttons/LoginButton.qml` (`fingerprintAutoStart`).
+
+**Preconditions.** Reading the SDDM and thyx sources in `/nix/store` is refused → stop.
+
+**Steps.**
+1. Cursor: add `pkgs.bibata-cursors` to the host's `environment.systemPackages` and `services.displayManager.sddm.settings.Theme = { CursorTheme = "Bibata-Modern-Ice"; CursorSize = 24; };`.
+2. SDDM patch `hosts/nixos/sddm/cancel-fingerprint-auth.patch` against the locked SDDM: in `Display::startAuth`, when an authentication is active, it was started with an empty password and the new one has a non-empty password, stop the pending one without the `Display::stop()` from `slotHelperFinished` and without a `loginFailed` to the greeter for it, then start the new one; any other overlap still aborts as now.
+3. Use it: `services.displayManager.sddm.package = pkgs.kdePackages.sddm.override { sddm-unwrapped = pkgs.kdePackages.sddm.unwrapped.overrideAttrs (old: { patches = (old.patches or [ ]) ++ [ ./sddm/cancel-fingerprint-auth.patch ]; }); };`.
+4. PAM: the `sddm` service gets its own auth rules ahead of the `login` substack: `unix-early` (optional, `likeauth nullok`), `gnome_keyring` (optional), `unix` (sufficient, `likeauth try_first_pass nodelay`), then the substack. A typed password succeeds at `unix` and unlocks the keyring; the empty one from the theme fails fast and reaches `pam_fprintd` in `login`. `login`, `sudo` and `hyprlock` stay as they are.
+5. VM test `packages.x86_64-linux.greeter-vm` (`pkgs.testers.runNixOSTest`, not in `checks`), after nixpkgs' `nixos/tests/sddm.nix`: the patched SDDM, the PAM rules of step 4 and a stand-in for `pam_fprintd` (`pam_exec` with `expose_authtok`: blocks 60 s when the token is empty, then fails). Enter on an empty password, then type the password and Enter: the user session starts within 10 s. Without the patch (a second node or a variant) the same sequence does not start a session within 10 s.
+6. Greeter review: `inputs.thyx.inputs.nixpkgs.follows = "nixpkgs"` in `flake.nix` (thyx's module already builds with the host's `pkgs`; *Lock only drops* applies).
+
+**Do not.** Turn off fingerprint at the greeter, set `AutoFingerprintOnLoad=false`, or shorten `pam_fprintd`'s timeout instead of the patch. Touch `login`, `sudo` or `hyprlock` PAM. Change any theme's home configuration.
+
+**Verify.**
+1. `nix eval --raw '.#nixosConfigurations.nixos.config.security.pam.services.sddm.text' | grep '^auth'` → `pam_unix.so` with `nodelay` before `substack login`.
+2. `nix eval --json .#nixosConfigurations.nixos.config.services.displayManager.sddm.settings.Theme` → contains `"CursorTheme":"Bibata-Modern-Ice"`.
+3. `nix build --no-link .#greeter-vm` passes.
+
+**Stop if.** The VM cannot drive the greeter: write what blocks it; the GM tests the cases live instead. The patch needs more than `src/daemon/Display.*`: write why and stop.
+
+**AGENTS.md.** One line: `nix build .#greeter-vm` tests the greeter (patched SDDM, password next to fingerprint); run it when SDDM, PAM or `thyx` changes.
+
+**Commit.** `fix(c1s2): greeter pointer and password next to fingerprint`
+
+**GM's turn.**
+- Before the switch, make sure a TTY login works (`Ctrl+Alt+F2`; its PAM does not change); if the greeter breaks, boot the previous generation.
+- `dangonix switch` (sudo), reboot.
+- The pointer is visible and clicks on the session menu work.
+- Type the password while the greeter shows the fingerprint prompt: logs in at once; the keyring is unlocked (no keyring password prompt after login).
+- Reboot, put a finger without typing: logs in.
+- All good → `## c1s2 — виконано`.
+
+---
+
 ## c1q15 — Trial by fire
 meta: tier=hero effort=high boss=no diff=leaves leaves=~dangonix*? rest=c1r2
 
@@ -583,6 +669,7 @@ meta: tier=hero effort=high boss=no diff=leaves leaves=~dangonix*? rest=c1r2
 2. `system.activationScripts.dangonixFail = "exit 1";`, `theme <other fixture theme>`: `failedStep: "host"`, `recovered: true`; system, home generation, boot entries and `state.json` unchanged.
 3. Host change + `xdg.configFile."dangonix-test".text = "1";` + a `home.activation` step after `linkGeneration` that exits 1: `failedStep: "home"`, `recovered: true`; `~/.config/dangonix-test` gone; generations unchanged.
 4. While a `theme` switch builds, a second `theme` and `foundry remove main` fail at once with "another … is running".
+5. `theme <other fixture theme>` started inside a transient user unit (`systemd-run --user --unit=victim …`) that is stopped during home activation (c1s1): the journal line is `ok`, the new home is active, no `dangonix-*` unit is left.
 
 **Stop if.** The VM cannot rebuild offline: write what blocks it; the GM decides whether cases 1-4 run live instead.
 

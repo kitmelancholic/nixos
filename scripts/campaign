@@ -41,7 +41,7 @@ stop() {
 }
 
 next_quest() {
-  grep -oP '^## \Kc\d+q\d+(?= )' docs/tasks.md | while read -r id; do
+  grep -oP '^## \Kc\d+[qs]\d+(?= )' docs/tasks.md | while read -r id; do
     grep -q "^## $id — виконано" docs/progress.md || {
       echo "$id"
       break
@@ -105,7 +105,7 @@ for _ in $(seq 25); do
   fi
   [[ $(git rev-parse HEAD) != "$before" ]] ||
     stop "$id: no new commit ($denied permission denials, see $log)"
-  last=$(grep -E '^## c[0-9]+q[0-9]+ — ' docs/progress.md | tail -n 1)
+  last=$(grep -E '^## c[0-9]+[qs][0-9]+ — ' docs/progress.md | tail -n 1)
   # A denial the agent worked around (quest-verify passed, `виконано`) is
   # noted, not fatal; on any other outcome it is the likely cause.
   case $last in
