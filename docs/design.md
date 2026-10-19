@@ -237,7 +237,7 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 
 Кроки транзакції:
 1. Відмова, якщо `$USER` ≠ `kit`.
-2. `flock -n` на `$XDG_RUNTIME_DIR/dangonix.lock`; друга мутуюча команда падає одразу.
+2. Транзакція працює у власному user scope `dangonix-<pid>` (`systemd-run --user --scope`), тож не залежить від терміналу чи user unit'а, що її запустив; ігнорує SIGHUP і пише stderr у `~/.local/state/dangonix/last.log`. `flock -n` на `$XDG_RUNTIME_DIR/dangonix.lock`; друга мутуюча команда падає одразу.
 3. Snapshot: `state.json` (+ `flake.lock` із sha256 для `update`), поточні host і home generations.
 4. Preflight: payload кожного інстансу з `state.json` мусить бути в store.
 5. Редагування `state.json`.

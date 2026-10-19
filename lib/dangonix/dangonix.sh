@@ -11,6 +11,9 @@
 # A state or host command plans its steps; with --dry it prints the plan,
 # without it runs the plan as a transaction (see "transactions" below).
 
+# The original arguments, for the re-exec in execute.
+orig_args=("$@")
+
 json=0
 dry=0
 yes=0
@@ -116,6 +119,7 @@ fail() {
     tx_running=0
     journal_write "$code" || warn "cannot write the journal $journal"
   fi
+  [ -z "$log_file" ] || message+=" (log: $log_file)"
   log "dangonix: $message"
   if ((json)); then
     envelope "$code" "$(jq -cn --arg error "$message" '{error: $error, manual: $ARGS.positional}' \
@@ -164,6 +168,21 @@ run_step() {
 # steps_text: the jq filter that renders a finished mutation.
 steps_text='$steps[] | "\(.status)\t\(.name): \(.detail)"'
 
+# enter_scope: unless DANGONIX_SCOPE is set, re-run this command line in its
+# own user scope (dangonix-<pid>), so the transaction leaves the caller's
+# cgroup: when the terminal, or the user unit it lives in (caelestia.service),
+# dies halfway, systemd does not take the transaction with it. A scope keeps
+# the TTY. Called before anything asks the user, so a question is asked once.
+enter_scope() {
+  [ -z "${DANGONIX_SCOPE:-}" ] || return 0
+  if systemd-run --user --scope --quiet --collect -- true 2>/dev/null; then
+    DANGONIX_SCOPE=1 exec systemd-run --user --scope --quiet --collect \
+      --unit="dangonix-$$" -- "$0" "${orig_args[@]}"
+  fi
+  DANGONIX_SCOPE=none
+  warn "no systemd user manager: the transaction runs in the caller's cgroup"
+}
+
 # confirm_plan: an irreversible step asks y/N on a TTY and needs --yes without.
 confirm_plan() {
   if ! ((yes)) && ! [ -t 0 ]; then
@@ -174,6 +193,7 @@ confirm_plan() {
 # confirm <what>: before an irreversible step runs, y/N on a TTY, else --yes.
 confirm() {
   local answer=""
+  enter_scope
   if ((yes)); then return 0; fi
   [ -t 0 ] || fail 4 "$command_name: $1 is irreversible: without a TTY it needs --yes"
   read -r -p "dangonix: $1 is irreversible. Go on? [y/N] " answer || true
@@ -200,6 +220,7 @@ need_flake() {
   lock_file=$flake/flake.lock
 }
 
+log_file=""
 state_dir=${XDG_STATE_HOME:-$HOME/.local/state}
 journal=$state_dir/dangonix/journal.jsonl
 host_profile=/nix/var/nix/profiles/system
@@ -355,9 +376,10 @@ plan_preflight() {
   plan preflight "the release ZIP of every Foundry instance in state.json is in the store"
 }
 
-# execute: take the lock and run the plan.
+# execute: take the lock and run the plan (in its own scope, see enter_scope).
 execute() {
   local name names
+  enter_scope
   tx_begin
   names=$(jq -r '.[].name' <<<"$steps")
   for name in $names; do
@@ -382,6 +404,12 @@ tx_begin() {
   exec 9>"$lock"
   flock -n 9 || fail 4 "another dangonix or kit-profile run holds $lock"
   tx_running=1
+  # A closed terminal must neither stop the transaction (SIGHUP is inherited
+  # by activate and switch-to-configuration) nor lose its log.
+  trap '' HUP
+  mkdir -p "$state_dir/dangonix"
+  log_file=$state_dir/dangonix/last.log
+  exec 2> >(tee --output-error=warn "$log_file" >&2)
 }
 
 # tx_end: the transaction is done: journal line, then the diff it leaves.
@@ -717,9 +745,6 @@ cmd_check() {
   }
 
   check_step docs scripts/lint-docs
-  if git rev-parse -q --verify origin/main >/dev/null; then
-    check_step commits scripts/lint-commits origin/main..HEAD
-  fi
   check_step shellcheck shellcheck_scripts
   case $mode in
   --fast)

@@ -67,7 +67,7 @@ map row [
       "--full"
       "--vm"
     ];
-    summary = "lint docs, commits and scripts, then nix flake check; --fast: evaluate only; --vm: VM tests";
+    summary = "lint docs and scripts, then nix flake check; --fast: evaluate only; --vm: VM tests";
   }
   {
     id = "switch";

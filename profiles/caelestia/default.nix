@@ -24,7 +24,15 @@
       assertion = config.programs.caelestia.cli.enable;
       message = "Caelestia profile: programs.caelestia.cli.enable must be true";
     }
+    {
+      assertion = config.systemd.user.services.caelestia.Service.KillMode == "process";
+      message = "Caelestia profile: caelestia.service must keep KillMode=process (apps launched from the shell live in its cgroup)";
+    }
   ];
+
+  # Apps start from the shell live in caelestia.service's cgroup; stopping the
+  # unit (home activation) must not kill them.
+  systemd.user.services.caelestia.Service.KillMode = "process";
 
   programs.caelestia = {
     enable = true;

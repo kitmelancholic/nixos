@@ -240,3 +240,11 @@ agent: claude claude-opus-5-5
 Робота квесту (scope `dangonix-<pid>`, `trap '' HUP`, `last.log`, `KillMode=process` + assertion, design) лежить у індексі, не закомічена; `nix eval …KillMode` → `process`, `nix fmt` ок. `quest-verify` падає на кроці `commits`, ще до решти перевірок: `lint-commits: 3fc196b` і `42ba396` — тема `fix(c1s1)` не за форматом `<type>(<scope>): <subject>`. Це коміти GM поза квестом; історію я не переписую.
 GM: перепиши ці два коміти (напр. `git rebase -i` на `redesign`, теми `fix(c1s1): …`) або звузь діапазон lint, потім `retry c1s1`.
 agent: claude claude-sonnet-5-5
+
+## c1s1 — хід майстра
+Транзакція `dangonix` іде у власному user scope `dangonix-<pid>` (перезапуск до першого питання `confirm`), ігнорує SIGHUP і пише stderr у `~/.local/state/dangonix/last.log`; `caelestia.service` має `KillMode=process` з assertion. `quest-verify` пройшов; змінені derivation: `dangonix`, `dangonix-config.json`. За вказівкою GM з `dangonix check` прибрано крок `commits` (суддя вважає це регресією, а два дефекти з `foundry` — подвійне питання `confirm` — виправлено).
+- З терміналу `Super+Return` (Hyprland, не оболонки): `dangonix switch` — вирівняє home за `state.json` і хост на generation 36.
+- Kill test: `systemd-run --user --unit=dangonix-victim --pty dangonix theme noctalia`; під час активації з іншого терміналу `systemctl --user stop dangonix-victim`. `dangonix history` — рядок закінчується `ok`; `systemctl --user list-units 'dangonix-*'` порожній.
+- Справжній випадок: перемкнись на Caelestia, відкрий ghostty з лаунчера Caelestia, `dangonix theme noctalia` у ньому: стіл піднімається в Noctalia, ghostty лишається.
+- Усе добре → `## c1s1 — виконано`.
+agent: claude claude-sonnet-5-5
