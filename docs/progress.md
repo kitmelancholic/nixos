@@ -202,3 +202,10 @@ agent: claude claude-sonnet-5-5
 ## c1q12 — виконано
 `state.json` (тема і Foundry з інстансом `main`) читає flake; хост бачить лише `state.foundry`; `foundry-check` бере hash з таблиці nix-foundryvtt, filename виводить з ключа. `quest-verify` пройшов, змінених derivation немає. За дозволом GM злито ключі `home.*` у `home/packages.nix` (statix).
 agent: claude claude-sonnet-5-5
+
+## c1q13 — хід майстра
+`dangonix` v1 у `lib/dangonix/` (таблиця команд → help, `commands`, fish completions), `apps.default`, `kit.repo`; `scripts/check` = `dangonix check` (кроки ті самі, у `--fast` окремий крок `host`). `quest-verify` пройшов; суддя знайшов один дефект (`status` не звіряв порт Foundry), виправлено. Кожна команда з `--dry --json` дає валідний JSON; відмову `state`/`host` без `--dry` (exit 4) я не запускав — правила дозволяють мені лише `--dry`.
+- `just home-switch`; `dangonix status`, `dangonix help`, `dangonix --dry switch` мають виглядати правильно.
+- Перевір відмову: `dangonix theme caelestia; echo $status` → повідомлення «not available before c1q14» і `4`, `state.json` не змінився.
+- Усе добре → `## c1q13 — виконано`.
+agent: claude claude-opus-5-5

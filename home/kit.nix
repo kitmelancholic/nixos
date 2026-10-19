@@ -11,6 +11,7 @@ in
   imports = [
     ./options.nix
     ./agents.nix
+    ./dangonix.nix
     ./desktop.nix
     ./foundry.nix
     ./programs.nix

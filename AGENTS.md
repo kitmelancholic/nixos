@@ -12,8 +12,11 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
 
 ## Loop
 
-`edit → nix fmt → scripts/check --fast → scripts/quest-verify <id>`
+`edit → nix fmt → dangonix check --fast → dangonix check → scripts/closure-diff`
 
+- `dangonix` is the one CLI (`lib/dangonix/`; `nix run . -- …` before it is
+  installed); discover it with `dangonix --dry --json commands`. `--dry`
+  plans any command, `scripts/check` is `dangonix check`.
 - `git add` new files before any check (flakes ignore untracked files);
   stage paths explicitly, never `git commit -a`.
 - State-changing tests run in a worktree under `.campaign/` (tasks.md rules).
@@ -54,7 +57,8 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
 
 - `hosts/` the one NixOS host; `home/` Home Manager modules for every theme.
 - `profiles/` theme registry (default `noctalia`) and shell themes.
-- `lib/` flake helpers; `scripts/` checks, quest tooling, git hooks, `opt`.
+- `lib/` flake helpers and `lib/dangonix/` (command table `commands.nix`);
+  `scripts/` quest tooling, git hooks, `opt`.
 - `state.json` holds the GM's choices; change it only when asked.
 - Checks live in `lib/checks.nix`; the bind fixture `tests/binds/` changes
   only with a declared behavior change.

@@ -1,7 +1,14 @@
-{ lib, ... }:
+{ config, lib, ... }:
 
 {
   options.kit = {
+    repo = lib.mkOption {
+      type = lib.types.str;
+      default = "${config.home.homeDirectory}/nixos";
+      defaultText = lib.literalExpression ''"''${config.home.homeDirectory}/nixos"'';
+      description = "The dangoNix checkout dangonix works on when run outside one.";
+    };
+
     profile.id = lib.mkOption {
       type = lib.types.strMatching "[a-z0-9][a-z0-9-]*";
       readOnly = true;

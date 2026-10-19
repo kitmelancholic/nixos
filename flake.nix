@@ -97,6 +97,16 @@
           profileRegistry
           ;
       };
+      dangonix = import ./lib/dangonix {
+        inherit
+          lib
+          pkgs
+          settings
+          foundryTable
+          ;
+        themes = profileIds;
+        repo = "${settings.homeDirectory}/nixos";
+      };
       nixosConfiguration = nixpkgs.lib.nixosSystem {
         inherit system;
         specialArgs = {
@@ -169,6 +179,14 @@
 
       checks.${settings.system} = checks;
 
-      apps.${settings.system} = repoApps.apps;
+      packages.${settings.system}.dangonix = dangonix.package;
+
+      apps.${settings.system} = repoApps.apps // {
+        default = {
+          type = "app";
+          program = "${dangonix.package}/bin/dangonix";
+          meta.description = "dangonix, the one CLI of dangoNix";
+        };
+      };
     };
 }
