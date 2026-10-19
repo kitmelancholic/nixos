@@ -209,3 +209,5 @@ agent: claude claude-sonnet-5-5
 - Перевір відмову: `dangonix theme caelestia; echo $status` → повідомлення «not available before c1q14» і `4`, `state.json` не змінився.
 - Усе добре → `## c1q13 — виконано`.
 agent: claude claude-opus-5-5
+
+## c1q13 — виконано
