@@ -52,7 +52,8 @@
       "Bash(nix run . -- --flake ./.campaign/wt-c1q22 check *)",
       "Bash(dangonix --dry *)",
       "Bash(dangonix check)",
-      "Bash(dangonix check *)"
+      "Bash(dangonix check *)",
+      "Bash(systemd-run --user --scope:*)"
     ],
     "ask": [
       "Bash(sudo *)",

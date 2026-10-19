@@ -233,3 +233,5 @@ agent: claude claude-opus-5-5
 Без нього ані передумову, ані перевірку повторного запуску в scope не виконати. Код не змінено.
 GM: додай `Bash(systemd-run --user --scope --quiet --collect -- true)` (або ширше `Bash(systemd-run --user --scope:*)`) до `.claude/settings.json` і `.codex/rules/dangonix.rules`, потім `retry c1s1`.
 agent: claude claude-opus-5-5
+
+## c1s1 - gm's move done
