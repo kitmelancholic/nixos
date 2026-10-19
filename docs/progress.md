@@ -234,4 +234,4 @@ agent: claude claude-opus-5-5
 GM: додай `Bash(systemd-run --user --scope --quiet --collect -- true)` (або ширше `Bash(systemd-run --user --scope:*)`) до `.claude/settings.json` і `.codex/rules/dangonix.rules`, потім `retry c1s1`.
 agent: claude claude-opus-5-5
 
-## c1s1 - gm's move done
+## c1s1 - хід майстра
