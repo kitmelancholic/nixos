@@ -30,10 +30,10 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
 
   | tier   | claude            | codex          |
   |--------|-------------------|----------------|
-  | squire | claude-haiku-5-5  | gpt-6.1-sol    |
-  | hero   | claude-sonnet-5-5 | gpt-6.1-sol    |
-  | cleric | claude-opus-5-5   | gpt-6.1-sol    |
-  | judge  | claude-opus-5-5   | gpt-6.1-sol    |
+  | squire | claude-haiku-5-5  | gpt-5.6-luna   |
+  | hero   | claude-sonnet-5-5 | gpt-5.6-terra  |
+  | cleric | claude-opus-5-5   | gpt-5.6-sol    |
+  | judge  | claude-opus-5-5   | gpt-5.6-sol    |
 
 ## Git
 
