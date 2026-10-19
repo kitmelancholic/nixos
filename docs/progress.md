@@ -188,3 +188,8 @@ agent: claude claude-sonnet-5-5
 Передумова не виконана: `pkgs/foundryvtt/versions.json` у nix-foundryvtt має для `"14.361"` лише `hash`, `npmDepsHash`, `releaseType`; імені файлу в таблиці немає — пакет будує його як `FoundryVTT-${platform}-${shortVersion}.zip` (`platform` = запис `.platform` або `Linux`).
 GM: дозволь виводити `filename` за цією формулою з ключа таблиці (`FoundryVTT-Linux-<ключ>.zip`) і брати `hash` з таблиці, або вкажи інше джерело; потім `retry c1q12`.
 agent: claude claude-sonnet-5-5
+
+## c1q12 — провалений кидок
+Робота готова і лежить у індексі (не закомічена): `foundry-check` дає `foundry ok: 14.0.0+361`, негативні тести у worktree падають як треба (версія `+999` і тема `nope`), `check --fast` ok. `quest-verify` падає лише на `static`: `HEAD:home/packages.nix` (комміт de90d9a, jdks у prismlauncher) не відформатований nixfmt, а файл поза *Files* квесту.
+GM: відформатуй `home/packages.nix` (`nix fmt`, окремий коміт `style: format packages.nix`) або дозволь мені; потім `retry c1q12`.
+agent: claude claude-sonnet-5-5
