@@ -51,7 +51,7 @@ root=$(git rev-parse --show-toplevel)
 cd "$root"
 rev=$(git rev-parse --verify "${positional[0]}^{commit}")
 tmp=$(mktemp -d)
-# shellcheck disable=SC2329 # Invoked by the EXIT trap.
+# shellcheck disable=SC2317,SC2329 # Invoked by the EXIT trap.
 cleanup() {
   git worktree remove --force "$tmp/old" >/dev/null 2>&1 || true
   rm -rf "$tmp"
