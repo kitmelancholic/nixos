@@ -225,3 +225,5 @@ agent: claude claude-opus-5-5
 - Foundry: `dangonix foundry remove main`, потім `dangonix foundry add main <zip>`; `git -C ~/nixos diff state.json` порожній.
 - Усе добре → `## c1q14 — виконано`.
 agent: claude claude-opus-5-5
+
+## c1q14 — виконано
