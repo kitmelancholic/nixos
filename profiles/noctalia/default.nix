@@ -24,6 +24,21 @@
     };
   };
 
+  assertions = [
+    {
+      assertion = config.programs.noctalia.enable;
+      message = "Noctalia profile: programs.noctalia.enable must be true";
+    }
+    {
+      assertion = config.programs.noctalia.systemd.enable;
+      message = "Noctalia profile: programs.noctalia.systemd.enable must be true";
+    }
+    {
+      assertion = config.programs.noctalia.settings.shell.launch_apps_as_systemd_services;
+      message = "Noctalia profile: shell.launch_apps_as_systemd_services must be true";
+    }
+  ];
+
   wayland.windowManager.hyprland.settings = {
     mod._var = "SUPER";
     terminal._var = config.kit.apps.terminal.command;

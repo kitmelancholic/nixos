@@ -38,7 +38,7 @@ let
       nix
     ];
     text = ''
-      exec nix build .#checks.${settings.system}.theme --no-link --no-write-lock-file
+      exec nix build .#checks.${settings.system}.registry --no-link --no-write-lock-file
     '';
   };
 
@@ -46,7 +46,11 @@ let
     name = "repo-hyprland-check";
     runtimeInputs = [ pkgs.nix ];
     text = ''
-      exec nix build .#checks.${settings.system}.hyprland --no-link --no-write-lock-file
+      exec nix build ${
+        lib.concatMapStringsSep " " (profileId: ".#checks.${settings.system}.hyprland-${profileId}") (
+          builtins.attrNames profileRegistry.profiles
+        )
+      } --no-link --no-write-lock-file
     '';
   };
 
@@ -191,7 +195,7 @@ in
     fmt = mkApp "Format repository files" "${fmtScript}/bin/repo-fmt";
     foundry-check = mkApp "Validate the configured FoundryVTT payload" "${foundryCheckScript}/bin/repo-foundry-check";
     hyprland-check = mkApp "Validate the generated Hyprland Lua config" "${hyprlandCheckScript}/bin/repo-hyprland-check";
-    theme-check = mkApp "Validate all registered theme profiles and Hyprland outputs" "${themeCheckScript}/bin/repo-theme-check";
+    theme-check = mkApp "Validate the theme profile registry" "${themeCheckScript}/bin/repo-theme-check";
     switch = mkApp "Rebuild and switch the NixOS host configuration" "${switchScript}/bin/repo-switch";
     home-switch = mkApp "Activate the standalone Home Manager configuration" "${homeSwitchScript}/bin/repo-home-switch";
   };

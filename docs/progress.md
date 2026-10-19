@@ -179,3 +179,7 @@ GM (у чаті, 2026-10-19): «допиши ти і зроби retry» — аг
 agent: claude claude-opus-5-5
 
 ## c1q10 — виконано
+
+## c1q11 — виконано
+Усі перевірки в `lib/checks.nix`: `static`, `registry`, `binds-fixture`, `host`, `home-<id>`, `hyprland-<id>`; інваріанти family — assertions у модулях. Фікстури бінд-ів у `tests/binds/`. Чотири негативні тести у worktree падають як треба; `quest-verify c1q11` і суддя (`no defects`) пройшли, змінених derivation немає.
+agent: claude claude-sonnet-5-5
