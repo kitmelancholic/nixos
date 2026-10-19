@@ -136,6 +136,122 @@ let
         touch $out
       '';
 
+  # Design check 7: the command table of dangonix, and the agents' rules for
+  # it fixed by its grammar (every command takes --dry; read rows ignore it).
+  commandRows = import ./dangonix/commands.nix;
+  scriptLines = lib.splitString "\n" (builtins.readFile ./dangonix/dangonix.sh);
+
+  # The lines of `<name>() {` .. `}` in dangonix.sh, or null.
+  functionBody =
+    name:
+    let
+      start = lib.lists.findFirstIndex (line: line == "${name}() {") null scriptLines;
+      rest = lib.drop (start + 1) scriptLines;
+    in
+    if start == null then
+      null
+    else
+      lib.take (lib.lists.findFirstIndex (line: line == "}") (builtins.length rest) rest) rest;
+  rowFunction = row: "cmd_${lib.replaceStrings [ "-" ] [ "_" ] row.id}";
+  callsPlanned = lib.any (line: builtins.match "[[:space:]]*planned( .*)?" line != null);
+  # A non-read command implements --dry: its function, or a cmd_ function it
+  # calls, stops at `planned` (which prints the plan under --dry).
+  implementsDry =
+    body:
+    callsPlanned body
+    ||
+      lib.any
+        (
+          callee:
+          let
+            calleeBody = functionBody callee;
+          in
+          calleeBody != null && callsPlanned calleeBody
+        )
+        (
+          lib.concatMap (
+            line: lib.flatten (builtins.filter builtins.isList (builtins.split "(cmd_[a-z_]+)" line))
+          ) body
+        );
+
+  claudePermissions = (lib.importJSON "${src}/.claude/settings.json").permissions or { };
+  claudeDangonix =
+    lib.concatMap
+      (
+        kind:
+        map (rule: "${kind} ${rule}") (
+          lib.filter (lib.hasPrefix "Bash(dangonix") (claudePermissions.${kind} or [ ])
+        )
+      )
+      (
+        lib.filter (kind: builtins.isList claudePermissions.${kind}) (builtins.attrNames claudePermissions)
+      );
+  # Every prefix_rule(..) of the Codex rules without comments, whitespace or
+  # quote style, so a rule split over lines reads as one on a line.
+  codexRules =
+    let
+      code = lib.concatMapStrings (line: lib.head (lib.splitString "#" line)) (
+        lib.splitString "\n" (builtins.readFile "${src}/.codex/rules/dangonix.rules")
+      );
+    in
+    map (rule: "prefix_rule(${rule}") (
+      lib.tail (
+        lib.splitString "prefix_rule(" (lib.replaceStrings [ " " "\t" "\r" "'" ] [ "" "" "" "\"" ] code)
+      )
+    );
+  codexDangonix = lib.filter (
+    rule: builtins.match ''.*pattern=\["dangonix".*'' rule != null
+  ) codexRules;
+  sorted = builtins.sort builtins.lessThan;
+
+  commandProblems =
+    lib.concatMap (
+      row:
+      let
+        body = functionBody (rowFunction row);
+      in
+      lib.optional (!(row ? effect && row ? agent)) "${row.id}: needs effect and agent"
+      ++ lib.optional (
+        row ? agent
+        && !(lib.elem row.agent [
+          "allow"
+          "ask"
+        ])
+      ) "${row.id}: agent is allow or ask"
+      ++ lib.optional (
+        (row.agent or null) == "allow" && (row.effect or null) != "read"
+      ) "${row.id}: agent = allow only for read commands"
+      ++ lib.optional (body == null) "${row.id}: dangonix.sh has no ${rowFunction row}"
+      ++ lib.optional (
+        body != null && (row.effect or null) != "read" && !implementsDry body
+      ) "${row.id}: ${rowFunction row} does not implement --dry (it never calls planned)"
+    ) commandRows
+    ++
+      lib.optional
+        (
+          sorted claudeDangonix != [
+            "allow Bash(dangonix --dry *)"
+            "allow Bash(dangonix check *)"
+            "allow Bash(dangonix check)"
+          ]
+        )
+        ".claude/settings.json: the dangonix rules must be exactly the allow rules for `dangonix --dry *` and `dangonix check [*]`, found: ${builtins.toJSON claudeDangonix}"
+    ++
+      lib.optional
+        (
+          sorted codexDangonix != [
+            ''prefix_rule(pattern=["dangonix","--dry"],decision="allow")''
+            ''prefix_rule(pattern=["dangonix","check"],decision="allow")''
+          ]
+        )
+        ".codex/rules/dangonix.rules: the dangonix rules must be exactly the allow rules for `dangonix --dry` and `dangonix check`, found: ${builtins.toJSON codexDangonix}";
+
+  commands =
+    assert lib.assertMsg (
+      commandProblems == [ ]
+    ) "commands: ${lib.concatStringsSep "; " commandProblems}";
+    pkgs.runCommand "commands-check" { } "touch $out";
+
   hyprlandCheck =
     id:
     let
@@ -174,7 +290,7 @@ in
         ${staticCheckCommand}
         touch $out
       '';
-  inherit registry;
+  inherit registry commands;
   binds-fixture = bindsFixture;
   host = host.config.system.build.toplevel;
 }

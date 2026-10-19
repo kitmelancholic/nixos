@@ -48,6 +48,8 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
 
 - Same Bash rules in `.claude/settings.json` and `.codex/rules/dangonix.rules`;
   change both together. Headless runs refuse anything not allowed.
+- Agents run `dangonix --dry …` and `dangonix check …`; every real `dangonix`
+  change asks.
 - Both run `git-guard` and the fail-closed `bash-guard` (no hook = no Bash).
   Claude also runs `scripts/context-watch`: obey its 80k/95k-token warnings.
 - Edit/Write deny rules exist only in Claude Code; Codex has no file-edit

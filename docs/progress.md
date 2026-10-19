@@ -217,3 +217,11 @@ agent: claude claude-opus-5-5
 Суддя вимагає `nvd diff` (крок 1), тож `nvd` додано в `runtimeInputs`; `quest-verify` двічі поспіль: `unexpected change: +nvd-0.2.4`, `unexpected change: ~source` (це `nvd.src`).
 GM: розшир у `meta:` `leaves=` до `~dangonix*,~hm_*dangonix*?,+nvd*,~source?` (або дозволь `nix store diff-closures` замість nvd), потім `retry c1q14`.
 agent: claude claude-opus-5-5
+
+## c1q14 — хід майстра
+Транзакції `state`/`host` (lock, snapshot, preflight, build, `nvd diff`, активація, відновлення, `journal.jsonl`) і перевірка `commands`; `meta:` уже розширено GM. `quest-verify` пройшов (`~dangonix`, `~dangonix-config.json`, `+nvd-0.2.4`, `~source`); суддя: `no defects`.
+- `dangonix switch` (sudo); `dangonix theme caelestia` і `dangonix theme noctalia`; після обох `git -C ~/nixos diff state.json` порожній.
+- `sudo -u nobody dangonix switch` відмовляє.
+- Foundry: `dangonix foundry remove main`, потім `dangonix foundry add main <zip>`; `git -C ~/nixos diff state.json` порожній.
+- Усе добре → `## c1q14 — виконано`.
+agent: claude claude-opus-5-5

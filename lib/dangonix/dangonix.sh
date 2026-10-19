@@ -8,8 +8,8 @@
 # Exit codes: 0 ok, 1 failed (state restored), 2 usage, 3 recovery failed,
 # 4 refused before any change.
 #
-# Until c1q14 state and host commands only plan: with --dry they print the
-# plan, without it they refuse with exit 4.
+# A state or host command plans its steps; with --dry it prints the plan,
+# without it runs the plan as a transaction (see "transactions" below).
 
 json=0
 dry=0
@@ -27,14 +27,39 @@ steps='[]'
 failed_step=null
 recovered=null
 warnings=()
+# The command's arguments, for the journal.
+cmd_args='[]'
+
+# The transaction (see "transactions" below).
+planned_done=0
+tx_running=0 # holds the lock: a failure writes the journal line
+tx_open=0    # a snapshot exists: a failure recovers from it
+tx_edit='.'  # the jq filter step_state applies to state.json
+tx_edit_args=()
+tx_host=0 tx_home=0 tx_theme="" tx_overwrite=0
+tx_update='[]' # the inputs step_update updates
+snapshot_dir="" keep_snapshot=0
+host_before="" home_before="" built_host="" built_home=""
+host_activated=0 home_activated=0
+step_status="" step_error=""
+manual=()
+zip_path="" zip_file="" zip_store=""
 
 sudo=/run/wrappers/bin/sudo
+nix_env=$(command -v nix-env)
 
 cfg() { jq -r "$@" "$DANGONIX_CONFIG"; }
 log() { printf '%s\n' "$*" >&2; }
 warn() {
   warnings+=("$1")
   log "dangonix: warning: $1"
+}
+# json_list <word...>: a JSON array of the words (jq --args would read
+# a word such as --fast as its own option).
+json_list() {
+  local word list='[]'
+  for word; do list=$(jq -c --arg word "$word" '. + [$word]' <<<"$list"); done
+  echo "$list"
 }
 # say <line>: progress; on stderr with --json, so stdout stays one JSON.
 say() { if ((json)); then log "$*"; else printf '%s\n' "$*"; fi; }
@@ -74,12 +99,29 @@ finish() {
 }
 
 # fail <exit> <message>: print the error and exit. Never call it inside $(...).
+# Inside a transaction it first recovers (exit 3 when that fails) and writes
+# the journal line.
 fail() {
-  log "dangonix: $2"
-  if ((json)); then
-    envelope "$1" "$(jq -cn --arg error "$2" '{error: $error}')"
+  local code=$1 message=$2
+  trap '' INT TERM
+  if ((tx_open)); then
+    tx_open=0
+    recovered=true
+    if ! recover; then
+      code=3 recovered=false
+      message+="; recovery failed, finish by hand: $(printf '%s; ' "${manual[@]}")"
+    fi
   fi
-  exit "$1"
+  if ((tx_running)); then
+    tx_running=0
+    journal_write "$code" || warn "cannot write the journal $journal"
+  fi
+  log "dangonix: $message"
+  if ((json)); then
+    envelope "$code" "$(jq -cn --arg error "$message" '{error: $error, manual: $ARGS.positional}' \
+      --args "${manual[@]}")"
+  fi
+  exit "$code"
 }
 
 usage() { fail 2 "$1 (see: dangonix help${command_name:+ $command_name})"; }
@@ -93,38 +135,52 @@ plan() {
     '. + [{name: $name, detail: $detail, status: "planned"}]' <<<"$steps")
 }
 
-# planned <data>: planning is over. With --dry print the plan and exit; a
-# state or host command refuses without it; a runtime command goes on.
+# planned <data>: planning is over. With --dry print the plan and exit;
+# otherwise the command goes on to run it.
 planned() {
   if ((dry)); then
     finish "$1" '"dangonix --dry: would", ($steps | to_entries[] | "  \(.key + 1). \(.value.name): \(.value.detail)")'
   fi
-  case $effect in
-  state | host)
-    steps='[]'
-    fail 4 "$command_name is not available before c1q14; 'dangonix --dry $command_name ...' shows its plan"
-    ;;
-  esac
+  planned_done=1
 }
 
 # run_step <name> <command...>: run a planned step; its output goes to stderr.
+# The command may set step_status (e.g. skipped) and step_error (the message).
 run_step() {
   local name=$1 status="done"
   shift
+  ((planned_done)) || fail 2 "$command_name: step $name runs before the plan is made"
+  step_status="" step_error=""
   "$@" >&2 || status=failed
+  [ "$status" = failed ] || status=${step_status:-done}
   steps=$(jq -c --arg name "$name" --arg status "$status" \
     'map(if .name == $name then .status = $status else . end)' <<<"$steps")
   if [ "$status" = failed ]; then
     failed_step=$(jq -cn --arg name "$name" '$name')
-    fail 1 "$command_name: step $name failed"
+    fail 1 "$command_name: ${step_error:-step $name failed}"
   fi
 }
+
+# steps_text: the jq filter that renders a finished mutation.
+steps_text='$steps[] | "\(.status)\t\(.name): \(.detail)"'
 
 # confirm_plan: an irreversible step asks y/N on a TTY and needs --yes without.
 confirm_plan() {
   if ! ((yes)) && ! [ -t 0 ]; then
     warn "the import is irreversible: without a TTY it needs --yes"
   fi
+}
+
+# confirm <what>: before an irreversible step runs, y/N on a TTY, else --yes.
+confirm() {
+  local answer=""
+  if ((yes)); then return 0; fi
+  [ -t 0 ] || fail 4 "$command_name: $1 is irreversible: without a TTY it needs --yes"
+  read -r -p "dangonix: $1 is irreversible. Go on? [y/N] " answer || true
+  case $answer in
+  y | Y | yes | YES) ;;
+  *) fail 4 "$command_name: cancelled" ;;
+  esac
 }
 
 # need_flake: the checkout to work on: --flake, else the dangoNix checkout
@@ -147,7 +203,12 @@ need_flake() {
 state_dir=${XDG_STATE_HOME:-$HOME/.local/state}
 journal=$state_dir/dangonix/journal.jsonl
 host_profile=/nix/var/nix/profiles/system
+# The profile Home Manager uses: the XDG one, else the legacy per-user one.
 home_profile=$state_dir/nix/profiles/home-manager
+legacy_profiles=/nix/var/nix/profiles/per-user/$(id -un)
+if [ ! -d "${home_profile%/*}" ] && [ -d "$legacy_profiles" ]; then
+  home_profile=$legacy_profiles/home-manager
+fi
 
 active_theme() { cat "${XDG_CONFIG_HOME:-$HOME/.config}/kit/profile-id" 2>/dev/null || true; }
 
@@ -235,6 +296,7 @@ zip_info() {
   [ -n "$entry" ] ||
     usage "$zip_file is not a release in nix-foundryvtt's version table (FoundryVTT-Linux-<major>.<build>.zip)"
   zip_version=$(jq -r .version <<<"$entry")
+  zip_store=$(jq -r .path <<<"$entry")
   hash=$(jq -r .hash <<<"$entry")
   actual=$(nix hash file --type sha256 --sri "$zip_path") || fail 1 "cannot hash $zip_path"
   [ "$actual" = "$hash" ] || usage "$zip_file has hash $actual, the version table says $hash"
@@ -247,10 +309,278 @@ plan_import() {
   plan gc-root "nix-store --add-root ~/FoundryVTT/gcroots/$zip_file"
 }
 
-plan_host_switch() {
-  plan build "nix build $flake#nixosConfigurations.$(cfg .hostname).config.system.build.toplevel"
-  plan activate-host "switch-to-configuration switch, if the host changed"
+step_import() {
+  local stored
+  stored=$(nix-store --add-fixed sha256 "$zip_path") || return 1
+  if [ "$stored" != "$zip_store" ]; then
+    step_error="nix-store put $zip_file at $stored, not at $zip_store"
+    return 1
+  fi
 }
+
+step_gc_root() {
+  mkdir -p "$HOME/FoundryVTT/gcroots" &&
+    nix-store --add-root "$HOME/FoundryVTT/gcroots/$zip_file" --realise "$zip_store" >/dev/null
+}
+
+plan_host_switch() {
+  tx_host=1
+  plan_preflight
+  plan state "$1"
+  plan build "nix build $(host_target)"
+  plan diff "nvd diff /run/current-system and the new host"
+  plan activate-host "nix-env --set the system profile, switch-to-configuration switch, if the host changed"
+}
+
+# --- transactions -----------------------------------------------------------
+#
+# A state or host command plans its steps (design 5, "Транзакції"); without
+# --dry, execute runs them in order under one lock, step <name> being the
+# function step_<name>. The snapshot step opens the transaction: from then on
+# a failing step (fail) puts state.json and flake.lock back byte for byte,
+# re-activates the host and home generations it replaced and writes the
+# journal line; exit 3 when that recovery fails. A build failure activates
+# nothing; theme never builds the host.
+
+host_target() { echo "$flake#nixosConfigurations.$(cfg .hostname).config.system.build.toplevel"; }
+home_target() { echo "$flake#homeConfigurations.$(cfg .username)-$tx_theme.activationPackage"; }
+
+plan_snapshot() {
+  plan snapshot "keep state.json and flake.lock (to put back byte for byte on failure) and the host and home generations"
+}
+
+# Planned wherever the host gets built (switch, update's check, foundry);
+# theme builds only home, so a missing ZIP never blocks it.
+plan_preflight() {
+  plan preflight "the release ZIP of every Foundry instance in state.json is in the store"
+}
+
+# execute: take the lock and run the plan.
+execute() {
+  local name names
+  tx_begin
+  names=$(jq -r '.[].name' <<<"$steps")
+  for name in $names; do
+    run_step "$name" "step_${name//-/_}"
+  done
+  tx_end
+}
+
+# tx_begin: refuse (exit 4) unless the user is right and the lock is free.
+# The lock is kit-profile's, so the two never activate home at once.
+tx_begin() {
+  local user lock
+  user=$(id -un)
+  [ "$user" = "$(cfg .username)" ] || fail 4 "$command_name runs as $(cfg .username), not as $user"
+  if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+    lock=$XDG_RUNTIME_DIR/kit-home-activation.lock
+  else
+    mkdir -p "$state_dir/kit"
+    chmod 700 "$state_dir/kit"
+    lock=$state_dir/kit/home-activation.lock
+  fi
+  exec 9>"$lock"
+  flock -n 9 || fail 4 "another dangonix or kit-profile run holds $lock"
+  tx_running=1
+}
+
+# tx_end: the transaction is done: journal line, then the diff it leaves.
+tx_end() {
+  if ! journal_write 0; then
+    failed_step='"journal"'
+    fail 1 "$command_name: cannot write the journal $journal"
+  fi
+  tx_open=0
+  tx_running=0
+  flock -u 9
+  git -C "$flake" --no-pager diff --stat -- state.json flake.lock >&2 || true
+  git -C "$flake" --no-pager diff -- state.json >&2 || true
+}
+
+# journal_write <exit>: one line in the journal (history and rollback read it).
+journal_write() {
+  local host_now="" home_now=""
+  host_now=$(readlink -f /run/current-system || true)
+  [ ! -e "$home_profile" ] || home_now=$(readlink -f "$home_profile" || true)
+  mkdir -p "${journal%/*}" || return 1
+  jq -cn --arg time "$(date -u +%FT%TZ)" --arg command "$command_name" --argjson args "$cmd_args" \
+    --argjson exit "$1" --argjson failed "$failed_step" --argjson recovered "$recovered" \
+    --arg flake "$flake" --arg host_before "$host_before" --arg host_now "$host_now" \
+    --arg home_before "$home_before" --arg home_now "$home_now" \
+    --argjson host_gen "$(current_generation "$host_profile")" \
+    --argjson home_gen "$(current_generation "$home_profile")" '
+    def path: if . == "" then null else . end;
+    {time: $time, command: $command, args: $args, ok: ($exit == 0), exit: $exit,
+     failedStep: $failed, recovered: $recovered, flake: $flake,
+     host: {before: ($host_before | path), after: ($host_now | path), generation: $host_gen},
+     home: {before: ($home_before | path), after: ($home_now | path), generation: $home_gen}}' \
+    >>"$journal"
+}
+
+# same_file <a> <b>: byte for byte equal.
+same_file() { [ "$(sha256sum <"$1")" = "$(sha256sum <"$2")" ]; }
+
+# restore_files: state.json and flake.lock as the snapshot has them.
+restore_files() {
+  local file kept
+  for file in "$state_file" "$lock_file"; do
+    kept=$snapshot_dir/${file##*/}
+    same_file "$kept" "$file" 2>/dev/null && continue
+    log "dangonix: putting back ${file##*/}"
+    if ! { cp "$kept" "$file" && same_file "$kept" "$file"; }; then
+      keep_snapshot=1
+      manual+=("cp $kept $file")
+      return 1
+    fi
+  done
+}
+
+# recover: undo a failed transaction: the files, then (best effort) the host
+# and home generations it replaced. Fails when something is left to do by
+# hand, listed in manual.
+recover() {
+  local ok=0
+  restore_files || ok=1
+  if ((host_activated)); then
+    log "dangonix: re-activating the host $host_before"
+    if ! { "$sudo" "$nix_env" -p "$host_profile" --set "$host_before" &&
+      "$sudo" "$host_before/bin/switch-to-configuration" switch; } >&2; then
+      ok=1
+      manual+=("sudo nix-env -p $host_profile --set $host_before"
+        "sudo $host_before/bin/switch-to-configuration switch")
+    fi
+  fi
+  if ((home_activated)); then
+    if [ -z "$home_before" ]; then
+      # Nothing to go back to: drop the profile generation this created.
+      local generation
+      if generation=$(readlink "$home_profile" 2>/dev/null); then
+        rm -f "$home_profile" "${home_profile%/*}/$generation"
+      fi
+      ok=1
+      manual+=("there was no home generation to go back to: fix the error, then dangonix switch --home")
+    else
+      log "dangonix: re-activating home $home_before"
+      if ! { "$nix_env" --profile "$home_profile" --set "$home_before" &&
+        "$home_before/activate" --driver-version 1; } >&2; then
+        ok=1
+        manual+=("nix-env --profile $home_profile --set $home_before"
+          "$home_before/activate --driver-version 1")
+      fi
+    fi
+  fi
+  return "$ok"
+}
+
+# on_exit: an exit fail did not see (set -e) still puts the files back.
+on_exit() {
+  if ((tx_open)); then
+    restore_files || log "dangonix: restore by hand: ${manual[*]}"
+  fi
+  if [ -n "$snapshot_dir" ] && ! ((keep_snapshot)); then
+    rm -rf "$snapshot_dir"
+  fi
+}
+
+step_snapshot() {
+  snapshot_dir=$(mktemp -d) &&
+    cp "$state_file" "$lock_file" "$snapshot_dir/" || return 1
+  host_before=$(readlink -f /run/current-system || true)
+  [ ! -e "$home_profile" ] || home_before=$(readlink -f "$home_profile")
+  tx_open=1
+  echo "snapshot: state.json $(sha256sum <"$state_file" | cut -d ' ' -f 1)," \
+    "flake.lock $(sha256sum <"$lock_file" | cut -d ' ' -f 1)"
+}
+
+# step_preflight: the release ZIP of every instance in state.json, as this
+# transaction leaves it, is in the store.
+step_preflight() {
+  local rows name version file path
+  rows=$(jq -r --slurpfile cfg "$DANGONIX_CONFIG" "${tx_edit_args[@]}" "($tx_edit)"'
+    | .foundry.instances | to_entries[] | .value.version as $v
+    | ([$cfg[0].foundry.versions[] | select(.version == $v)] | first) as $e
+    | [.key, $v, ($e.file // "-"), ($e.path // "-")] | join(" ")' "$state_file") || return 1
+  while read -r name version file path; do
+    [ -n "$name" ] || continue
+    if [ "$file" = - ]; then
+      step_error="foundry $name: version $version is not in nix-foundryvtt's version table"
+      return 1
+    fi
+    if [ ! -e "$path" ]; then
+      step_error="foundry $name: the release ZIP of $version is not in the store: dangonix foundry import $file"
+      return 1
+    fi
+  done <<<"$rows"
+}
+
+# step_state: apply tx_edit to state.json (temp file and atomic rename).
+step_state() {
+  local tmp
+  tmp=$(mktemp "$state_file.XXXXXX") || return 1
+  if jq "${tx_edit_args[@]}" "$tx_edit" "$state_file" >"$tmp" &&
+    chmod --reference="$state_file" "$tmp" && mv "$tmp" "$state_file"; then
+    return 0
+  fi
+  rm -f "$tmp"
+  return 1
+}
+
+# step_build: every side the transaction touches, in one nix build.
+step_build() {
+  local targets=() out
+  if ((tx_host)); then targets+=("$(host_target)"); fi
+  if ((tx_home)); then targets+=("$(home_target)"); fi
+  out=$(nix build --no-link --no-write-lock-file --json "${targets[@]}") || return 1
+  if ((tx_host)); then built_host=$(jq -r '.[0].outputs.out' <<<"$out"); fi
+  if ((tx_home)); then built_home=$(jq -r '.[-1].outputs.out' <<<"$out"); fi
+}
+
+# step_diff: what changes (nvd diff); informational, it never fails the
+# transaction.
+step_diff() {
+  if ((tx_host)) && [ -n "$host_before" ]; then
+    echo "host:"
+    nvd diff "$host_before" "$built_host" || true
+  fi
+  if ((tx_home)) && [ -n "$home_before" ]; then
+    echo "home:"
+    nvd diff "$home_before" "$built_home" || true
+  fi
+  return 0
+}
+
+step_activate_host() {
+  if [ "$built_host" = "$host_before" ]; then
+    echo "the host is unchanged"
+    step_status=skipped
+    return 0
+  fi
+  host_activated=1
+  "$sudo" "$nix_env" -p "$host_profile" --set "$built_host" &&
+    "$sudo" "$built_host/bin/switch-to-configuration" switch
+}
+
+# step_activate_home: dangonix sets the profile, so the driver version is 1.
+step_activate_home() {
+  home_activated=1
+  mkdir -p "${home_profile%/*}" || return 1
+  if [ "$built_home" != "$home_before" ]; then
+    "$nix_env" --profile "$home_profile" --set "$built_home" || return 1
+  fi
+  if ((tx_overwrite)); then
+    HOME_MANAGER_BACKUP_EXT=dangonix-backup "$built_home/activate" --driver-version 1
+  else
+    "$built_home/activate" --driver-version 1
+  fi
+}
+
+step_update() {
+  local inputs=()
+  mapfile -t inputs < <(jq -r '.[]' <<<"$tx_update")
+  nix flake update --flake "$flake" "${inputs[@]}"
+}
+
+step_check() { "$0" --flake "$flake" check; }
 
 # --- commands ---------------------------------------------------------------
 
@@ -340,7 +670,8 @@ cmd_history() {
     '{journal: $entries, generations: {host: $host, home: $home}}')
   finish "$data" '
     (if .journal == [] then "no transactions yet" else
-      (.journal[] | "\(.time)  \(.command)  \(if .ok then "ok" else "failed at \(.failedStep)" end)") end),
+      (.journal[] | "\(.time)  \(([.command] + (.args // [])) | join(" "))  \(if .ok then "ok"
+        else "failed at \(.failedStep)\(if .recovered == false then ", not recovered" else "" end)" end)") end),
     "", "host generations: \([.generations.host[] | .generation] | map(tostring) | join(" "))",
     "home generations: \([.generations.home[] | .generation] | map(tostring) | join(" "))"'
 }
@@ -420,18 +751,46 @@ cmd_switch() {
   ((home || host)) || usage "--home and --host exclude each other"
   need_flake
   theme=$(jq -r .theme "$state_file")
+  tx_host=$host tx_home=$home tx_theme=$theme
+  [ "$overwrite" = false ] || tx_overwrite=1
   local targets=()
-  ((host)) && targets+=("$flake#nixosConfigurations.$(cfg .hostname).config.system.build.toplevel")
-  ((home)) && targets+=("$flake#homeConfigurations.$(cfg .username)-$theme.activationPackage")
-  plan build "nix build ${targets[*]}"
-  plan diff "nvd diff of what changes"
-  ((host)) && plan activate-host "switch-to-configuration switch, if the host differs from /run/current-system"
-  if ((home)); then
-    plan activate-home "activate home $(cfg .username)-$theme$([ "$overwrite" = false ] || echo ', moving clashing files aside')"
+  ((host)) && targets+=("$(host_target)")
+  ((home)) && targets+=("$(home_target)")
+  # A dry run evaluates what would be built and says whether it changes.
+  local change='{}' side out current changed
+  if ((dry)); then
+    for side in host home; do
+      if [ "$side" = host ]; then
+        ((host)) || continue
+        current=/run/current-system
+      else
+        ((home)) || continue
+        current=$home_profile
+      fi
+      out=$(nix eval --no-write-lock-file --raw "$("${side}_target").outPath") ||
+        fail 1 "cannot evaluate the $side"
+      changed=true
+      [ "$out" != "$(readlink -f "$current" 2>/dev/null || true)" ] || changed=false
+      change=$(jq -c --arg side "$side" --argjson changed "$changed" '. + {($side): $changed}' <<<"$change")
+    done
   fi
-  planned "$(jq -cn --argjson host "$host" --argjson home "$home" --arg theme "$theme" \
-    --argjson overwrite "$overwrite" \
-    '{host: ($host == 1), home: ($home == 1), theme: $theme, overwrite: $overwrite}')"
+  plan_snapshot
+  ((host)) && plan_preflight
+  plan build "nix build ${targets[*]}"
+  plan diff "$(jq -r 'if . == {} then "nvd diff of what changes"
+    else to_entries | map("\(.key): \(if .value then "changes" else "no change" end)") | join(", ") end' <<<"$change")"
+  ((host)) && plan activate-host "nix-env --set the system profile, switch-to-configuration switch, if the host differs from /run/current-system"
+  if ((home)); then
+    plan activate-home "nix-env --set the home profile, activate $(cfg .username)-$theme$([ "$overwrite" = false ] || echo ', moving clashing files aside')"
+  fi
+  local data
+  data=$(jq -cn --argjson host "$host" --argjson home "$home" --arg theme "$theme" \
+    --argjson overwrite "$overwrite" --argjson change "$change" \
+    '{host: ($host == 1), home: ($home == 1), theme: $theme, overwrite: $overwrite}
+      + (if $change == {} then {} else {change: $change} end)')
+  planned "$data"
+  execute
+  finish "$data" "$steps_text"
 }
 
 cmd_update() {
@@ -449,11 +808,22 @@ cmd_update() {
     update=$(jq -cn --argjson inputs "$inputs" --argjson held "$held" '$inputs - $held')
   fi
   [ "$held" = '[]' ] || warn "held, name them to update: $(jq -r 'join(" ")' <<<"$held")"
-  plan snapshot "keep flake.lock to restore it byte for byte"
+  tx_update=$update
+  plan_snapshot
+  plan_preflight
   plan update "nix flake update $(jq -r 'join(" ")' <<<"$update")"
-  plan check "dangonix check"
-  plan restore "on failure, put flake.lock back"
+  plan check "dangonix check; on failure flake.lock goes back byte for byte"
   planned "$(jq -cn --argjson update "$update" --argjson held "$held" '{update: $update, held: $held}')"
+  execute
+  # The inputs whose lock changed.
+  local changed
+  changed=$(jq -cn --slurpfile old "$snapshot_dir/flake.lock" --slurpfile new "$lock_file" '
+    ($old[0].nodes) as $o | ($new[0].nodes) as $n
+    | [$n.root.inputs | keys[] | select($o[$o.root.inputs[.]].locked != $n[$n.root.inputs[.]].locked)]')
+  finish "$(jq -cn --argjson update "$update" --argjson held "$held" --argjson changed "$changed" \
+    '{update: $update, held: $held, changed: $changed}')" \
+    '"updated: \(.changed | join(" ") | if . == "" then "nothing changed" else . end)",
+     (if .held == [] then empty else "held: \(.held | join(" "))" end)'
 }
 
 themes_json() {
@@ -481,10 +851,17 @@ cmd_theme_set() {
   jq -e --arg id "$1" 'has($id)' <<<"$themes" >/dev/null ||
     usage "unknown theme '$1' (themes: $(jq -r 'keys | join(" ")' <<<"$themes"))"
   from=$(jq -r .theme "$state_file")
+  tx_edit='.theme = $id' tx_edit_args=(--arg id "$1") tx_home=1 tx_theme=$1
+  plan_snapshot
   plan state "state.json: theme $from -> $1"
-  plan build "nix build $flake#homeConfigurations.$(cfg .username)-$1.activationPackage"
-  plan activate-home "activate home $(cfg .username)-$1; the host stays as it is"
-  planned "$(jq -cn --arg from "$from" --arg to "$1" '{from: $from, to: $to}')"
+  plan build "nix build $(home_target)"
+  plan diff "nvd diff of the home profile and the new home"
+  plan activate-home "nix-env --set the home profile, activate $(cfg .username)-$1; the host stays as it is"
+  local data
+  data=$(jq -cn --arg from "$from" --arg to "$1" '{from: $from, to: $to}')
+  planned "$data"
+  execute
+  finish "$data" "$steps_text"
 }
 
 cmd_foundry_list() {
@@ -591,6 +968,22 @@ cmd_foundry_runtime() {
   finish "$data" '"foundry \(.name): \($steps | map(.name) | join(", ")) done"'
 }
 
+cmd_foundry_start() {
+  cmd_foundry_runtime start "$@"
+}
+
+cmd_foundry_stop() {
+  cmd_foundry_runtime stop "$@"
+}
+
+cmd_foundry_restart() {
+  cmd_foundry_runtime restart "$@"
+}
+
+cmd_foundry_open() {
+  cmd_foundry_runtime open "$@"
+}
+
 cmd_foundry_import() {
   [ "$#" -eq 1 ] || usage "foundry import takes one ZIP"
   need_flake
@@ -601,8 +994,13 @@ cmd_foundry_import() {
   [ "$users" != '[]' ] ||
     usage "no instance in state.json uses $zip_version (dangonix foundry add or upgrade)"
   plan_import
-  planned "$(jq -cn --arg zip "$zip_path" --arg version "$zip_version" --argjson instances "$users" \
-    '{zip: $zip, version: $version, instances: $instances}')"
+  local data
+  data=$(jq -cn --arg zip "$zip_path" --arg version "$zip_version" --argjson instances "$users" \
+    --arg path "$zip_store" '{zip: $zip, version: $version, instances: $instances, path: $path}')
+  planned "$data"
+  confirm "importing $zip_file"
+  execute
+  finish "$data" "$steps_text"
 }
 
 cmd_foundry_upgrade() {
@@ -627,11 +1025,18 @@ cmd_foundry_upgrade() {
   if [ "${from%%.*}" != "${zip_version%%.*}" ] && ! ((backed_up)); then
     fail 4 "foundry $inst: $from -> $zip_version crosses a major version; back up its data, then add --backed-up"
   fi
+  tx_edit='.foundry.instances[$name].version = $version'
+  tx_edit_args=(--arg name "$inst" --arg version "$zip_version")
+  plan_snapshot
   plan_import
-  plan state "state.json: foundry $inst version $from -> $zip_version"
-  plan_host_switch
-  planned "$(jq -cn --arg name "$inst" --arg from "$from" --arg to "$zip_version" --arg zip "$zip_path" \
-    '{name: $name, from: $from, to: $to, zip: $zip}')"
+  plan_host_switch "state.json: foundry $inst version $from -> $zip_version"
+  local data
+  data=$(jq -cn --arg name "$inst" --arg from "$from" --arg to "$zip_version" --arg zip "$zip_path" \
+    '{name: $name, from: $from, to: $to, zip: $zip}')
+  planned "$data"
+  confirm "importing $zip_file"
+  execute
+  finish "$data" "$steps_text"
 }
 
 cmd_foundry_add() {
@@ -659,20 +1064,32 @@ cmd_foundry_add() {
   [ -z "$existing" ] ||
     fail 4 "state.json already has Foundry instance $existing; several instances arrive in campaign II"
   zip_info "${args[1]}"
+  tx_edit='.foundry.instances[$name] = {version: $version, port: $port}'
+  tx_edit_args=(--arg name "${args[0]}" --arg version "$zip_version" --argjson port "$port")
+  plan_snapshot
   plan_import
-  plan state "state.json: foundry instance ${args[0]}, version $zip_version, port $port"
-  plan_host_switch
-  planned "$(jq -cn --arg name "${args[0]}" --arg version "$zip_version" --argjson port "$port" \
-    --arg zip "$zip_path" '{name: $name, version: $version, port: $port, zip: $zip}')"
+  plan_host_switch "state.json: foundry instance ${args[0]}, version $zip_version, port $port"
+  local data
+  data=$(jq -cn --arg name "${args[0]}" --arg version "$zip_version" --argjson port "$port" \
+    --arg zip "$zip_path" '{name: $name, version: $version, port: $port, zip: $zip}')
+  planned "$data"
+  confirm "importing $zip_file"
+  execute
+  finish "$data" "$steps_text"
 }
 
 cmd_foundry_remove() {
   [ "$#" -eq 1 ] || usage "foundry remove takes one name"
   need_flake
   instance "$1"
-  plan state "state.json: drop foundry instance $inst"
-  plan_host_switch
-  planned "$(jq -cn --arg name "$inst" '{name: $name, data: "stays on disk"}')"
+  tx_edit='del(.foundry.instances[$name])' tx_edit_args=(--arg name "$inst")
+  plan_snapshot
+  plan_host_switch "state.json: drop foundry instance $inst"
+  local data
+  data=$(jq -cn --arg name "$inst" '{name: $name, data: "stays on disk"}')
+  planned "$data"
+  execute
+  finish "$data" "$steps_text"
 }
 
 # --- main -------------------------------------------------------------------
@@ -714,8 +1131,12 @@ for arg; do
   fi
 done
 
+trap on_exit EXIT
+trap 'fail 1 "${command_name:-dangonix}: interrupted"' INT TERM
+
 noun=${1:-}
 [ "$#" -eq 0 ] || shift
+cmd_args=$(json_list "$@")
 case $noun in
 "")
   bare=1
@@ -739,13 +1160,10 @@ foundry)
   verb=${1:-list}
   [ "$#" -eq 0 ] || shift
   case $verb in
-  list | status | logs | import | upgrade | add | remove)
+  list | status | logs | import | upgrade | add | remove | start | stop | restart | open)
     use "foundry-$verb"
+    cmd_args=$(json_list "$@")
     "cmd_foundry_$verb" "$@"
-    ;;
-  start | stop | restart | open)
-    use "foundry-$verb"
-    cmd_foundry_runtime "$verb" "$@"
     ;;
   *)
     command_name=foundry

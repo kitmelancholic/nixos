@@ -34,17 +34,26 @@ let
 
   # The releases of nix-foundryvtt's version table (entries with a hash), with
   # the version string and ZIP name its package derives from each key
-  # (`14.361` -> `14.0.0+361`).
+  # (`14.361` -> `14.0.0+361`), and the store path `nix-store --add-fixed`
+  # gives the ZIP (the transaction preflight looks for it).
   foundryVersions = lib.mapAttrs (
     key: entry:
     let
       parts = lib.splitString "." key;
       platform = lib.optionalString (lib.versionAtLeast key "13.338") "-${entry.platform or "Linux"}";
+      file = "FoundryVTT${platform}-${key}.zip";
     in
     {
       inherit (entry) hash;
+      inherit file;
       version = "${lib.head parts}.0.0+${lib.last parts}";
-      file = "FoundryVTT${platform}-${key}.zip";
+      path =
+        builtins.unsafeDiscardStringContext
+          (pkgs.requireFile {
+            name = file;
+            inherit (entry) hash;
+            message = "dangonix foundry import ${file}";
+          }).outPath;
     }
   ) (lib.filterAttrs (_: entry: entry ? hash) foundryTable);
 
@@ -74,7 +83,9 @@ let
       gnugrep
       jq
       nix
+      nvd
       systemd
+      util-linux
       xdg-utils
     ];
     # `$` in single quotes is jq code.
