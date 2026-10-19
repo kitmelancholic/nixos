@@ -99,15 +99,24 @@ for _ in $(seq 25); do
   rc=$?
   ((rc == 124)) && stop "$id: timed out after $limit"
   ((rc == 0)) || stop "$id: $agent exited $rc (see $log)"
+  denied=0
   if [[ $agent == claude ]]; then
     denied=$(jq '.permission_denials | length' "$log" 2>/dev/null || echo "?")
-    [[ $denied == 0 ]] || stop "$id: $denied permission denials (see $log)"
   fi
-  [[ $(git rev-parse HEAD) != "$before" ]] || stop "$id: no new commit"
+  [[ $(git rev-parse HEAD) != "$before" ]] ||
+    stop "$id: no new commit ($denied permission denials, see $log)"
   last=$(grep -E '^## c[0-9]+q[0-9]+ — ' docs/progress.md | tail -n 1)
+  # A denial the agent worked around (quest-verify passed, `виконано`) is
+  # noted, not fatal; on any other outcome it is the likely cause.
   case $last in
-  *"— виконано"*) continue ;;
-  *) stop "$last" 0 ;;
+  *"— виконано"*)
+    [[ $denied == 0 ]] || echo "$id: $denied permission denials (see $log)"
+    continue
+    ;;
+  *)
+    [[ $denied == 0 ]] || last="$last; $denied permission denials (see $log)"
+    stop "$last" 0
+    ;;
   esac
 done
 stop "Stopped after 25 quests" 0

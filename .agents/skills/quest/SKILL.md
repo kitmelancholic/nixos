@@ -16,13 +16,17 @@ answers an entry below that line; `scripts/campaign` then runs `retry`.
    - If the last entry is `хід майстра` or `провалений кидок` and the
      argument is not `retry <id>`, print that entry and stop.
    - Any agent may continue any quest: the journal, `docs/tasks.md` and git
-     are the whole state. Uncommitted changes you did not make are a
-     previous run's work: keep them if they belong to this quest's paths,
-     otherwise write `провалений кидок` listing them.
+     are the whole state. Uncommitted changes you did not make inside the
+     quest's paths (its *Files* item) are a previous run's work: keep them.
+     Outside those paths they are the GM's: leave them unstaged and
+     untouched and carry on, unless they are `.nix` files, `flake.lock` or
+     `state.json` (they change what the checks evaluate): then write
+     `провалений кидок` listing them.
 2. Pick the quest: `next` = the first quest in `docs/tasks.md` with no
    `виконано` entry in `docs/progress.md`; otherwise the given ID.
 3. Read **only** that quest's section of `docs/tasks.md` (from its `## <id>`
-   heading to the next `## `), plus the files it lists under *Read first*.
+   heading to the next `## `), the header's *Shared rules*, and the files it
+   lists under *Read first*.
    Do not read other quests or explore beyond what the section names.
    For `retry`, also read the quest's last `провалений кидок` entry and the
    decision the GM appended under it.
@@ -34,9 +38,14 @@ answers an entry below that line; `scripts/campaign` then runs `retry`.
    Line numbers in the section are hints; re-locate code with grep.
    Stage new files with `git add` before any check (flakes ignore untracked
    files). Never `git commit -a`, `git clean`, `reset --hard`, `checkout .`.
+   An outcome the section lists under *Stop if*: append `провалений кидок`
+   as in step 4 with what it asks for, keep your work uncommitted, stop.
 6. Run `scripts/quest-verify <id>`. If it fails, fix and rerun. If it fails
-   twice in a row: revert only the quest's paths, append `провалений кидок`,
-   stop.
+   twice in a row: keep your work uncommitted (the retry continues from it),
+   append `провалений кидок` with the failing lines of the verify output,
+   commit only `docs/progress.md`, stop. A `leaves=` failure whose names are
+   all build inputs or aggregates of what the quest adds or removes is still
+   a failure: list the names, the GM widens the line.
 7. If the quest's `meta:` line says `boss=yes`: stage everything, then run
    `scripts/review <id>` (the judge, a separate agent session that reads the
    quest section and `git diff --staged`). It prints concrete defects or
@@ -57,5 +66,9 @@ answers an entry below that line; `scripts/campaign` then runs `retry`.
     from `scripts/next-version` (`c1r3`: `v1.0.0`), stop.
 
 Never print full build logs (tail -n 40 or grep errors). Never push.
-Never edit `docs/tasks.md`. Before committing, check the branch is
-`redesign`; if not, append `провалений кидок` and stop.
+Never edit `docs/tasks.md`, except the quest's own `meta:` line when the
+GM's decision under the last entry says so. Never edit the files the
+section's shared rules list as never touched by agents; if a step needs
+one, put the exact change into the `хід майстра` entry instead. Before
+committing, check the branch is `redesign`; if not, append
+`провалений кидок` and stop.

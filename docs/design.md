@@ -109,7 +109,7 @@ themes.noctalia = {
 4. **Bindings** — frozen fixture (кожен запис на місці і незмінний), ключі ролей присутні, у кожного bind'а є опис, немає дублікатів resolved ключів.
 5. **Executables** — перше слово кожної role-команди є в `home-path/bin` теми або це абсолютний store path.
 6. **Builds** — host toplevel, activation package кожної теми, `Hyprland --verify-config`.
-7. **Command table** — кожна підкоманда в таблиці, у кожної є `effect`/`agent`/kind, не-`read` мають `--dry`, `.claude/settings.json` і `.codex/rules/dangonix.rules` збігаються зі згенерованими.
+7. **Command table** — кожна підкоманда в таблиці, у кожної є `effect`/`agent`/kind, не-`read` мають `--dry`, `agent = allow` тільки в `read` (і `check`), а `dangonix`-правила в `.claude/settings.json` і `.codex/rules/dangonix.rules` — рівно allow на `dangonix --dry …` і `dangonix check …`.
 
 Runtime-відповідник — **`dangonix doctor`**: один власник `org.freedesktop.Notifications` (і це заявлений провайдер), зареєстрований polkit agent, запущений idle daemon, один writer clipboard history.
 
@@ -146,7 +146,7 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 - `dangonix <іменник> [<дієслово>] [<ім'я>] [аргументи]`. Іменник без дієслова — завжди статус (`read`): `dangonix power`, `dangonix fingerprint`, `dangonix backup`.
 - Режими задаються самим словом (`power saver`, `net saver`, `theme <id>`), перемикачі — `on|off` (`fingerprint on`, `net metered off`, `foundry share main on`).
 - `<name>` інстансу Foundry можна не писати, коли інстанс один.
-- Глобальні флаги **перед** підкомандою: `--json` (один JSON на stdout, логи на stderr), `--dry` (кожна не-`read` команда: що зробила б, без змін), `--yes` (підтвердження irreversible-кроку без TTY), `--metered-ok` (дозвіл качати на лімітному з'єднанні, [§8](#8-трафік)), `--flake <path>`. Приклад: `dangonix --dry switch`. У кожної команди є `--help`; `dangonix help <команда>` — те саме.
+- Глобальні флаги **перед** підкомандою: `--json` (один JSON на stdout, логи на stderr), `--dry` (приймає кожна команда; не-`read` каже, що зробила б, без змін, `read` працює як завжди), `--yes` (підтвердження irreversible-кроку без TTY), `--metered-ok` (дозвіл качати на лімітному з'єднанні, [§8](#8-трафік)), `--flake <path>`. Приклад: `dangonix --dry switch`. У кожної команди є `--help`; `dangonix help <команда>` — те саме.
 - **JSON:** `{ command, ok, exit, data, warnings }`; мутації додають `steps`, `failedStep`, `recovered`, `reversible`.
 - **Exit codes:** `0` — успіх; `1` — команда впала, стан відновлено; `2` — помилка використання; `3` — відновлення не вдалося, надруковано ручні кроки; `4` — відмова до будь-яких змін (lock зайнятий, не той юзер, лімітне з'єднання без `--metered-ok`, irreversible без підтвердження, немає пристрою).
 - Irreversible-крок на TTY питає `y/N`; без TTY потребує `--yes`.
@@ -179,28 +179,28 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 | `dangonix pkg search <слова…>` | read | allow | пошук по всьому nixpkgs (stable і unstable) з версіями з `flake.lock`; позначає встановлене (будь-яким шляхом) і програми з опцією модуля |
 | `dangonix pkg install <attr> [stable\|unstable] [--note <текст>]` | state | ask | записати в `packages.json`, зібрати й активувати home |
 | `dangonix pkg remove <attr>` | state | ask | прибрати з `packages.json`, активувати home; рукописні пакети не чіпає, а показує, де вони в коді |
-| `dangonix pkg try <attr>` | runtime | allow | тимчасова оболонка з пакетом (`nix shell`), конфіг не змінюється |
+| `dangonix pkg try <attr>` | runtime | ask | тимчасова оболонка з пакетом (`nix shell`), конфіг не змінюється |
 | **Foundry** ([§9](#9-foundry-vtt)) | | | |
 | `dangonix foundry [list]` | read | allow | інстанси: версія, порт, стан, URL |
 | `dangonix foundry status [<name>]` | read | allow | повний звіт по інстансу, без імені — по всіх ([§9](#статус)) |
 | `dangonix foundry logs [<name>] [-f]` | read | allow | журнал інстансу |
-| `dangonix foundry start\|stop\|restart\|open [<name>]` | runtime | **ask** | керування `foundryvtt-<name>.service` (зупинка обірве гру) |
-| `dangonix foundry share [<name>] [on\|off]` | runtime | **ask** | Tailscale Funnel для інстансу: друкує посилання для гравців; вимикається разом з інстансом ([§11](#мережа)) |
+| `dangonix foundry start\|stop\|restart\|open [<name>]` | runtime | ask | керування `foundryvtt-<name>.service` (зупинка обірве гру) |
+| `dangonix foundry share [<name>] [on\|off]` | runtime | ask | Tailscale Funnel для інстансу: друкує посилання для гравців; вимикається разом з інстансом ([§11](#мережа)) |
 | `dangonix foundry add <name> <zip> [--port N] [--copy-from <name>]` | host | ask | імпорт ZIP, новий інстанс у `state.json`, switch host; `--copy-from` копіює дані іншого інстансу |
 | `dangonix foundry upgrade <name> <zip> [--backed-up]` | host | ask | імпорт ZIP, нова версія для інстансу, switch host; між major — тільки з `--backed-up` |
 | `dangonix foundry remove <name>` | host | ask | прибрати інстанс зі `state.json`, switch host; дані лишаються на диску |
 | `dangonix foundry import <zip>` | state | ask | тільки імпорт ZIP (store + GC root) для версії, що вже є в `state.json`; для fresh install |
 | **Енергія й мережа** | | | |
-| `dangonix power [auto\|saver\|balanced\|performance]` | runtime | allow | статус / override енергорежиму ([§7](#7-енергія-і-фон)) |
-| `dangonix net [auto\|saver\|normal]` | runtime | allow | статус з'єднання (лімітне чи ні) / override режиму трафіку ([§8](#8-трафік)) |
+| `dangonix power [auto\|saver\|balanced\|performance]` | runtime | ask | статус / override енергорежиму ([§7](#7-енергія-і-фон)) |
+| `dangonix net [auto\|saver\|normal]` | runtime | ask | статус з'єднання (лімітне чи ні) / override режиму трафіку ([§8](#8-трафік)) |
 | `dangonix net metered [on\|off]` | state | ask | позначити поточне з'єднання NetworkManager як лімітне назавжди |
 | **Залізо** | | | |
 | `dangonix firmware [--refresh]` | read | allow | пристрої й оновлення; metadata refresh, якщо старша за 24 год |
 | `dangonix firmware update` | host | ask | застосувати firmware updates, тільки на запит |
 | `dangonix fingerprint` | read | allow | стан відбитка: увімкнено, пристрій, записані пальці, де діє ([§10](#10-відбиток-пальця)) |
-| `dangonix fingerprint add [<finger>]` | state | **ask** | записати палець (default `right-index-finger`) |
-| `dangonix fingerprint remove <finger>\|--all` | state | **ask** | видалити записаний відбиток |
-| `dangonix fingerprint check` | runtime | **ask** | прикласти палець один раз: `match \| no-match \| no-device` |
+| `dangonix fingerprint add [<finger>]` | state | ask | записати палець (default `right-index-finger`) |
+| `dangonix fingerprint remove <finger>\|--all` | state | ask | видалити записаний відбиток |
+| `dangonix fingerprint check` | runtime | ask | прикласти палець один раз: `match \| no-match \| no-device` |
 | `dangonix fingerprint on\|off` | host | ask | записати `state.fingerprint`, switch host |
 | **Дані** ([§11](#бекапи)) | | | |
 | `dangonix backup` | read | allow | вік останнього бекапу, чи підключений диск, вільне місце на ньому |
@@ -225,9 +225,9 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 | `state` | пише `state.json`, `flake.lock` або user data | ні | з `--dry` | так |
 | `host` | змінює або активує системну конфігурацію | ні | з `--dry` | так |
 
-`agent` (`allow | ask`) — окреме поле для Claude Code permissions. `wraps` — сирі команди, які рядок обгортає; з нього генерується deny для агентів у managed settings ([§11](#агенти)). Default: `allow` для read/runtime, `ask` для state/host; винятки — Foundry service control, clipboard і `fingerprint add|remove|check` (`ask`: потрібен живий палець). Rules генеруються з таблиці по конкретних формах аргументів (напр. ask на `dangonix theme noctalia`, але `dangonix theme` — allow). `dangonix --dry …` — один allow rule.
+`agent` (`allow | ask`) — чи агент запускає команду без мене. `wraps` — сирі команди, які рядок обгортає; з нього генерується deny для агентів у managed settings ([§11](#агенти)). `allow` — тільки `read`; `runtime`, `state` і `host` — `ask`, виняток — `clipboard` (`ask`, бо історія може містити паролі: з `--dry` він нічого не показує). Rules не генеруються і не змінюються з кожною новою командою: `--dry` приймає кожна команда (для `read` він нічого не міняє), тож агентові досить двох allow — `dangonix --dry …` і `dangonix check …`; усе інше без правила, і Claude Code питає (headless — відмовляє), а sandbox Codex не дає активувати. Catch-all `ask` не можна: в обох CLI ask сильніший за allow. Так файли дозволів, які агент сам міняти не може, не потребують ходу майстра на кожен квест.
 
-З таблиці генеруються: help, fish completions, `dangonix commands --json`, що показує search, що проганяє `--json`-перевірка, хто бере lock, permissions для Claude Code.
+З таблиці генеруються: help, fish completions, `dangonix commands --json`, що показує search, що проганяє `--json`-перевірка, хто бере lock.
 
 ### Транзакції
 Три види мутацій, усі під lock'ом:
@@ -422,7 +422,7 @@ restic у власну теку на зовнішньому HDD (решту фа
 - **`AGENTS.md`** англійською, < 60 рядків, описує тільки те, що вже існує; `CLAUDE.md` — один рядок `@AGENTS.md`. Будь-яка зміна, на яку покладаються агенти, оновлює його в тому самому коміті. README — для мене, AGENTS.md — для агентів; не дублюють одне одного.
 - **Інваріанти для агентів:** не чіпати `hardware-configuration.nix`; тема не змінює хост; кожна тема проходить `dangonix check`; не прибирати й не перебиндовувати наявні клавіші; clipboard і search — core; `settings.toml` Noctalia — тільки через named keys; `ask`-команди і `sudo` — тільки на запит; `state.json` — тільки на запит.
 - **Цикл:** edit → `nix fmt` → `dangonix check --fast` → `dangonix check` → `scripts/closure-diff --assert-same HEAD` (або очікувані зміни); після зміни теми — `dangonix doctor`. Тести, що навмисно змінюють стан, — у тимчасовому worktree.
-- **Guards однакові для обох:** permissions у `.claude/settings.json` і `.codex/rules/dangonix.rules` (генеруються з таблиці команд); git hooks `scripts/hooks/` спрацьовують за `CLAUDECODE=1` або `DANGONIX_AGENT` (Codex ставить його з `.codex/config.toml`); `git-guard` і fail-closed hook `~/.config/dangonix/hooks/bash-guard || exit 2` в обох CLI (новий шлях одразу, бо нові речі з початку звуться по-новому; rename у c1q19 стосується тільки наявних `kit`-шляхів) блокує команди з `hardware-configuration.nix`. Це сильний guard, не гарантія — фінальна перевірка мій review diff'у.
+- **Guards однакові для обох:** permissions у `.claude/settings.json` і `.codex/rules/dangonix.rules` (`dangonix`-правила сталі, [§5](#effect-і-agent)); git hooks `scripts/hooks/` спрацьовують за `CLAUDECODE=1` або `DANGONIX_AGENT` (Codex ставить його з `.codex/config.toml`); `git-guard` і fail-closed hook `~/.config/dangonix/hooks/bash-guard || exit 2` в обох CLI (новий шлях одразу, бо нові речі з початку звуться по-новому; rename у c1q19 стосується тільки наявних `kit`-шляхів) блокує команди з `hardware-configuration.nix`. Це сильний guard, не гарантія — фінальна перевірка мій review diff'у.
 - **Tooling:** `mcp-nixos` (опційно, канал 26.05; не знає options з flake inputs, для них — `scripts/opt`), плагін `claude-md-management` — єдиний (тільки Claude). Без hookify і formatting hook.
 - Discovery: `dangonix commands --json`.
 
