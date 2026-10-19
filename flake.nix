@@ -56,13 +56,6 @@
       };
     };
 
-    stylix = {
-      url = "github:nix-community/stylix/release-26.05";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-      };
-    };
-
     thyx.url = "github:rccyx/thyx";
 
     noctalia.url = "github:noctalia-dev/noctalia";

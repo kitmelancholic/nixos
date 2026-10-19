@@ -14,7 +14,6 @@ assert builtins.elem profileId (builtins.attrNames profileRegistry.profiles);
 home-manager.lib.homeManagerConfiguration {
   pkgs = homePkgs;
   modules = [
-    inputs.stylix.homeModules.stylix
     ../home/kit.nix
     profileRegistry.profiles.${profileId}.module
     {

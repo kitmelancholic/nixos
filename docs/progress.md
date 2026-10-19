@@ -151,3 +151,7 @@ agent: claude claude-haiku-5-5
 ## c1q08 — виконано
 Класична родина прибрана: `themes/`, `profiles/classic/`, модулі waybar, osd, power, screenshots, тема, шпалери, hyprland settings і binds, `assets/`. У `profiles/default.nix` лишилися noctalia і caelestia; прибрані `launcher.command`, перевірки catppuccin/hyprland.start, рядки в README і AGENTS. `nix fmt` і `scripts/check --fast` пройшли; `closure-diff --assert-same --removed catppuccin tokyo-night gruvbox kit-dark` без повідомлень про різницю, змінених drvPath немає.
 agent: claude claude-haiku-5-5
+
+## c1q09 — виконано
+Stylix прибраний: імпорт модуля з `lib/mk-home.nix`, вхід `stylix` з `flake.nix`, коментар у `home/desktop/cursor.nix`. `nix flake lock` лише видалив вузли stylix; перевірка «лише видалення» пройшла (нових ревізій немає). `nix fmt` і `scripts/check --fast` пройшли; `scripts/quest-verify c1q09` пройшов без повідомлень про різницю (змінених drvPath немає). `rg -i stylix` поза `docs/` порожній.
+agent: claude claude-haiku-5-5
