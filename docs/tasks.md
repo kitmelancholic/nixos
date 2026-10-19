@@ -775,7 +775,7 @@ meta: tier=hero effort=medium boss=no diff=none
 **Steps.**
 1. Recreate `home/hyprland/binds.nix` as the core bind list calling roles; delete `themes/noctalia/binds.nix`.
 2. Every bind is a record with a human `description` (kept in Nix, not emitted into `hyprland.lua`); every existing bind keeps its full resolved entry.
-3. Caelestia sets `dangonix.hyprland.coreBinds = false` (it has no binds today and must keep none).
+3. Caelestia sets `dangonix.hyprland.coreBinds = false` and keeps its own list `themes/caelestia/binds.nix` (Noctalia's keys calling Caelestia's IPC) until it meets the role contract in campaign II; its `tests/binds/caelestia.json` does not change.
 
 **Do not.** Reorder binds unless the generator would be contorted otherwise; then the sorted lists of full resolved entries must be equal, the fixture must pass, and stop: the GM switches this quest to `diff=leaves` with `~hm_*hyprland.lua*` as the only expected change.
 

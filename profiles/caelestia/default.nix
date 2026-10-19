@@ -1,4 +1,9 @@
-{ config, inputs, ... }:
+{
+  config,
+  inputs,
+  lib,
+  ...
+}:
 
 {
   imports = [
@@ -26,5 +31,13 @@
     systemd.enable = true;
     cli.enable = true;
     cli.settings.theme.enableGtk = false;
+  };
+
+  wayland.windowManager.hyprland.settings = {
+    mod._var = "SUPER";
+    terminal._var = config.kit.apps.terminal.command;
+    explorer._var = config.kit.apps.explorer.command;
+    browser._var = config.kit.apps.browser.command;
+    bind = import ./binds.nix { inherit lib; };
   };
 }
