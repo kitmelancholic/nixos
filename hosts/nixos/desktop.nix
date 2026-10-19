@@ -1,6 +1,5 @@
 {
   inputs,
-  lib,
   pkgs,
   ...
 }:
@@ -11,11 +10,6 @@ in
 {
   services = {
     pulseaudio.enable = false;
-
-    # programs.hyprlock force-enables a system-wide hypridle unit, but it has no
-    # config and crashes. Idle is handled per profile instead: Home Manager's
-    # services.hypridle (classic) or the shell's built-in idle manager.
-    hypridle.enable = lib.mkForce false;
 
     pipewire = {
       enable = true;
@@ -59,7 +53,6 @@ in
     gvfs.enable = true;
     upower.enable = true;
     power-profiles-daemon.enable = true;
-    blueman.enable = true;
   };
 
   programs = {
@@ -72,8 +65,6 @@ in
       withUWSM = true;
       xwayland.enable = true;
     };
-
-    hyprlock.enable = true;
   };
 
   xdg.portal = {
@@ -112,8 +103,6 @@ in
   environment.systemPackages = with pkgs; [
     bluetuith # Terminal Bluetooth manager
     brightnessctl # Laptop backlight control
-    hyprpolkitagent # Wayland polkit authentication agent
-    networkmanagerapplet # NetworkManager tray integration
     usbutils # Fingerprint device ID inspection
   ];
 }

@@ -168,3 +168,12 @@ agent: claude claude-sonnet-5-5
 GM: додай ці імена з `?` до `leaves=` у `meta:` c1q10 (або допиши під цим записом рішення, що агент може це зробити), потім `retry c1q10`.
 agent: claude claude-opus-5-5
 GM (у чаті, 2026-10-19): «допиши ти і зроби retry» — агент додає ці імена з `?` до `leaves=` c1q10 окремим комітом `docs`, потім `retry c1q10`.
+
+## c1q10 — хід майстра
+Хост прибраний: `blueman`, `networkmanagerapplet`, `hyprpolkitagent` (лишається в домах тем), `programs.hyprlock` разом із `hypridle` mkForce (Noctalia автентифікує через PAM `login`, Caelestia через власний `assets/pam.d`). `quest-verify c1q10` пройшов; змінився лише host, `home-noctalia` і `home-caelestia` без змін; bluetooth і networkmanager `true`. Суддя: дефектів у `desktop.nix` немає (правку `meta:` винесено в `c659c39`).
+- [ ] `just switch` (sudo).
+- [ ] Noctalia і Caelestia: заблокувати, розблокувати паролем, відбитком (лише якщо `fprintd-list kit` показує палець), suspend і resume; у треї немає blueman і nm-applet, Wi-Fi і Bluetooth панелі оболонки підключаються.
+- [ ] Довгий відпочинок: прочитати зауваження рецензента нижче, вивантажити `redesign` на origin, злити PR у `main` merge-комітом, `git switch main && git pull --ff-only && git switch redesign`.
+- [ ] Усе добре → `## c1q10 — виконано`.
+Рецензент акту (`scripts/review --range c1r0..HEAD c1q10`): `no defects`.
+agent: claude claude-opus-5-5
