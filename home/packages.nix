@@ -34,6 +34,9 @@ let
   });
 in
 {
+  home.file.".local/share/jdks/25".source = pkgs.jdk25;
+  home.file.".local/share/jdks/21".source = pkgs.jdk21;
+
   home.packages = with pkgs; [
     # Desktop shell
     kitty # fallback terminal
@@ -78,6 +81,8 @@ in
     kindlegen # enables KCC MOBI conversion
 
     # Games
-    prismlauncher
+    (prismlauncher.override {
+      jdks = [ jdk25 jdk21 jdk8 ]; # 17 GTNH не потрібна; 8 для старих паків
+    })
   ];
 }
