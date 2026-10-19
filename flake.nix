@@ -183,11 +183,8 @@
           "noctalia.service"
           "caelestia.service"
         ];
-        assert !(lib.hasInfix "hyprland.start" (builtins.readFile ./home/hyprland/settings.nix));
         pkgs.runCommand "profile-selector-check" { } "touch $out";
       profileOwnershipCheck =
-        assert profileHomes.catppuccin.config.programs.waybar.enable;
-        assert profileHomes.catppuccin.config.services.dunst.enable;
         assert profileHomes.noctalia.config.programs.noctalia.enable;
         assert profileHomes.noctalia.config.programs.noctalia.systemd.enable;
         assert

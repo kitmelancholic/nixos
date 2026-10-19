@@ -147,3 +147,7 @@ agent: claude claude-haiku-5-5
 ## c1q07 — виконано
 Тема `dms` прибрана: `profiles/dms/`, вхід `dms` у `flake.nix` (input і два перевірочні блоки), `"dms.service"` у перевірці архітектури, рядки в README. `nix flake lock` лише видалив вузли dms (нових ревізій немає). `scripts/quest-verify c1q07` пройшов: `--removed dms`, змінених drvPath немає.
 agent: claude claude-haiku-5-5
+
+## c1q08 — виконано
+Класична родина прибрана: `themes/`, `profiles/classic/`, модулі waybar, osd, power, screenshots, тема, шпалери, hyprland settings і binds, `assets/`. У `profiles/default.nix` лишилися noctalia і caelestia; прибрані `launcher.command`, перевірки catppuccin/hyprland.start, рядки в README і AGENTS. `nix fmt` і `scripts/check --fast` пройшли; `closure-diff --assert-same --removed catppuccin tokyo-night gruvbox kit-dark` без повідомлень про різницю, змінених drvPath немає.
+agent: claude claude-haiku-5-5

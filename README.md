@@ -45,18 +45,14 @@ nix run .#switch
 - `hosts/nixos/desktop.nix`: display manager, Hyprland, PipeWire, fonts, portals, and desktop plumbing.
 - `hosts/nixos/workloads.nix` and `hosts/nixos/foundryvtt.nix`: gaming, streaming, Docker, and FoundryVTT ownership.
 - `home/`: invariant Home Manager modules and the Hyprland substrate.
-- `profiles/`: the explicit profile registry, classic family, and external-shell adapters.
-- `themes/`: the four classic palette variants.
+- `profiles/`: the theme registry and the shell adapters (Noctalia, Caelestia).
 
 ## Desktop profiles
 
 The desktop is one invariant Home Manager environment plus exactly one
 ordinary selected profile module. The registry currently provides
-`catppuccin`, `tokyo-night`, `gruvbox`, `kit-dark`,
-`noctalia` (default), and `caelestia`.
+`noctalia` (default) and `caelestia`.
 
-The four classic palettes share one profile family, including Waybar, Dunst,
-SwayOSD, awww, Hyprlock, Hypridle, Wlogout, screenshots, and classic binds.
 External shells are isolated adapters with their own Home Manager/systemd
 lifecycle. NixOS owns invariant host capabilities; profile switching does not
 rebuild the host.
@@ -79,11 +75,10 @@ directory:
 kit-profile list
 kit-profile list --json
 kit-profile current
-kit-profile switch gruvbox
+kit-profile switch caelestia
 ```
 
-The available IDs are `catppuccin`, `tokyo-night`, `gruvbox`, `kit-dark`,
-`noctalia`, and `caelestia`.
+The available IDs are `noctalia` and `caelestia`.
 Missing generated identity reports the default `noctalia`; a malformed or
 unknown identity is an error. Every Home Manager generation writes its
 declarative identity to `$XDG_CONFIG_HOME/kit/profile-id` and a migration-
@@ -97,10 +92,6 @@ Normal configuration changes still use `home-manager switch --flake .#kit`
 (default Noctalia) or a named profile:
 
 ```sh
-home-manager switch --flake .#kit-catppuccin
-home-manager switch --flake .#kit-tokyo-night
-home-manager switch --flake .#kit-gruvbox
-home-manager switch --flake .#kit-dark
 home-manager switch --flake .#kit-noctalia
 home-manager switch --flake .#kit-caelestia
 ```
