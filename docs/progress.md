@@ -155,3 +155,9 @@ agent: claude claude-haiku-5-5
 ## c1q09 — виконано
 Stylix прибраний: імпорт модуля з `lib/mk-home.nix`, вхід `stylix` з `flake.nix`, коментар у `home/desktop/cursor.nix`. `nix flake lock` лише видалив вузли stylix; перевірка «лише видалення» пройшла (нових ревізій немає). `nix fmt` і `scripts/check --fast` пройшли; `scripts/quest-verify c1q09` пройшов без повідомлень про різницю (змінених drvPath немає). `rg -i stylix` поза `docs/` порожній.
 agent: claude claude-haiku-5-5
+
+## c1q10 — провалений кидок
+Precondition: Noctalia uses PAM `login`, Caelestia its own `assets/pam.d` (passwd/fprint/howdy); neither uses hyprlock → dropped hyprlock and the hypridle force-disable, plus blueman, nm-applet, hyprpolkitagent, `lib`. `nix fmt`, `check --fast` and the full check pass; edits in `hosts/nixos/desktop.nix` kept uncommitted.
+`quest-verify` fails twice on `leaves=`: unexpected `~man-paths ~source ~system-generators ~system-shutdown ~system_fish-completions ~user-generators ~user-units` (aggregates of the removed packages).
+GM: add `~man-paths?,~source?,~system-generators?,~system-shutdown?,~system_fish-completions?,~user-generators?,~user-units?` to `leaves=`, then retry c1q10.
+agent: claude claude-sonnet-5-5
