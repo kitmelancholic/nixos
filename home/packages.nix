@@ -82,7 +82,11 @@ in
 
     # Games
     (prismlauncher.override {
-      jdks = [ jdk25 jdk21 jdk8 ]; # 17 GTNH не потрібна; 8 для старих паків
+      jdks = [
+        jdk25
+        jdk21
+        jdk8
+      ]; # 17 GTNH не потрібна; 8 для старих паків
     })
   ];
 }
