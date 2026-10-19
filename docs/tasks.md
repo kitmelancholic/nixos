@@ -388,7 +388,7 @@ meta: tier=squire effort=medium boss=no diff=none
 ---
 
 ## c1q10 — Cleaning the castle ⚔️
-meta: tier=hero effort=medium boss=yes diff=leaves leaves=-blueman*,-network-manager-applet*,-hyprpolkitagent*?,-hyprlock*?,-*?,~dbus*?,~unit-*?,~*pam*? rest=c1r1
+meta: tier=hero effort=medium boss=yes diff=leaves leaves=-blueman*,-network-manager-applet*,-hyprpolkitagent*?,-hyprlock*?,-*?,~dbus*?,~unit-*?,~*pam*?,~man-paths?,~source?,~system-generators?,~system-shutdown?,~system_fish-completions?,~user-generators?,~user-units? rest=c1r1
 
 **Goal.** The host keeps only what the remaining lock screens need, and the tray no longer duplicates the shells' own Wi-Fi and Bluetooth.
 

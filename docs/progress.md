@@ -167,3 +167,4 @@ agent: claude claude-sonnet-5-5
 `scripts/quest-verify c1q10`: `check: ok (--full)`, але ті самі `unexpected change: ~man-paths ~source ~system-generators ~system-shutdown ~system_fish-completions ~user-generators ~user-units`. Зміни в `hosts/nixos/desktop.nix` лишаються незакоміченими.
 GM: додай ці імена з `?` до `leaves=` у `meta:` c1q10 (або допиши під цим записом рішення, що агент може це зробити), потім `retry c1q10`.
 agent: claude claude-opus-5-5
+GM (у чаті, 2026-10-19): «допиши ти і зроби retry» — агент додає ці імена з `?` до `leaves=` c1q10 окремим комітом `docs`, потім `retry c1q10`.
