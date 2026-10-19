@@ -1,0 +1,11 @@
+{
+  "theme": "noctalia",
+  "foundry": {
+    "instances": {
+      "main": {
+        "version": "14.0.0+361",
+        "port": 30000
+      }
+    }
+  }
+}

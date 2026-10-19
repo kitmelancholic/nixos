@@ -1,23 +1,33 @@
 {
   system,
   username,
+  state,
 }:
 
 let
-  foundryPort = 30000;
+  instances = state.foundry.instances;
+  names = builtins.attrNames instances;
+  enable = names != [ ];
+  instance = instances.${builtins.head names};
 in
+assert
+  builtins.length names <= 1 || throw "state.json: several Foundry instances arrive in campaign II";
 {
   inherit system username;
   hostname = "nixos";
   homeDirectory = "/home/${username}";
 
   foundry = {
-    version = "14.0.0+361";
-    shortVersion = "14.361";
-    filename = "FoundryVTT-Linux-14.361.zip";
-    hash = "sha256-zafI0qgSyToAIt0qs4zRkhUspFSFoNaS0B+uAcVrERc=";
-    port = foundryPort;
+    inherit enable;
     service = "foundryvtt.service";
-    url = "http://127.0.0.1:${toString foundryPort}";
-  };
+  }
+  // (
+    if enable then
+      {
+        inherit (instance) version port;
+        url = "http://127.0.0.1:${toString instance.port}";
+      }
+    else
+      { }
+  );
 }

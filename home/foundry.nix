@@ -1,4 +1,9 @@
-{ settings, pkgs, ... }:
+{
+  settings,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   inherit (settings) foundry;
@@ -59,27 +64,29 @@ let
 in
 
 {
-  home.packages = [
-    foundryRestart
-    foundryStart
-    foundryStatus
-    foundryStop
-  ];
+  config = lib.mkIf foundry.enable {
+    home.packages = [
+      foundryRestart
+      foundryStart
+      foundryStatus
+      foundryStop
+    ];
 
-  xdg.dataFile = {
-    "applications/foundryvtt.desktop".text = desktopEntry {
-      name = "Foundry VTT";
-      exec = "${foundryStart}/bin/foundry";
-    };
+    xdg.dataFile = {
+      "applications/foundryvtt.desktop".text = desktopEntry {
+        name = "Foundry VTT";
+        exec = "${foundryStart}/bin/foundry";
+      };
 
-    "applications/foundryvtt-stop.desktop".text = desktopEntry {
-      name = "Stop Foundry VTT";
-      exec = "${foundryStop}/bin/foundry-stop";
-    };
+      "applications/foundryvtt-stop.desktop".text = desktopEntry {
+        name = "Stop Foundry VTT";
+        exec = "${foundryStop}/bin/foundry-stop";
+      };
 
-    "applications/foundryvtt-restart.desktop".text = desktopEntry {
-      name = "Restart Foundry VTT";
-      exec = "${foundryRestart}/bin/foundry-restart";
+      "applications/foundryvtt-restart.desktop".text = desktopEntry {
+        name = "Restart Foundry VTT";
+        exec = "${foundryRestart}/bin/foundry-restart";
+      };
     };
   };
 }

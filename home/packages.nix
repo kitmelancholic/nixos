@@ -34,59 +34,61 @@ let
   });
 in
 {
-  home.file.".local/share/jdks/25".source = pkgs.jdk25;
-  home.file.".local/share/jdks/21".source = pkgs.jdk21;
+  home = {
+    file.".local/share/jdks/25".source = pkgs.jdk25;
+    file.".local/share/jdks/21".source = pkgs.jdk21;
 
-  home.packages = with pkgs; [
-    # Desktop shell
-    kitty # fallback terminal
+    packages = with pkgs; [
+      # Desktop shell
+      kitty # fallback terminal
 
-    # Wayland utilities
-    grim
-    slurp
-    swappy
-    wl-clipboard
-    pavucontrol
+      # Wayland utilities
+      grim
+      slurp
+      swappy
+      wl-clipboard
+      pavucontrol
 
-    # System tools
-    fastfetch
-    btop
-    xclip
-    xsel
+      # System tools
+      fastfetch
+      btop
+      xclip
+      xsel
 
-    # Files and documents
-    nautilus
-    file-roller
-    evince
-    calibre
-    loupe
+      # Files and documents
+      nautilus
+      file-roller
+      evince
+      calibre
+      loupe
 
-    # Internet and communication
-    inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.zen-browser
-    vivaldi # browser
-    vivaldi-ffmpeg-codecs # Extra media codecs for Vivaldi
-    qbittorrent
-    anki
-    telegram-desktop
-    inputs.claude-desktop-extra.packages.${pkgs.stdenv.hostPlatform.system}.claude-desktop-extra
+      # Internet and communication
+      inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.zen-browser
+      vivaldi # browser
+      vivaldi-ffmpeg-codecs # Extra media codecs for Vivaldi
+      qbittorrent
+      anki
+      telegram-desktop
+      inputs.claude-desktop-extra.packages.${pkgs.stdenv.hostPlatform.system}.claude-desktop-extra
 
-    # Development adjacent
-    unityhub
-    mono # Unity/legacy .NET compatibility
-    goose-cli
-    pkgsUnstable.claude-code # unstable: tracks upstream releases closely; wrapper sets DISABLE_AUTOUPDATER=1
-    pkgsUnstable.codex # unstable, no self-update (check_for_update_on_startup = false)
-    mcp-nixos # NixOS/Home Manager option and package lookup for both agents
-    kccWithKindlegen
-    kindlegen # enables KCC MOBI conversion
+      # Development adjacent
+      unityhub
+      mono # Unity/legacy .NET compatibility
+      goose-cli
+      pkgsUnstable.claude-code # unstable: tracks upstream releases closely; wrapper sets DISABLE_AUTOUPDATER=1
+      pkgsUnstable.codex # unstable, no self-update (check_for_update_on_startup = false)
+      mcp-nixos # NixOS/Home Manager option and package lookup for both agents
+      kccWithKindlegen
+      kindlegen # enables KCC MOBI conversion
 
-    # Games
-    (prismlauncher.override {
-      jdks = [
-        jdk25
-        jdk21
-        jdk8
-      ]; # 17 GTNH не потрібна; 8 для старих паків
-    })
-  ];
+      # Games
+      (prismlauncher.override {
+        jdks = [
+          jdk25
+          jdk21
+          jdk8
+        ]; # 17 GTNH не потрібна; 8 для старих паків
+      })
+    ];
+  };
 }

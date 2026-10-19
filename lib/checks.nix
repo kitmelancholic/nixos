@@ -19,7 +19,7 @@ let
     [
       (lib.optional (
         !builtins.elem profileRegistry.default profileIds
-      ) "default ${profileRegistry.default} is not registered")
+      ) "state.json theme ${profileRegistry.default} is not in the registry")
       (map (name: "duplicate name ${name}") (duplicates (map (id: profiles.${id}.name) profileIds)))
       (map (module: "duplicate module ${module}") (
         duplicates (map (id: toString profiles.${id}.module) profileIds)

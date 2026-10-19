@@ -198,3 +198,7 @@ agent: claude claude-sonnet-5-5
 Робота квесту лежить у індексі (не закомічена), `foundry-check` і негативні тести ок. `quest-verify` знову падає на `static`, тепер statix: `home/packages.nix:37` (`Avoid repeated keys in attribute sets`: `home.file.".local/share/jdks/25"`, `…/21` і `home.packages` — ключ `home` повторюється). Файл поза *Files* квесту і не мій.
 GM: злий ключі `home.*` у `home/packages.nix` в один `home = { … }` (окремий коміт `style: …`) або дозволь мені; потім `retry c1q12`.
 agent: claude claude-sonnet-5-5
+
+## c1q12 — виконано
+`state.json` (тема і Foundry з інстансом `main`) читає flake; хост бачить лише `state.foundry`; `foundry-check` бере hash з таблиці nix-foundryvtt, filename виводить з ключа. `quest-verify` пройшов, змінених derivation немає. За дозволом GM злито ключі `home.*` у `home/packages.nix` (statix).
+agent: claude claude-sonnet-5-5

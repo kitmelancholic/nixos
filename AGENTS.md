@@ -55,6 +55,7 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
 - `hosts/` the one NixOS host; `home/` Home Manager modules for every theme.
 - `profiles/` theme registry (default `noctalia`) and shell themes.
 - `lib/` flake helpers; `scripts/` checks, quest tooling, git hooks, `opt`.
+- `state.json` holds the GM's choices; change it only when asked.
 - Checks live in `lib/checks.nix`; the bind fixture `tests/binds/` changes
   only with a declared behavior change.
 - `docs/` vision, design, plan, journal.

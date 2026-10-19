@@ -73,7 +73,9 @@
       inherit (nixpkgs) lib;
       system = "x86_64-linux";
       username = "kit";
-      settings = import ./lib/settings.nix { inherit system username; };
+      state = lib.importJSON ./state.json;
+      settings = import ./lib/settings.nix { inherit system username state; };
+      foundryTable = lib.importJSON "${inputs.foundryvtt}/pkgs/foundryvtt/versions.json";
       pkgs = nixpkgs.legacyPackages.${settings.system};
       homePkgs = import nixpkgs {
         inherit (settings) system;
@@ -90,6 +92,7 @@
           lib
           settings
           pkgs
+          foundryTable
           homeManagerPackage
           profileRegistry
           ;
@@ -108,7 +111,9 @@
           inputs.thyx.nixosModules.default
         ];
       };
-      profileRegistry = import ./profiles;
+      profileRegistry = import ./profiles // {
+        default = state.theme;
+      };
       profileIds = builtins.sort builtins.lessThan (builtins.attrNames profileRegistry.profiles);
       defaultProfile = profileRegistry.default;
       profileName = profileId: "${settings.username}-${profileId}";
