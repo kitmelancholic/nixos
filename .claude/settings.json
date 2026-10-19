@@ -67,10 +67,7 @@
       "Bash(git commit -a *)",
       "Edit(**/hardware-configuration.nix)",
       "Edit(**/.git/**)",
-      "Edit(**/scripts/hooks/**)",
-      "Write(**/hardware-configuration.nix)",
-      "Write(**/.git/**)",
-      "Write(**/scripts/hooks/**)"
+      "Edit(**/scripts/hooks/**)"
     ]
   },
   "hooks": {
