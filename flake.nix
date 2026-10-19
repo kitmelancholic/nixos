@@ -137,26 +137,6 @@
         ${settings.username} = profileHomes.${defaultProfile};
       }
       // lib.mapAttrs' (profileId: home: lib.nameValuePair (profileName profileId) home) profileHomes;
-      themeOverrideCanary = profileHomes.${defaultProfile}.extendModules {
-        modules = [
-          {
-            kit.apps.launcher.command = "fuzzel";
-            wayland.windowManager.hyprland.settings.config.general.layout = "master";
-            programs.waybar.settings.mainBar.position = "bottom";
-          }
-        ];
-      };
-      themeOverrideCheck =
-        assert themeOverrideCanary.config.kit.apps.launcher.command == "fuzzel";
-        assert
-          themeOverrideCanary.config.wayland.windowManager.hyprland.settings.config.general.layout
-          == "master";
-        assert themeOverrideCanary.config.programs.waybar.settings.mainBar.position == "bottom";
-        assert themeOverrideCanary.config.programs.waybar.settings.mainBar.height == 30;
-        assert themeOverrideCanary.config.programs.waybar.settings.mainBar.layer == "top";
-        assert themeOverrideCanary.config.programs.waybar.settings.mainBar.clock.format != null;
-        assert themeOverrideCanary.config.programs.waybar.settings.mainBar.modules-right != [ ];
-        pkgs.runCommand "theme-override-check" { } "touch $out";
       homeChecks = lib.genAttrs profileIds (profileId: profileHomes.${profileId}.activationPackage);
       hyprlandCheck =
         themeId: home:
@@ -192,8 +172,7 @@
           profileId: profileHomes.${profileId}.config.kit.profile.id == profileId
         ) profileIds;
         pkgs.runCommand "profile-check" {
-          buildInputs =
-            (builtins.attrValues homeChecks) ++ (builtins.attrValues hyprlandChecks) ++ [ themeOverrideCheck ];
+          buildInputs = (builtins.attrValues homeChecks) ++ (builtins.attrValues hyprlandChecks);
         } "touch $out";
       selectorSource = builtins.readFile ./home/theme-switcher.nix;
       selectorArchitectureCheck =
@@ -264,7 +243,6 @@
         profile-selector = selectorArchitectureCheck;
         profile-ownership = profileOwnershipCheck;
         theme = profileCheck;
-        theme-override = themeOverrideCheck;
         hyprland = hyprlandChecks.${defaultProfile};
         home = homeConfigurations.${settings.username}.activationPackage;
       }

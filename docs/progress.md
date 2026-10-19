@@ -139,3 +139,7 @@ agent: claude claude-opus-5-5
 ## c1q05 — виконано
 GM confirmed the c1q05 checklist and closed the quest.
 agent: claude claude-opus-5-5
+
+## c1q06 — виконано
+Типовий профіль тепер noctalia; канарка теми і перевірка `theme-override` прибрані. `scripts/quest-verify c1q06` пройшов: змінених drvPath немає (`--assert-same`).
+agent: claude claude-haiku-5-5

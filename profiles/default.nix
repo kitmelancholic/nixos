@@ -1,5 +1,5 @@
 {
-  default = "catppuccin";
+  default = "noctalia";
 
   profiles = {
     catppuccin = {

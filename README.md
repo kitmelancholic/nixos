@@ -52,8 +52,8 @@ nix run .#switch
 
 The desktop is one invariant Home Manager environment plus exactly one
 ordinary selected profile module. The registry currently provides
-`catppuccin` (default), `tokyo-night`, `gruvbox`, `kit-dark`, `dms`,
-`noctalia`, and `caelestia`.
+`catppuccin`, `tokyo-night`, `gruvbox`, `kit-dark`, `dms`,
+`noctalia` (default), and `caelestia`.
 
 The four classic palettes share one profile family, including Waybar, Dunst,
 SwayOSD, awww, Hyprlock, Hypridle, Wlogout, screenshots, and classic binds.
@@ -84,7 +84,7 @@ kit-profile switch gruvbox
 
 The available IDs are `catppuccin`, `tokyo-night`, `gruvbox`, `kit-dark`, `dms`,
 `noctalia`, and `caelestia`.
-Missing generated identity reports the default `catppuccin`; a malformed or
+Missing generated identity reports the default `noctalia`; a malformed or
 unknown identity is an error. Every Home Manager generation writes its
 declarative identity to `$XDG_CONFIG_HOME/kit/profile-id` and a migration-
 compatible `$XDG_CONFIG_HOME/kit/theme-id` (falling back to `$HOME/.config/kit/`).
@@ -94,7 +94,7 @@ Switching and `just home-switch` take the same nonblocking per-user activation l
 `$HOME/.local/state/kit/home-activation.lock`).
 
 Normal configuration changes still use `home-manager switch --flake .#kit`
-(default Catppuccin) or a named profile:
+(default Noctalia) or a named profile:
 
 ```sh
 home-manager switch --flake .#kit-catppuccin
