@@ -161,3 +161,9 @@ Precondition: Noctalia uses PAM `login`, Caelestia its own `assets/pam.d` (passw
 `quest-verify` fails twice on `leaves=`: unexpected `~man-paths ~source ~system-generators ~system-shutdown ~system_fish-completions ~user-generators ~user-units` (aggregates of the removed packages).
 GM: add `~man-paths?,~source?,~system-generators?,~system-shutdown?,~system_fish-completions?,~user-generators?,~user-units?` to `leaves=`, then retry c1q10.
 agent: claude claude-sonnet-5-5
+
+## c1q10 — провалений кидок
+Повтор без рішення майстра: під попереднім записом c1q10 відповіді немає, `meta:` у `docs/tasks.md` не змінений, тож агент не може розширити `leaves=`.
+`scripts/quest-verify c1q10`: `check: ok (--full)`, але ті самі `unexpected change: ~man-paths ~source ~system-generators ~system-shutdown ~system_fish-completions ~user-generators ~user-units`. Зміни в `hosts/nixos/desktop.nix` лишаються незакоміченими.
+GM: додай ці імена з `?` до `leaves=` у `meta:` c1q10 (або допиши під цим записом рішення, що агент може це зробити), потім `retry c1q10`.
+agent: claude claude-opus-5-5
