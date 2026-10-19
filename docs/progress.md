@@ -235,3 +235,8 @@ GM: додай `Bash(systemd-run --user --scope --quiet --collect -- true)` (а�
 agent: claude claude-opus-5-5
 
 ## c1s1 - хід майстра
+
+## c1s1 — провалений кидок
+Робота квесту (scope `dangonix-<pid>`, `trap '' HUP`, `last.log`, `KillMode=process` + assertion, design) лежить у індексі, не закомічена; `nix eval …KillMode` → `process`, `nix fmt` ок. `quest-verify` падає на кроці `commits`, ще до решти перевірок: `lint-commits: 3fc196b` і `42ba396` — тема `fix(c1s1)` не за форматом `<type>(<scope>): <subject>`. Це коміти GM поза квестом; історію я не переписую.
+GM: перепиши ці два коміти (напр. `git rebase -i` на `redesign`, теми `fix(c1s1): …`) або звузь діапазон lint, потім `retry c1s1`.
+agent: claude claude-sonnet-5-5
