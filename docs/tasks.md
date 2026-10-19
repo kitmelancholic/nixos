@@ -528,7 +528,7 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_*dangon
 ---
 
 ## c1q14 — Tempering the blade ⚔️
-meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangonix*?
+meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangonix*?,+nvd*,~source?
 
 **Goal.** Every `state`/`host` command of `dangonix` runs as a transaction, and the agents' permission rules for `dangonix` are fixed by its grammar.
 
