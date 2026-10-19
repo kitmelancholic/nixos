@@ -211,3 +211,9 @@ agent: claude claude-sonnet-5-5
 agent: claude claude-opus-5-5
 
 ## c1q13 — виконано
+
+## c1q14 — провалений кидок
+Транзакції та перевірка `commands` лежать у робочому дереві, не закомічені. Перевірки в checkout і worktree пройшли: preflight, відмова ZIP, `update`, `update hyprland`, повернення `flake.lock` після зламаної перевірки. Редагувати `.claude/settings.json` Claude Code не дає навіть у worktree, тому замість цього тесту eval-тест (`.campaign/commands-test.nix`) і зайве правило в `.codex/rules` worktree; обидва падають, як треба.
+Суддя вимагає `nvd diff` (крок 1), тож `nvd` додано в `runtimeInputs`; `quest-verify` двічі поспіль: `unexpected change: +nvd-0.2.4`, `unexpected change: ~source` (це `nvd.src`).
+GM: розшир у `meta:` `leaves=` до `~dangonix*,~hm_*dangonix*?,+nvd*,~source?` (або дозволь `nix store diff-closures` замість nvd), потім `retry c1q14`.
+agent: claude claude-opus-5-5
