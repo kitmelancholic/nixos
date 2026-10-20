@@ -508,6 +508,7 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_*dangon
 2. Subcommands: `switch`, `check [--fast|--vm]` (absorbs `scripts/check`: the same steps and modes, plus `host`; `scripts/check` becomes `exec nix run "$(git rev-parse --show-toplevel)" -- check "$@"` so CI and `quest-verify` keep working), `update` (held list, reports held), `theme`, `commands`, `status`, `help`, `version`, `history` (reads the transaction journal), and `foundry` limited to one instance: `list`, `status|logs|start|stop|restart|open [main]`, where `status` and `foundry status` show only what exists by now (power, net, shield, Funnel and backup arrive with their features in campaign II and III), `import <zip>`, `upgrade main <zip>`, `add main <zip>`, `remove main`. Every command has `--json`. `--dry` is accepted by every command: a non-`read` command only plans, a `read` command runs as usual. Grammar, global flags (`--yes`, `--metered-ok` included), the JSON envelope and exit codes follow [design §5 grammar](design.md#граматика).
 3. In this quest every `state`/`host` command only plans: without `--dry` it refuses with exit 4 ("not available before c1q14") and changes nothing; `check --vm` refuses the same way until c1q15.
 4. Fish completions for `dangonix` generated from the command table.
+5. `lib/dangonix/ui.sh` with the output style of [design §5 output](design.md#вивід): role colours, Unicode icons, right-aligned step verbs, the `DRY` badge, error layout, colour and fancy detection per fd. Every command prints only through it; no other file in `lib/dangonix/` contains `\e[` or `\033`. `ui_build` falls back to `nix build -L … | tail -n 40` here; nix-output-monitor arrives with the builds in c1q14.
 
 **Do not.** Remove or change any old command. Implement any `state`/`host` effect (that is c1q14). Edit `.claude/settings.json` or `.codex/rules/` (the GM already allowed `nix run . -- --dry …`, `nix run . -- check …`, `dangonix --dry …` and `dangonix check …`).
 
@@ -516,6 +517,8 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_*dangon
 - `nix run . -- --dry --json theme` marks noctalia.
 - `nix run . -- --dry --json commands | jq -r '.data[].name'` lists every command; each runs as `nix run . -- --dry --json <name> …` without a prompt and its output passes `jq -e .`.
 - `nix eval .#homeConfigurations.kit.config.xdg.configFile --apply 'f: builtins.hasAttr "fish/completions/dangonix.fish" f'` prints `true` (or the same for `home.file`, wherever step 4 put it).
+- No escape bytes outside a TTY: for `status`, `help`, `theme`, `version`, `--dry switch` and `check --fast`, `nix run . -- <args> | grep -c $'\e'`, the same with `CLAUDECODE=1`, and the same with `--json` all print `0`; `script -qc 'nix run . -- --dry switch' /dev/null | grep -c $'\e'` is not `0` and its first line contains `DRY`.
+- `grep -rlE '\\e\[|\\033' lib/dangonix/ | grep -v ui.sh` prints nothing.
 
 **AGENTS.md.** Loop becomes `edit → nix fmt → dangonix check --fast → dangonix check → scripts/closure-diff`; discovery `dangonix --dry --json commands`.
 
@@ -528,7 +531,7 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_*dangon
 ---
 
 ## c1q14 — Tempering the blade ⚔️
-meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangonix*?,+nvd*,~source?
+meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangonix*?,+nvd*,+nix-output-monitor*,~source?
 
 **Goal.** Every `state`/`host` command of `dangonix` runs as a transaction, and the agents' permission rules for `dangonix` are fixed by its grammar.
 
@@ -539,7 +542,7 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangon
 **Read first.** Design §5 (transactions) and §6 in full; `lib/dangonix/`; `home/theme-switcher.nix` (lock, activation).
 
 **Steps.**
-1. Every `state`/`host` command is the transaction from design §5: one lock (reuse `kit-home-activation.lock`) around snapshot, preflight, `state.json` edit, build, nvd diff, host activation, home activation, recovery, and the journal line in `~/.local/state/dangonix/journal.jsonl`.
+1. Every `state`/`host` command is the transaction from design §5: one lock (reuse `kit-home-activation.lock`) around snapshot, preflight, `state.json` edit, build, nvd diff, host activation, home activation, recovery, and the journal line in `~/.local/state/dangonix/journal.jsonl`. Output follows [design §5 output](design.md#вивід): `ui_build` pipes the build through nix-output-monitor (`--log-format internal-json -v |& nom --json`) only when fancy output is on, the nvd diff uses the role colours, and the result is the summary box with generations and `dangonix rollback`.
 2. Design check 7 in `lib/checks.nix` as check `commands`: every row of the command table has `effect` and `agent`; `agent = "allow"` only for `read` rows (and `check`); every non-`read` row implements `--dry`; the only rules in `.claude/settings.json` that start with `dangonix` are the allow rules `Bash(dangonix --dry *)`, `Bash(dangonix check)`, `Bash(dangonix check *)`, and `.codex/rules/dangonix.rules` has their counterparts and no other `dangonix` rule (the GM added them before c1q13; the check only reads the files).
 
 **Do not.** Remove or change any old command. Test failures in the checkout. Edit `.claude/settings.json` or `.codex/rules/`.
