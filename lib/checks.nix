@@ -203,6 +203,8 @@ let
     rule: builtins.match ''.*pattern=\["dangonix".*'' rule != null
   ) codexRules;
   sorted = builtins.sort builtins.lessThan;
+  # Every command an agent must not run for real: the settings ask for each.
+  askNames = lib.unique (map (row: row.name) (lib.filter (row: row.agent == "ask") commandRows));
 
   commandProblems =
     lib.concatMap (
@@ -229,22 +231,33 @@ let
     ++
       lib.optional
         (
-          sorted claudeDangonix != [
-            "allow Bash(dangonix --dry *)"
-            "allow Bash(dangonix check *)"
-            "allow Bash(dangonix check)"
-          ]
+          sorted claudeDangonix != sorted (
+            [
+              "allow Bash(dangonix --dry *)"
+              "allow Bash(dangonix check *)"
+              "allow Bash(dangonix check)"
+            ]
+            ++ map (name: "ask Bash(dangonix ${name}*)") askNames
+          )
         )
-        ".claude/settings.json: the dangonix rules must be exactly the allow rules for `dangonix --dry *` and `dangonix check [*]`, found: ${builtins.toJSON claudeDangonix}"
+        ".claude/settings.json: the dangonix rules must be exactly the allow rules for `dangonix --dry *` and `dangonix check [*]` and an ask rule `dangonix <name>*` for each command with agent = ask, found: ${builtins.toJSON claudeDangonix}"
     ++
       lib.optional
         (
-          sorted codexDangonix != [
-            ''prefix_rule(pattern=["dangonix","--dry"],decision="allow")''
-            ''prefix_rule(pattern=["dangonix","check"],decision="allow")''
-          ]
+          sorted codexDangonix != sorted (
+            [
+              ''prefix_rule(pattern=["dangonix","--dry"],decision="allow")''
+              ''prefix_rule(pattern=["dangonix","check"],decision="allow")''
+            ]
+            ++ map (
+              name:
+              ''prefix_rule(pattern=${
+                builtins.toJSON ([ "dangonix" ] ++ lib.splitString " " name)
+              },decision="prompt")''
+            ) askNames
+          )
         )
-        ".codex/rules/dangonix.rules: the dangonix rules must be exactly the allow rules for `dangonix --dry` and `dangonix check`, found: ${builtins.toJSON codexDangonix}";
+        ".codex/rules/dangonix.rules: the dangonix rules must be exactly the allow rules for `dangonix --dry` and `dangonix check` and a prompt rule for each command with agent = ask, found: ${builtins.toJSON codexDangonix}";
 
   commands =
     assert lib.assertMsg (
