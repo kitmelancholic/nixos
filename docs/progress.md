@@ -258,3 +258,13 @@ GM перевірив чекліст у campaign (2026-10-20).
 запит: scope — `leaves=` у `meta:` c1s2: `~sddm-wrapped*` → `~sddm-wrapped*?`, додати `~man-paths?,~system_fish-completions?` (`.campaign/c1s2.request.patch`), потім `retry c1s2`.
 agent: claude claude-opus-5-5
 GM (campaign, 2026-10-20): так, scope: патч .campaign/c1s2.request.patch.applied; retry: own tier
+
+## c1s2 — хід майстра
+Курсор `Bibata-Modern-Ice` у SDDM (`Theme.CursorTheme`, пакет у хості); SDDM з патчем `Display::startAuth` (пароль скасовує очікувану fingerprint-автентифікацію без перезапуску greeter); PAM `sddm`: `pam_unix` (`nodelay`) перед `substack login`; `thyx` follows `nixpkgs`. `quest-verify` пройшов, `nix build .#greeter-vm` пройшов, суддя: `no defects`. Змінені derivation: `+bibata-cursors-2.0.7_fish-completions`, `~sddm-unwrapped-0.21.0`, `~sddm.conf`, `~sddm.pam`, `~man-paths`, `~system_fish-completions`.
+- Перед switch перевір логін у TTY (`Ctrl+Alt+F2`; його PAM не змінюється); якщо greeter зламається — завантаж попередню generation.
+- `dangonix switch` (sudo), перезавантаж.
+- Курсор видно, кліки по меню сеансів працюють.
+- Введи пароль, поки greeter показує запит відбитка: вхід одразу; keyring розблоковано (немає запиту пароля keyring після входу).
+- Перезавантаж, приклади палець без введення: вхід.
+- Усе добре → `## c1s2 — виконано`.
+agent: claude claude-opus-5-5

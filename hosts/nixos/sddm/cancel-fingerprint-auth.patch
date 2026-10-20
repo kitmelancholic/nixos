@@ -1,0 +1,81 @@
+--- a/src/daemon/Display.cpp
++++ b/src/daemon/Display.cpp
+@@ -35,6 +35,7 @@
+ #include <QFile>
+ #include <QTimer>
+ #include <QLocalSocket>
++#include <QProcess>
+ 
+ #include <pwd.h>
+ #include <unistd.h>
+@@ -375,8 +376,15 @@
+     bool Display::startAuth(const QString &user, const QString &password, const Session &session) {
+ 
+         if (m_auth->isActive()) {
+-            qWarning() << "Existing authentication ongoing, aborting";
+-            return false;
++            // A theme that starts fingerprint authentication on load logs in
++            // with an empty password; a typed password replaces that attempt.
++            if (m_authPending && !m_auth->autologin() && m_passPhrase.isEmpty() && !password.isEmpty()) {
++                qDebug() << "Cancelling the pending empty-password authentication";
++                cancelPendingAuth();
++            } else {
++                qWarning() << "Existing authentication ongoing, aborting";
++                return false;
++            }
+         }
+ 
+         m_passPhrase = password;
+@@ -457,12 +465,36 @@
+             m_auth->setSession(session.exec());
+         }
+         m_auth->insertEnvironment(env);
++        m_authPending = true;
+         m_auth->start();
+ 
+         return true;
+     }
+ 
++    void Display::cancelPendingAuth() {
++        // Neither restart the greeter (slotHelperFinished) nor report a
++        // failed login (slotAuthError) for the attempt being replaced.
++        QPointer<QLocalSocket> socket = m_socket;
++        m_socket = nullptr;
++        disconnect(m_auth, &Auth::finished, this, &Display::slotHelperFinished);
++
++        // sddm-helper handles SIGTERM in its event loop, which a PAM module
++        // waiting for a finger blocks, so Auth::stop() alone waits 5 s.
++        QProcess *helper = m_auth->findChild<QProcess *>();
++        if (helper && helper->state() != QProcess::NotRunning) {
++            helper->kill();
++            helper->waitForFinished(5000);
++        }
++        m_auth->stop();
++
++        connect(m_auth, &Auth::finished, this, &Display::slotHelperFinished);
++        m_authPending = false;
++        m_socket = socket;
++    }
++
+     void Display::slotAuthenticationFinished(const QString &user, bool success) {
++        m_authPending = false;
++
+         if (m_auth->autologin() && !success) {
+             handleAutologinFailure();
+             return;
+--- a/src/daemon/Display.h
++++ b/src/daemon/Display.h
+@@ -91,11 +91,13 @@
+ 
+         void startSocketServerAndGreeter();
+         void handleAutologinFailure();
++        void cancelPendingAuth();
+ 
+         DisplayServerType m_displayServerType = X11DisplayServerType;
+ 
+         bool m_relogin { true };
+         bool m_started { false };
++        bool m_authPending { false };
+ 
+         int m_terminalId = 0;
+         int m_sessionTerminalId = 0;

@@ -56,7 +56,10 @@
       };
     };
 
-    thyx.url = "github:rccyx/thyx";
+    thyx = {
+      url = "github:rccyx/thyx";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     noctalia.url = "github:noctalia-dev/noctalia";
     caelestia.url = "github:caelestia-dots/shell";
@@ -179,7 +182,11 @@
 
       checks.${settings.system} = checks;
 
-      packages.${settings.system}.dangonix = dangonix.package;
+      packages.${settings.system} = {
+        dangonix = dangonix.package;
+        # Not in checks: boots two VMs (`nix build .#greeter-vm`).
+        greeter-vm = import ./tests/greeter-vm { inherit pkgs; };
+      };
 
       apps.${settings.system} = repoApps.apps // {
         default = {

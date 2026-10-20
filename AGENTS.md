@@ -21,6 +21,8 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
   stage paths explicitly, never `git commit -a`.
 - State-changing tests run in a worktree under `.campaign/` (tasks.md rules).
 - Never print full build logs (`tail -n 40`); full check via `quest-verify`.
+- `nix build .#greeter-vm` tests the greeter (patched SDDM, password next to
+  fingerprint); run it when SDDM, PAM or `thyx` changes.
 - Unsure of an option or package name: ask the `nixos` MCP server (mcp-nixos,
   26.05 channel). It does not know flake-input options (Noctalia, Caelestia,
   Home Manager): run `scripts/opt [--home [<theme id>]] <option path>`.
