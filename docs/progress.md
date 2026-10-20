@@ -257,3 +257,4 @@ GM перевірив чекліст у campaign (2026-10-20).
 `quest-verify` падає на `leaves=`: `unexpected change: ~man-paths`, `unexpected change: ~system_fish-completions` (агрегати за `+bibata-cursors`), `expected change missing: ~sddm-wrapped*` (обгортка змінюється лише шляхами в store, `closure-diff` її не бачить).
 запит: scope — `leaves=` у `meta:` c1s2: `~sddm-wrapped*` → `~sddm-wrapped*?`, додати `~man-paths?,~system_fish-completions?` (`.campaign/c1s2.request.patch`), потім `retry c1s2`.
 agent: claude claude-opus-5-5
+GM (campaign, 2026-10-20): так, scope: патч .campaign/c1s2.request.patch.applied; retry: own tier

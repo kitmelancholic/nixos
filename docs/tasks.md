@@ -605,7 +605,7 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangon
 ---
 
 ## c1s2 — Gatekeeper's lantern ⚔️
-meta: tier=cleric effort=high boss=yes diff=leaves leaves=~sddm-unwrapped*,~sddm-wrapped*,~sddm.conf,~sddm.pam,+bibata-cursors*,~unit-display-manager.service?,~*pam*?,~source?
+meta: tier=cleric effort=high boss=yes diff=leaves leaves=~sddm-unwrapped*,~sddm-wrapped*?,~sddm.conf,~sddm.pam,+bibata-cursors*,~man-paths?,~system_fish-completions?,~unit-display-manager.service?,~*pam*?,~source?
 
 **Goal.** At the SDDM greeter the pointer is visible and clicks work, and password and fingerprint are accepted at the same time: a typed password logs in at once even while the greeter waits for a finger.
 
