@@ -251,3 +251,9 @@ agent: claude claude-sonnet-5-5
 
 ## c1s1 — виконано
 GM перевірив чекліст у campaign (2026-10-20).
+
+## c1s2 — провалений кидок
+Робота квесту не закомічена (`hosts/nixos/sddm/` з патчем `Display.*` і PAM, курсор, `tests/greeter-vm/`, `thyx` follows; lock лише дропає). `nix build .#greeter-vm` пройшов (з патчем сеанс за ≤10 с, без — ні), Verify 1–2 ок, `scripts/check` ок.
+`quest-verify` падає на `leaves=`: `unexpected change: ~man-paths`, `unexpected change: ~system_fish-completions` (агрегати за `+bibata-cursors`), `expected change missing: ~sddm-wrapped*` (обгортка змінюється лише шляхами в store, `closure-diff` її не бачить).
+запит: scope — `leaves=` у `meta:` c1s2: `~sddm-wrapped*` → `~sddm-wrapped*?`, додати `~man-paths?,~system_fish-completions?` (`.campaign/c1s2.request.patch`), потім `retry c1s2`.
+agent: claude claude-opus-5-5
