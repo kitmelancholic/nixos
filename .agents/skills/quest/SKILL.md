@@ -12,6 +12,25 @@ the values of `$DANGONIX_AGENT` and `$DANGONIX_MODEL` when they are set
 (`scripts/agent` sets them), else the model you run as, in full. The GM
 answers an entry below that line; `scripts/campaign` then runs `retry`.
 
+**Ask, don't describe.** When the only thing between you and `виконано` is
+the quest itself (a path missing from *Files*, a guessed `leaves=` or other
+`meta:` value, a precondition with one obvious fix, a file outside the
+quest that fails a check) or a permission (a command or path the steps need
+that is denied), and you know the exact change: write it as a patch and ask.
+- Make the patch without changing the file: `cp <path> .campaign/<id>.new`,
+  edit the copy, then `diff -u --label a/<path> --label b/<path> <path>
+  .campaign/<id>.new >> .campaign/<id>.request.patch` (one file at a time,
+  then delete the copy). `git apply --check --recount
+  .campaign/<id>.request.patch` must pass. If those commands are denied,
+  write the unified diff with the Write tool, three lines of context. A permission changes
+  `.claude/settings.json` and `.codex/rules/dangonix.rules` together.
+- In the `провалений кидок` entry, put `запит: scope — <why>` or
+  `запит: permission — <why>` (one line) right above the `agent:` line.
+- Keep the quest's own work uncommitted, as for any failure. The judge and
+  the GM see the patch in `scripts/campaign`; on yes the campaign applies and
+  commits it, and the `retry` runs on the quest's own tier.
+Never use a request to skip or weaken a step, a *Do not* or a check.
+
 1. Read `AGENTS.md` and the last 20 lines of `docs/progress.md`.
    - If the last entry is `хід майстра` or `провалений кидок` and the
      argument is not `retry <id>`, print that entry and stop.
