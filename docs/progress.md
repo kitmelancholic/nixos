@@ -248,3 +248,6 @@ agent: claude claude-sonnet-5-5
 - Справжній випадок: перемкнись на Caelestia, відкрий ghostty з лаунчера Caelestia, `dangonix theme noctalia` у ньому: стіл піднімається в Noctalia, ghostty лишається.
 - Усе добре → `## c1s1 — виконано`.
 agent: claude claude-sonnet-5-5
+
+## c1s1 — виконано
+GM перевірив чекліст у campaign (2026-10-20).
