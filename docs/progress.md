@@ -343,3 +343,9 @@ GM перевірив чекліст у campaign (2026-10-22).
 
 ## c1s6 - виконано
 GM перевірив чекліст у campaign (2026-10-22).
+
+## c1q15 - провалений кидок
+Зроблено й не закомічено (у індексі): `tests/dangonix-vm/` (`default.nix`, `fixture/{flake,common}.nix`, `state.json`, `variant.json`), `packages.dangonix-vm` у `flake.nix`, `check --vm` у `dangonix.sh`, рядок в `AGENTS.md`. `nix fmt` ок. Лишилось: `nix build .#dangonix-vm` ще жодного разу не дійшов до тест-скрипту (збирає `nixos-system-machine-test` з `includeBuildDependencies`, понад 10 хв, мою сесію переривають), тож тест не перевірено; далі `check --fast`, `quest-verify`, коміт.
+Розбіжності *Verify* з кодом (рішення потрібне): кейс 2 з `theme` неможливий (`theme` не збирає хост, `tx_host=0`) - тест використовує `foundry remove main`; `failedStep` у коді `activate-host`/`activate-home`, не `host`/`home`; повідомлення lock - «another dangonix or kit-profile run holds …»; після recovery `nix-env --set` дає нове покоління на старий шлях, тож «generations unchanged» перевіряю за розв'язаним шляхом, не за номером.
+GM: підтверди ці читання (або скажи міняти код транзакцій), потім `retry c1q15` (збірка довга, потрібен запуск без ліміту 10 хв).
+agent: claude claude-sonnet-5-5
