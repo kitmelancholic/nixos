@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# The campaign in one screen: starts scripts/campaign (s), answers its y/n
+# and one-line questions in a dialog, stops it (x); a live diagram of the
+# autopilot loop shows where it is, with the running attempt, the Claude
+# quota and tabs for the agent's steps, thoughts, the campaign's output,
+# runs.tsv and the squire's diagnosis. A campaign started in another
+# terminal is only watched. Code: scripts/campaign_tui.py (Python, Textual
+# from the flake's nixpkgs: `nix run .#campaign-tui`).
+#   campaign-tui
+set -euo pipefail
+top=$(git rev-parse --show-toplevel)
+exec nix run --no-write-lock-file "$top#campaign-tui" -- "$@"
