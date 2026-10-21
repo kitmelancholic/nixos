@@ -133,7 +133,8 @@
     "allowUnsandboxedCommands": false,
     "filesystem": {
       "allowWrite": [
-        "~/.cache/nix"
+        "~/.cache/nix",
+        "~/.cache/treefmt"
       ],
       "denyRead": [
         "~/.ssh",
