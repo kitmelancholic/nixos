@@ -337,3 +337,6 @@ GM (campaign, 2026-10-22): все зробив наче, повтори
 - У fish `dangonix update -` + Tab пропонує `-zen-browser` та інші входи.
 - Усе добре → закоміть `flake.lock` сам, потім `## c1s5 - виконано`.
 agent: claude claude-opus-5-5
+
+## c1s5 - виконано
+GM перевірив чекліст у campaign (2026-10-22).
