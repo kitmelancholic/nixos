@@ -78,6 +78,8 @@ in
       pkgsUnstable.claude-code # unstable: tracks upstream releases closely; wrapper sets DISABLE_AUTOUPDATER=1
       pkgsUnstable.codex # unstable, no self-update (check_for_update_on_startup = false)
       mcp-nixos # NixOS/Home Manager option and package lookup for both agents
+      bubblewrap # Claude Code sandbox (.claude/settings.json `sandbox`)
+      socat # Claude Code sandbox network proxy
       kccWithKindlegen
       kindlegen # enables KCC MOBI conversion
 
