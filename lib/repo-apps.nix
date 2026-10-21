@@ -33,11 +33,11 @@ let
   fmtScript = pkgs.writeShellApplication {
     name = "repo-fmt";
     runtimeInputs = [ pkgs.nixfmt-tree ];
+    # The exclude holds with arguments too: `nix fmt -- --no-cache` must not
+    # reformat the generated hardware file.
     text = ''
-      if [ "$#" -eq 0 ]; then
-        exec treefmt --tree-root "$PWD" --excludes hosts/nixos/hardware-configuration.nix .
-      fi
-      exec treefmt --tree-root "$PWD" "$@"
+      [ "$#" -gt 0 ] || set -- .
+      exec treefmt --tree-root "$PWD" --excludes hosts/nixos/hardware-configuration.nix "$@"
     '';
   };
 
