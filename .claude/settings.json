@@ -157,5 +157,9 @@
       ],
       "allowAllUnixSockets": true
     }
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "/home/kit/nixos/scripts/claude-statusline"
   }
 }
