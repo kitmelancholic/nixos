@@ -41,6 +41,7 @@ from textual.widgets import (
     Label,
     RichLog,
     Select,
+    Sparkline,
     Static,
     TabbedContent,
     TabPane,
@@ -235,6 +236,7 @@ class Attempt:
     ended: str = ""
     codex: bool = False
     limits: dict[str, dict] = field(default_factory=dict)
+    ctx_hist: list[int] = field(default_factory=list)
     trace_size: int = -1
     summary: list[str] = field(default_factory=list)
 
@@ -271,6 +273,8 @@ class Attempt:
             msg = e.get("message") or {}
             u = msg.get("usage") or {}
             ctx = sum(u.get(x, 0) or 0 for x in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
+            if ctx and ctx != self.ctx:
+                self.ctx_hist.append(ctx)
             self.ctx = ctx or self.ctx
             self.out_tok += u.get("output_tokens", 0) or 0
             for c in msg.get("content") or []:
@@ -567,7 +571,8 @@ def render_diagram(active: set, trail: set, step: int | None, values: dict[str, 
     for r, line in enumerate(rows):
         for c, ch in enumerate(line):
             out.append(ch, style=styles[r][c] if c < width else "")
-        out.append("\n")
+        if r < len(rows) - 1:
+            out.append("\n")
     return out
 
 
@@ -671,8 +676,14 @@ class CampaignTUI(App):
     Screen { layout: vertical; }
     #top { height: auto; padding: 0 1; }
     #middle { height: auto; }
-    #diagram { width: auto; padding: 0 1; }
-    #side { width: 1fr; min-width: 34; padding: 0 1; border-left: tall $panel; }
+    .panel { border: round $panel-lighten-2; border-title-color: $text-muted;
+             border-title-style: bold; padding: 0 1; height: auto; }
+    .panel.hot { border: round $warning; border-title-color: $warning; }
+    .panel.live { border: round $accent; border-title-color: $accent; }
+    #diagram-wrap { width: auto; max-width: 100%; overflow-x: auto; height: auto; }
+    #diagram { width: auto; }
+    #right { width: 1fr; min-width: 36; height: auto; }
+    #ctx-spark { height: 3; }
     TabbedContent { height: 1fr; }
     RichLog, VerticalScroll.tab { height: 1fr; }
     #ask { width: 90; max-width: 95%; height: auto; max-height: 90%; padding: 1 2;
@@ -699,7 +710,8 @@ class CampaignTUI(App):
     ]
 
     def __init__(self) -> None:
-        super().__init__()
+        # The terminal's own 16 colours: Ghostty's Manuscript, dark or light.
+        super().__init__(ansi_color=True)
         self.attempts: dict[Path, Attempt] = {}
         self.pick = 0
         self.tick = 0
@@ -716,12 +728,17 @@ class CampaignTUI(App):
         self.words_shown = (None, 0)
         self.steps_shown = (None, 0, "")
         self.belled = False
+        self.runs_seen = -1
 
     def compose(self) -> ComposeResult:
         yield Static(id="top")
         with Horizontal(id="middle"):
-            yield Static(id="diagram")
-            yield Static(id="side")
+            with Vertical(id="diagram-wrap", classes="panel"):
+                yield Static(id="diagram")
+            with Vertical(id="right"):
+                yield Static(id="side", classes="panel")
+                yield Sparkline([], id="ctx-spark", classes="panel", summary_function=max)
+                yield Static(id="quota", classes="panel")
         with TabbedContent(initial="steps"):
             with TabPane("1 кроки", id="steps"):
                 yield RichLog(id="steps-log", wrap=False, markup=False)
@@ -736,8 +753,26 @@ class CampaignTUI(App):
         yield Footer()
 
     def on_mount(self) -> None:
+        self.query_one("#diagram-wrap").border_title = "цикл кампанії"
+        self.query_one("#ctx-spark").border_title = "ріст контексту"
+        self.query_one("#quota").border_title = "Claude Pro"
+        self.follow_look()
         self.refresh_all()
         self.set_interval(1, self.refresh_all)
+        self.set_interval(30, self.follow_look)
+
+    def follow_look(self) -> None:
+        """Dark or light like the desktop (dangonix.look sets color-scheme)."""
+        try:
+            scheme = subprocess.run(
+                ["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"],
+                capture_output=True, text=True, timeout=2,
+            ).stdout
+        except (OSError, subprocess.SubprocessError):
+            scheme = ""
+        theme = "ansi-light" if "light" in scheme else "ansi-dark"
+        if self.theme != theme:
+            self.theme = theme
 
     # --- the campaign in a pseudo-terminal
 
@@ -974,6 +1009,22 @@ class CampaignTUI(App):
         top.append(" ⚔ dangoNix · кампанія ", style="bold")
         top.append_text(status)
         top.append(f"   {time.strftime('%H:%M:%S')}\n", style="dim")
+        # Breadcrumbs: campaign › act › quest › attempt › step.
+        crumbs = []
+        if cur:
+            idx = next((i for i, q in enumerate(qs) if q.id == cur), 0)
+            act = sum(1 for q in qs[:idx] if q.rest)
+            roman = "I II III IV V VI VII VIII IX X".split()
+            crumbs = [f"Кампанія {roman[int(cur[1]) - 1] if cur[1].isdigit() else cur[1]}", f"акт {roman[act - 1] if 1 <= act <= 10 else act or 'пролог'}", cur]
+            m = LOG_NAME.match(a.path.name)
+            crumbs.append(f"кидок #{m[2]}")
+            if step:
+                crumbs.append(SPANS[step][0])
+        for i, c in enumerate(crumbs):
+            top.append(" › " if i else " ", style="dim")
+            top.append(c, style="bold" if i == len(crumbs) - 1 else "")
+        if crumbs:
+            top.append("\n")
         top.append(f" мапа {done}/{len(qs)} ", style="bold")
         top.append_text(bar(done, len(qs), 10))
         top.append(" ")
@@ -1031,12 +1082,22 @@ class CampaignTUI(App):
             elif not active & {"agent"}:
                 self.trail.add("done")
         self.query_one("#diagram", Static).update(render_diagram(active, self.trail - active, step, values, self.tick))
+        wrap = self.query_one("#diagram-wrap")
+        wrap.set_class("gm" in active, "hot")
+        wrap.set_class("agent" in active, "live")
+        wrap.border_title = "⚑ хід майстра" if "gm" in active else "цикл кампанії"
+        wrap.border_subtitle = time.strftime("%H:%M:%S")
 
         # The side panel.
         side = Text()
+        panel = self.query_one("#side", Static)
+        panel.border_title = f"{cur} · кидок #{n}" if a else "спроба"
+        panel.set_class(bool(agent and agent.argv[2] == "run" and self.pick == 0), "live")
+        spark = self.query_one("#ctx-spark", Sparkline)
+        spark.data = (a.ctx_hist[-60:] if a and a.ctx_hist else [0])
+        spark.border_subtitle = k(a.ctx) if a else ""
         if a:
-            side.append(f"{cur} ", style="bold")
-            side.append(f"{quest.name if quest else ''}\n")
+            side.append(f"{quest.name if quest else ''}\n", style="bold")
             side.append(f"{icon} {tier}", style=colour)
             side.append(f" · {'codex' if a.codex else 'claude'} · {quest.effort if quest else ''}\n", style="")
             side.append(f"{a.model or (row[4] if row else '')}\n", style="dim")
@@ -1083,7 +1144,8 @@ class CampaignTUI(App):
             side.append("ще жодної спроби в .campaign/\n", style="dim")
         total = sum(float(r[8]) for r in runs() if re.fullmatch(r"[\d.]+", r[8]))
         side.append(f"\nскарбниця ${total:.2f} за {len(runs())} кидків\n", style="dim")
-        side.append("\nClaude Pro\n", style="bold")
+        self.query_one("#side", Static).update(side)
+        side = Text()
         q = quota([self.attempts[p] for p in logs[-5:] if p in self.attempts])
         for key, label in (("five_hour", "сесія  "), ("seven_day", "тиждень")):
             v = q.get(key)
@@ -1104,8 +1166,19 @@ class CampaignTUI(App):
             side.append("\n")
         if not q:
             side.append("немає даних: див. scripts/claude-statusline\n", style="dim")
-        self.query_one("#side", Static).update(side)
+        side.rstrip()
+        self.query_one("#quota", Static).update(side)
+        self.toast_runs()
         self.fill_tabs(a)
+
+    def toast_runs(self) -> None:
+        """A toast for every attempt that ends while the TUI is open."""
+        rows = runs()
+        if self.runs_seen >= 0:
+            for r in rows[self.runs_seen :]:
+                good = r[10] in ("виконано", "хід майстра")
+                self.notify(f"{r[1]} #{r[2]}: {r[10]} · {r[7]} · ${r[8]}", title="кидок завершено", severity="information" if good else "warning")
+        self.runs_seen = len(rows)
 
     def fill_tabs(self, a: Attempt | None) -> None:
         steps = self.query_one("#steps-log", RichLog)
@@ -1171,7 +1244,8 @@ async def selftest() -> None:
         side = str(app.query_one("#side", Static).render())
         for want in ("Наступний квест", "Агент", "Майстер", "4 quest-verify"):
             assert want in diagram, want
-        assert "кроків" in side and "Claude Pro" in side, side
+        assert "кроків" in side, side
+        assert "сесія" in str(app.query_one("#quota", Static).render())
         await pilot.press("2", "4", "5", "1", "left_square_bracket", "0")
         await pilot.pause(0.2)
     print("campaign-tui: ok")
