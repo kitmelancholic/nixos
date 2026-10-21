@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Stop hook (Claude Code and Codex): a quest session that scripts/campaign
+# started may not end before a journal entry for its quest is committed.
+# Without the entry the campaign cannot tell what happened and reruns the
+# quest from scratch; this asks the agent once, in the same session, to
+# finish or to hand the quest back. Only for sessions that scripts/campaign
+# marks with DANGONIX_QUEST (the quest id) and DANGONIX_QUEST_HEAD (HEAD
+# before the run); scripts/agent clears them for judge and squire calls.
+# Advisory: it blocks at most once per session, and any error lets it stop.
+set -uo pipefail
+trap 'exit 0' ERR
+[[ -n ${DANGONIX_QUEST:-} && -n ${DANGONIX_QUEST_HEAD:-} ]] || exit 0
+input=$(cat)
+[[ $(jq -r '.stop_hook_active // false' <<<"$input") != true ]] || exit 0
+session=$(jq -r '.session_id // empty' <<<"$input")
+state=${XDG_RUNTIME_DIR:-/tmp}/dangonix-stop-${session:-$PPID}
+[[ ! -e $state ]] || exit 0
+cd "$(git rev-parse --show-toplevel)" || exit 0
+# A committed change to the journal since the run began is the entry.
+git diff --quiet "$DANGONIX_QUEST_HEAD" HEAD -- docs/progress.md && {
+  touch "$state"
+  id=$DANGONIX_QUEST
+  jq -n --arg r "Quest $id has no committed journal entry yet, so the campaign cannot see what you did. Before you stop, finish the quest skill: reach \`виконано\` or \`хід майстра\` if you are one step away; otherwise append \`## $id — провалений кидок\` to docs/progress.md (what is done, what is left, what you need from the GM, then the \`agent:\` line), commit only docs/progress.md as \`chore($id): провалений кидок\`, leave the rest of your work uncommitted, and stop." \
+    '{decision: "block", reason: $r}'
+}
+exit 0

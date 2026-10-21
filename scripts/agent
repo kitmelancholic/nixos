@@ -1,65 +1,97 @@
 #!/usr/bin/env bash
 # One interface over Claude Code and Codex, so the quest workflow does not
-# depend on which CLI runs it. The tier → model table lives in AGENTS.md.
+# depend on which CLI runs it. The tier table lives in .agents/models.md.
 #   agent model <claude|codex> <squire|hero|cleric|judge>
+#   agent limit <compact|warn|hard> <tier>      a context column of the table
 #   agent run   <claude|codex> <tier> <effort> <log> <prompt>   edits allowed
 #   agent ask   <claude|codex> <tier> <effort> <log> <prompt>   read-only;
 #                                                  prints the final message
+# Both write every event of the session to <log>, one JSON object per line,
+# each stamped with `_ts` (seconds) when it arrived: scripts/campaign watches
+# the log for idleness and scripts/trace reads it. Neither may start
+# subagents: they cost a whole extra context per call.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
+models=.agents/models.md
+
+# The value of column $1 (by header name) in the row of tier $2.
+column() {
+  awk -F'|' -v want="$1" -v tier="$2" '
+    function trim(s) { gsub(/ /, "", s); return s }
+    !head && trim($2) == "tier" { for (i = 2; i < NF; i++) if (trim($i) == want) col = i; head = 1; next }
+    head && col && trim($2) == tier { v = trim($col); found = v != "" && v != "-"; if (found) print v; exit }
+    END { exit !found }' "$models"
+}
 
 model() {
-  local col
   case $1 in
-  claude) col=3 ;;
-  codex) col=4 ;;
+  claude | codex) ;;
   *)
     echo "agent: unknown agent '$1'" >&2
     return 2
     ;;
   esac
-  awk -F'|' -v tier="$2" -v col="$col" '
-    { gsub(/ /, "", $2) }
-    $2 == tier { gsub(/ /, "", $col); print $col; found = 1; exit }
-    END { exit !found }' AGENTS.md || {
-    echo "agent: no $1 model for tier '$2' in AGENTS.md" >&2
+  column "$1" "$2" || {
+    echo "agent: no $1 model for tier '$2' in $models" >&2
     return 2
   }
 }
 
-cmd=${1:?usage: agent model|run|ask …}
+# Stamp each line with its arrival time; a line that is not a JSON object is
+# kept as {"_raw": …}, so the log stays one object per line.
+stamp() {
+  jq -cR --unbuffered '. as $line
+    | try (fromjson | if type == "object" then . else {_value: .} end) catch {_raw: $line}
+    | . + {_ts: now}'
+}
+
+cmd=${1:?usage: agent model|limit|run|ask …}
 shift
 case $cmd in
 model)
   model "${1:?agent}" "${2:?tier}"
   ;;
+limit)
+  column "${1:?compact|warn|hard}" "${2:?tier}"
+  ;;
 run | ask)
   agent=${1:?agent} tier=${2:?tier} effort=${3:?effort} log=${4:?log}
   prompt=${5:?prompt}
   m=$(model "$agent" "$tier") || exit 2
-  export DANGONIX_AGENT=$agent DANGONIX_MODEL=$m
+  compact=$(column compact "$tier") || compact=
+  export DANGONIX_AGENT=$agent DANGONIX_MODEL=$m DANGONIX_TIER=$tier
+  # scripts/quest-stop guards only the quest's own session, never a judge or
+  # squire asked from inside it.
+  [[ $cmd == ask ]] && unset DANGONIX_QUEST
   case $agent in
   claude)
-    flags=(--permission-mode acceptEdits)
+    flags=(--permission-mode acceptEdits --disallowedTools Agent)
     [[ $cmd == ask ]] && flags=(--permission-mode default
-      --disallowedTools Edit Write NotebookEdit)
+      --disallowedTools Agent Edit Write NotebookEdit)
+    # Compaction would summarize a quest away; the context-watch hook hands
+    # it back first, this is the backstop.
+    [[ -n $compact ]] && export CLAUDE_CODE_AUTO_COMPACT_WINDOW=$compact
     # -p cannot ask: anything not allowed by .claude/settings.json is denied.
     claude -p "$prompt" --model "$m" --effort "$effort" "${flags[@]}" \
-      --permission-prompts none --output-format json >"$log"
-    rc=$?
-    [[ $cmd == ask ]] && jq -r '.result // empty' "$log"
+      --permission-prompts none --output-format stream-json --verbose \
+      </dev/null | stamp >"$log"
+    rc=${PIPESTATUS[0]}
+    [[ $cmd == ask ]] && jq -r 'select(.type == "result") | .result // empty' "$log"
     ;;
   codex)
     sandbox=workspace-write
     [[ $cmd == ask ]] && sandbox=read-only
+    limit=()
+    [[ -n $compact ]] && limit=(-c "model_auto_compact_token_limit=$compact")
     # exec never asks: anything the sandbox and .codex/rules refuse fails.
     # The registry/PATH may provide an older CLI that cannot read the shared
     # model cache or use the campaign's models. Use our locked unstable input.
     nix run --no-write-lock-file --inputs-from . nixpkgs-unstable#codex -- \
       exec --model "$m" -c model_reasoning_effort="$effort" \
+      -c agents.enabled=false "${limit[@]}" \
       --sandbox "$sandbox" --json --output-last-message "$log.last" \
-      "$prompt" >"$log"
-    rc=$?
+      "$prompt" </dev/null | stamp >"$log"
+    rc=${PIPESTATUS[0]}
     if ((rc != 0)); then
       jq -r 'select(.type == "error") | .message // empty' "$log" >&2
     elif [[ $cmd == ask ]]; then

@@ -14,9 +14,15 @@
 # tier. Without a terminal (or with --no-ask) every such case stops the run.
 #   campaign [--agent claude|codex] [--judge claude|codex] [--no-ask]
 # --agent  the hero's CLI (default claude); --judge  the CLI behind
-# scripts/review (default: the hero's). Models per tier: AGENTS.md. Each
-# attempt's log goes to .campaign/<id>.<n>.json, one line per attempt to
-# .campaign/runs.tsv (both gitignored).
+# scripts/review (default: the hero's). Models per tier: .agents/models.md.
+# Each attempt's log (every event of the session, see scripts/agent) goes to
+# .campaign/<id>.<n>.json, one line per attempt to .campaign/runs.tsv (all of
+# .campaign/ is gitignored); `scripts/trace <log>` shows what it did. A log
+# that stops growing for $QUEST_IDLE (20m) is a hung attempt: it is stopped
+# and counts as an exit without a journal entry. An attempt that did not end
+# in `виконано` or `хід майстра`, hit a permission denial or cost more than
+# $QUEST_STORY_COST (2 USD) gets a diagnosis by the squire
+# (`scripts/trace --story`), which the next attempt of the quest reads.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 agent=claude
@@ -45,6 +51,7 @@ done
 export DANGONIX_JUDGE=${judge:-$agent}
 mkdir -p .campaign
 limit=${QUEST_TIMEOUT:-3h}
+idle_limit=${QUEST_IDLE:-20m}
 { : </dev/tty; } 2>/dev/null || ask=0
 
 notify() {
@@ -101,6 +108,48 @@ quest_state() {
       else if (kind == "благословення" || gm) print "retry"
       else print "gm"
     }'
+}
+
+# 90, 20m, 3h → seconds.
+seconds() {
+  case $1 in
+  *h) echo $((${1%h} * 3600)) ;;
+  *m) echo $((${1%m} * 60)) ;;
+  *s) echo "${1%s}" ;;
+  *) echo "$1" ;;
+  esac
+}
+
+# Run the agent in the background and watch its log: scripts/agent writes
+# every event as it happens, so a log that stops growing is a hang. timeout
+# without --foreground signals the agent's whole process group, also on a
+# hang and on Ctrl+C here. Sets run_rc and idle.
+run_agent() {
+  local id=$1 log=$2 prompt=$3 size=-1 now last pid wait_max
+  wait_max=$(seconds "$idle_limit")
+  idle=0
+  last=$(date +%s)
+  DANGONIX_QUEST=$id DANGONIX_QUEST_HEAD=$(git rev-parse HEAD) \
+    timeout "$limit" scripts/agent run "$agent" "$tier" "$effort" "$log" "$prompt" &
+  pid=$!
+  # shellcheck disable=SC2064  # expand now: pid is local
+  trap "kill -TERM $pid 2>/dev/null; wait $pid; exit 130" INT TERM
+  while kill -0 "$pid" 2>/dev/null; do
+    sleep 5
+    now=$(date +%s)
+    if [[ $(stat -c %s "$log" 2>/dev/null || echo 0) != "$size" ]]; then
+      size=$(stat -c %s "$log" 2>/dev/null || echo 0)
+      last=$now
+    elif ((now - last >= wait_max)); then
+      idle=1
+      echo "$id: no output for $idle_limit, stopping the attempt"
+      kill -TERM "$pid" 2>/dev/null
+      break
+    fi
+  done
+  wait "$pid"
+  run_rc=$?
+  trap - INT TERM
 }
 
 # Each CLI has its own skill syntax; both load .agents/skills/quest.
@@ -251,23 +300,34 @@ while ((attempt < ${QUEST_ATTEMPTS:-25})); do
   journal=$(last_entry "$id" | md5sum)
   echo "== $id ($agent $model, $effort) → $log"
   start=$(date +%s)
-  timeout --foreground "$limit" scripts/agent run "$agent" "$tier" "$effort" \
-    "$log" "$(invoke "$arg")"
-  rc=$?
+  run_agent "$id" "$log" "$(invoke "$arg")"
+  rc=$run_rc
   denied=0 cost=
-  if [[ $agent == claude ]]; then
-    denied=$(jq '.permission_denials | length' "$log" 2>/dev/null || echo "?")
-    cost=$(jq -r '.total_cost_usd // empty' "$log" 2>/dev/null)
+  # A finished Claude session ends with its result event.
+  result=$(jq -c 'select(.type == "result")' "$log" 2>/dev/null | tail -n 1)
+  if [[ -n $result ]]; then
+    denied=$(jq '.permission_denials // [] | length' <<<"$result")
+    cost=$(jq -r '.total_cost_usd // empty' <<<"$result")
     # The denials themselves: a new one is a gap to close with
     # `запит: permission`, not a reason to babysit.
     jq -r '.permission_denials[]? | "  denied \(.tool_name): \(.tool_input.command // .tool_input.file_path // "" | gsub("\n"; " ") | .[0:120])"' \
-      "$log" 2>/dev/null | head -n 10
+      <<<"$result" | head -n 10
   fi
   outcome=$(last_entry "$id" | head -n 1 | sed -E 's/^## [^ ]+ (—|-) //')
   [[ $(last_entry "$id" | md5sum) != "$journal" ]] || outcome="(no entry)"
+  ((idle)) && outcome="(idle) $outcome"
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%sm\t%s\t%s\t%s\n' "$(date +%FT%T)" \
     "$id" "$n" "$agent" "$model" "$tier" "$rc" "$((($(date +%s) - start) / 60))" \
     "${cost:--}" "$denied" "$outcome" >>.campaign/runs.tsv
+  # A diagnosis by the squire for anything worth a look; the next attempt
+  # reads .campaign/<id>.diagnosis.md. It never stops the campaign.
+  if [[ ${QUEST_STORY:-1} != 0 ]] && {
+    [[ $outcome != виконано && $outcome != "хід майстра" ]] || [[ $denied != 0 ]] ||
+      awk -v c="${cost:-0}" -v m="${QUEST_STORY_COST:-2}" 'BEGIN { exit !(c > m) }'
+  }; then
+    echo "== $id: diagnosis by the squire"
+    scripts/trace --story "$log" "$outcome" || echo "$id: no diagnosis (see ${log%.json}.story.json)"
+  fi
   ((rc == 124)) && stop "$id: timed out after $limit"
   # No journal entry: the agent crashed, ran out of turns or context. Rerun
   # once on the same tier; a second time it is the GM's.

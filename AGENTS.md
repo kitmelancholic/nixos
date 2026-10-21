@@ -22,24 +22,17 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
   stage paths explicitly, never `git commit -a`.
 - State-changing tests run in a worktree under `.campaign/` (tasks.md rules).
 - Never print full build logs (`tail -n 40`); full check via `quest-verify`.
-- `nix build .#greeter-vm` tests the greeter (patched SDDM, password next to
-  fingerprint); run it when SDDM, PAM or `thyx` changes.
-- Unsure of an option or package name: ask the `nixos` MCP server (mcp-nixos,
-  26.05 channel). It does not know flake-input options (Noctalia, Caelestia,
-  Home Manager): run `scripts/opt [--home [<theme id>]] <option path>`.
+- `nix build .#greeter-vm` tests the greeter; run it when SDDM, PAM or `thyx` change.
+- Unsure of a name: ask the `nixos` MCP server (mcp-nixos, 26.05); options
+  of flake inputs (Noctalia, Caelestia, HM): `scripts/opt [--home [<id>]] <path>`.
+- Never start subagents. Compaction keeps the quest id, changed files, last `quest-verify`.
 
 ## Quests
 
 - `/quest next|<id>|retry <id>` (Claude Code) or `$quest …` (Codex) runs
-  `.agents/skills/quest/SKILL.md`; state is only `docs/` and git.
-- Models per tier (`meta:` names tier and effort; `scripts/agent` reads it):
-
-  | tier   | claude            | codex          |
-  |--------|-------------------|----------------|
-  | squire | claude-haiku-5-5  | gpt-5.6-luna   |
-  | hero   | claude-sonnet-5-5 | gpt-5.6-terra  |
-  | cleric | claude-opus-5-5   | gpt-5.6-sol    |
-  | judge  | claude-opus-5-5   | gpt-5.6-sol    |
+  `.agents/skills/quest/SKILL.md`; state is only `docs/` and git. Model and
+  context limits per tier (`meta:` names it): `.agents/models.md`. What an
+  attempt did: `scripts/trace .campaign/<id>.<n>.json`.
 
 ## Git
 
@@ -50,23 +43,18 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
 ## Permissions
 
 - Same Bash rules in `.claude/settings.json` and `.codex/rules/dangonix.rules`;
-  change both together. Any command is allowed except the deny rules (what
-  git cannot undo: push, `reset --hard`, `clean`, history rewrites) and the
-  ask rules (sudo, rebuilds, every real `dangonix` change), which headless
-  runs refuse. A refusal the quest needs lifted is a `запит: permission`.
-- Both run `git-guard` and the fail-closed `bash-guard` (no hook = no Bash).
-  Claude also runs `scripts/context-watch`: obey its 80k/95k-token warnings.
-- Edit/Write deny rules exist only in Claude Code; Codex has no file-edit
-  hook, so its sandbox and the GM's review guard those paths.
+  change both together. Denied: push, `reset --hard`, `clean`, history
+  rewrites; ask (refused headless): sudo, rebuilds, real `dangonix` changes.
+  A refusal the quest needs lifted is a `запит: permission`.
+- Both run `git-guard` and the fail-closed `bash-guard` (no hook = no Bash),
+  and `scripts/context-watch`: obey its context warnings.
 
 ## Layout
 
 - `hosts/` the one NixOS host; `home/` Home Manager modules for every theme.
 - `profiles/` theme registry (default `noctalia`) and shell themes.
-- `lib/` flake helpers and `lib/dangonix/` (command table `commands.nix`);
-  `scripts/` quest tooling, git hooks, `opt`.
-- `state.json` holds the GM's choices; change it only when asked.
-- Checks live in `lib/checks.nix`; the bind fixture `tests/binds/` changes
-  only with a declared behavior change.
-- `docs/` vision, design, plan, journal.
-- `.agents/skills/` shared skills; `.claude/`, `.codex/` per-CLI config.
+- `lib/` flake helpers, `lib/dangonix/` (command table `commands.nix`), checks
+  in `lib/checks.nix`; `scripts/` quest tooling, git hooks, `opt`.
+- `state.json` holds the GM's choices; change it only when asked. The bind
+  fixture `tests/binds/` changes only with a declared behavior change.
+- `docs/` vision, design, plan, journal; `.agents/` shared skills and models.
