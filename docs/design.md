@@ -90,6 +90,7 @@ themes.noctalia = {
 | `batteryWarning` | provider | так (з кампанії II) | shell або `themes/common/low-battery-notify.nix` |
 | `palette` | declaration | так | `shell \| static` |
 | `toolkit` | declaration | так | GTK/Qt/cursor: `shell \| none` |
+| `appearance` | declaration | так | темний чи світлий режим: `shell \| dark \| light`, з `dangonix.look` ([вигляд](#вигляд)) |
 | `keybindings`, `clipboard`, `search` | frontend with default | ні | SUPER+F1, `dangonix clipboard`, SUPER+R |
 | `windowSwitcher`, `controlCenter`, `settings` | command | ні | ALT+Tab, SUPER+S, SUPER+comma |
 
@@ -101,6 +102,21 @@ themes.noctalia = {
 Кожен bind — запис з описом: `{ key = "SUPER+Return"; action = …; description = "Open terminal"; }`. Ідентичність bind'а — **повний resolved запис**: ключ, action, аргументи, всі flags. Ключі нормалізуються (`mod` → `SUPER`, фіксований порядок модифікаторів SUPER, CTRL, ALT, SHIFT, роздільник ` + `). З тих самих даних генеруються `hyprland.lua`, cheatsheet (`keys.json`), перевірка дублікатів і frozen fixture — тому вони не можуть розійтись.
 
 Правило: кожен наявний bind лишається (з усіма flags). Нові — тільки на вільні клавіші. Cheatsheet — SUPER+F1 (однаково під UA і EN), search — апгрейд launcher'а на SUPER+R; SUPER+Space лишається "float toggle", SUPER+K — "focus up".
+
+### Вигляд
+Тема задає вигляд програм ядра одним attrset `dangonix.look` (`home/look.nix`): ядро дає значення за замовчуванням, тема перебиває потрібні.
+```nix
+dangonix.look = {
+  appearance = "shell";   # shell | dark | light; без значення за замовчуванням, кожна тема вибирає
+  terminal = { dark = "manuscript-dark"; light = "manuscript-light"; };   # теми Ghostty
+  editor = { dark = "Manuscript Dark"; light = "Manuscript Light"; };     # теми Zed
+  fonts = { mono = [ "Rec Mono Casual" "Maple Mono" ]; monoSize = 14; ui = "Miriam Libre"; };
+};
+```
+- Режим живе в одному значенні `org.gnome.desktop.interface color-scheme`, а портал GTK хоста віддає його програмам. `shell`: його пише перемикач оболонки (у Noctalia темний, світлий чи «авто», `theme.sync_color_scheme`), ядро не чіпає. `dark`, `light`: його пише Home Manager під час активації (`dconf.settings`), перемикача немає. Noctalia — `shell`, Caelestia — `dark`, поки сама не пише `color-scheme`.
+- За режимом ідуть Ghostty (`theme = "light:…,dark:…"`), Zed (`theme.mode = "system"`), GTK4, Electron і Firefox через портал; dangonix, starship і fish — через 16 ANSI-кольорів терміналу. Іконки (Papirus-Dark) однакові в обох режимах.
+- Палітри Manuscript Dark і Light беруться з одного зафіксованого розширення Zed (`home/manuscript.nix`): Ghostty читає кольори з його JSON, тож редактор і термінал не розходяться. У Ghostty `minimum-contrast = 3`; шаблон Ghostty з палітри Noctalia не вмикається.
+- `home/look.nix` пише `~/.config/dangonix/look.json` (`appearance` і тема), його читає `dangonix status`.
 
 ### Перевірки (static, `lib/checks.nix`, на кожну тему)
 1. **Registry** — унікальні id, `themes/<family>` існує, поля manifest валідні, `dangonix.theme.id == id`, `state.json` theme є в реєстрі. Інваріанти family — assertions у самому модулі family.
@@ -164,7 +180,7 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 |---|---|---|---|
 | **Система** | | | |
 | `dangonix` | read | allow | `status` + коротка довідка |
-| `dangonix status` | read | allow | тема, power і net mode, Foundry, щит, чи система зібрана з поточного `state.json`; бар читає `dangonix --json status` |
+| `dangonix status` | read | allow | тема, вигляд (режим і хто його ставить), power і net mode, Foundry, щит, чи система зібрана з поточного `state.json`; бар читає `dangonix --json status` |
 | `dangonix help [<команда>]` | read | allow | довідка з таблиці команд |
 | `dangonix commands` | read | allow | всі команди з описом, effect, agent (`--json` — API для агентів, search і shell'ів) |
 | `dangonix version` | read | allow | версія dangoNix (`git describe`), коміт, чи брудне дерево, host і home generations, дата `nixpkgs` |

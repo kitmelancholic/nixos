@@ -132,6 +132,9 @@ CI на кожен push у `redesign` і PR у `main`: лінт доків і к
 **c1s2 · Ліхтар воротаря** ⚔️ (side quest). Грітер: видимий курсор; пароль і відбиток одночасно (патч SDDM скасовує очікування пальця, коли приходить пароль; `pam_unix` перед `pam_fprintd` для sddm); VM-тест грітера.
 - Твій хід: перевірити TTY-логін, switch, reboot, пароль і палець.
 
+**c1s3 · Чорнило й пергамент** (side quest). Вибрана тема вирішує вигляд програм через `dangonix.look`: темний чи світлий режим і хто його перемикає (Noctalia своїм перемикачем, Caelestia завжди темна), палітри терміналу й Zed, шрифти. Ghostty виглядає як Zed: Manuscript Dark уночі, паперовий Manuscript Light удень, шрифт Rec Mono Casual. `dangonix status` показує режим.
+- Твій хід: switch, перемкнути Noctalia на світлу й назад, `dangonix theme caelestia` і назад.
+
 **c1s5 · Обхідна стежка** (side quest). `dangonix update -zen-browser` оновлює все, крім held і названих з мінусом; невідомий input — помилка, fish доповнює `-<input>`.
 - Твій хід: `dangonix update -zen-browser`, переглянути diff `flake.lock`.
 
