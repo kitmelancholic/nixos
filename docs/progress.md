@@ -309,3 +309,8 @@ GM перевірив чекліст у campaign (2026-10-21).
 
 ## c1s4 - виконано
 Зроблено поза кампанією в PR #12 (`328b187`, `feat(scripts): …`): повні логи спроб, `scripts/trace` з `--story`, `QUEST_IDLE`, Stop hook `scripts/quest-stop`, ліміти контексту за рівнями в `.agents/models.md`. Секцію в `docs/tasks.md` додано заднім числом (2026-10-21).
+
+## c1s5 - провалений кидок
+Зміни зроблено в `lib/dangonix/dangonix.sh`, `commands.nix`, `completions.nix`; `bash -n` ок, логіка вибору перевірена через jq. Але `nix fmt`, `dangonix check --fast` і `quest-verify` не запускаються: sandbox ховає untracked `.gitmodules` (символьний пристрій `/dev/null`, власник `nobody`), тож libgit2 падає з `Permission denied`; `nix` з `path:` падає з `cannot create Unix domain socket`. Verify 1–7 не виконано. Потрібно: дозвіл на читання `.gitmodules` (або прибрати його) і запуск nix поза sandbox; тоді `retry c1s5`. Робота не закомічена.
+запит: permission - sandbox блокує читання `.gitmodules` і сокети для nix; `dangonix check`/`quest-verify` неможливі без цього.
+agent: claude claude-haiku-5-5
