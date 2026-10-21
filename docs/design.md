@@ -169,7 +169,7 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 | `dangonix commands` | read | allow | всі команди з описом, effect, agent (`--json` — API для агентів, search і shell'ів) |
 | `dangonix version` | read | allow | версія dangoNix (`git describe`), коміт, чи брудне дерево, host і home generations, дата `nixpkgs` |
 | `dangonix switch [--home\|--host] [--overwrite]` | host | ask | транзакція: build host + home, nvd diff, активувати хост (тільки якщо змінився), потім home; `--overwrite` відкладає вбік файли, з якими зіткнувся Home Manager (`-b`) |
-| `dangonix update [<input>...]` | state | ask | оновити всі inputs крім held, `dangonix check`, при помилці повернути `flake.lock`; ніколи не switch'ить і не комітить |
+| `dangonix update [<input>...\|-<input>...]` | state | ask | оновити всі inputs крім held, `dangonix check`, при помилці повернути `flake.lock`; ніколи не switch'ить і не комітить. Імена — оновити тільки їх; `-<input>` — оновити все, крім held і названих з мінусом (`update -zen-browser`); змішувати не можна, невідомий input — exit 2 |
 | `dangonix history` | read | allow | журнал транзакцій (команда, час, результат, `failedStep`) разом з host і home generations |
 | `dangonix rollback [--host\|--home]` | host | ask | активувати попередню пару generations з журналу; `state.json` не чіпає, тож `status` попереджає, що система не з нього |
 | `dangonix clean [--older-than <14d>]` | host | ask | видалити старші generations (поточна й попередня лишаються завжди) і зібрати сміття store; GC roots Foundry не чіпає; друкує, скільки звільнено |
@@ -270,7 +270,7 @@ nix --extra-experimental-features 'nix-command flakes' run ~/nixos -- switch
 
 ## 6. Стабільність
 - `flake.lock` пінить усе, без `?rev=` у `flake.nix`.
-- `dangonix update` пропускає **held list** (`hyprland`, `noctalia`, `caelestia`), якщо input не названо явно; повідомляє про held.
+- `dangonix update` пропускає **held list** (`hyprland`, `noctalia`, `caelestia`), якщо input не названо явно; повідомляє про held. Разове виключення — `-<input>` (`dangonix update -zen-browser`), JSON `excluded`; постійно не оновлювати — додати input у held.
 - Gate — `dangonix check`: збирає host toplevel і кожну тему; при помилці повертає `flake.lock` байт-у-байт; ніколи не switch'ить.
 - CI на GitHub — другий, eval-only gate: та сама `check --fast` і оракул на кожен push. CD немає: switch завжди робиш ти.
 - Kernel — `linuxPackages_latest`, оновлюється тільки через gated `dangonix update`.
