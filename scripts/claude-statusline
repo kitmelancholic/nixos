@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Claude Code status line that also keeps the Pro/Max quota for
+# scripts/campaign-tui: Claude Code passes the session as JSON on stdin, with
+# `rate_limits` (5-hour and weekly use) on a subscription; the newest copy
+# goes to ~/.cache/dangonix/claude-usage.json. Set it in
+# ~/.claude/settings.json: "statusLine": {"type": "command",
+# "command": "<checkout>/scripts/claude-statusline"}.
+set -uo pipefail
+input=$(cat)
+cache=${XDG_CACHE_HOME:-$HOME/.cache}/dangonix
+if jq -e '.rate_limits' >/dev/null 2>&1 <<<"$input"; then
+  mkdir -p "$cache" &&
+    jq -c '{ts: now, rate_limits}' <<<"$input" >"$cache/claude-usage.json.tmp" &&
+    mv "$cache/claude-usage.json.tmp" "$cache/claude-usage.json"
+fi
+jq -r '[.model.display_name // empty,
+  (.rate_limits.five_hour.used_percentage // empty | "5h \(round)%"),
+  (.rate_limits.seven_day.used_percentage // empty | "7d \(round)%")] | join(" · ")' <<<"$input" 2>/dev/null

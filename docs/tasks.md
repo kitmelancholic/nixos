@@ -810,23 +810,26 @@ meta: tier=squire effort=medium boss=no diff=leaves leaves=~dangonix*,~hm_*dango
 ## c1s6 - Scrying glass
 meta: tier=hero effort=low boss=no diff=none
 
-**Goal.** The GM watches a campaign live in a second terminal: the quest map, who works on what, how long and how quiet, context and cost, the last steps with trace's markers, and what the agent says, thinks and runs.
+**Goal.** The GM runs the campaign from one screen: a live diagram of the autopilot loop shows where it is, the dialogs answer its questions, and the running attempt, the Claude quota and what the agent says, thinks and runs are one key away.
 
-**Why.** `scripts/campaign` prints one line per attempt, so between notifications the GM sees nothing; the logs, `runs.tsv` and diagnoses already hold everything (c1s4). Done outside the campaign (the GM asked for it in the project on 2026-10-21); this section records what was built. The viewer only reads, so the campaign behaves the same with or without it.
+**Why.** `scripts/campaign` prints one line per attempt and asks on its own terminal, so between notifications the GM sees nothing; the logs, `runs.tsv` and diagnoses already hold everything (c1s4). Done outside the campaign (the GM asked for it in the project on 2026-10-21); this section records what was built. The campaign itself is unchanged: the TUI runs it in a pseudo-terminal and types the GM's answers into it.
 
-**Files.** `scripts/campaign-tui`.
+**Files.** `scripts/campaign-tui`, `scripts/campaign_tui.py`, `scripts/claude-statusline`, `lib/repo-apps.nix` (app `campaign-tui`), `lib/checks.nix` (`checks.campaign-tui`).
 
 **Done.**
-1. `scripts/campaign-tui` (bash and jq, nothing new to install): reads `docs/tasks.md`, `docs/progress.md`, `.agents/models.md`, `.campaign/` and the running `scripts/agent` process; writes, signals and answers nothing. Refreshes every 2 s.
-2. Header: state (agent at work, squire's diagnosis, judge, `хід майстра` with a terminal bell when the campaign waits for the GM, campaign not running); quest, attempt, tier, CLI, model, effort; run time, silence against `QUEST_IDLE`, context against the tier's `hard`, steps, output tokens, cost, trace markers (⟳ ↺ ▲ ⏱ ⏸, search loop).
-3. Quest map from the journal (✓ done, ⚑ GM's turn, ✗ failed roll, ▶ current, ☠ boss, ⛺ long rest) with a progress bar.
-4. Views: `d` last steps, `t` everything the agent said, thought and ran, `r` `runs.tsv` with the total spent, `s` the diagnosis and the newest lessons; `[` `]` older and newer attempt logs, `0` live, `q` quit. `--once` prints one frame (no colour in a pipe, `NO_COLOR`).
+1. `scripts/campaign-tui` runs `nix run .#campaign-tui`: Python with Textual from the flake's nixpkgs over the checkout's `scripts/campaign_tui.py`. It reads `docs/tasks.md`, `docs/progress.md`, `.agents/models.md`, `.campaign/` and `/proc`; it writes nothing.
+2. `s` starts `scripts/campaign` (hero and judge CLI) in a pseudo-terminal; its `[y/n]` and one-line questions open a dialog (`a` reopens one closed with Esc); `x` stops it with Ctrl+C; quitting asks first. A campaign started in another terminal is only watched.
+3. The diagram (the autopilot loop of the agentic-workflow map): start, next quest, journal, the agent with the quest procedure's steps 1-7, outcome, squire's diagnosis, the GM's three kinds of answer, written/rerun/timeout. The current box spins and is lit, the steps already passed are green; the agent's step comes from its log (edits → steps, `quest-verify`, `scripts/review`, `git commit`, tags).
+4. Around it: the quest map from the journal; the attempt's quest, tier, CLI, model, effort, attempt, run time, silence against `QUEST_IDLE`, context against the tier's `hard`, steps, output tokens, cost and `scripts/trace` markers; the total spent; the Claude 5-hour and weekly quota. Tabs: `1` steps, `2` thoughts, `3` the campaign's output, `4` `runs.tsv`, `5` diagnosis and lessons; `[` `]` older and newer attempts, `0` live.
+5. Quota: `scripts/claude-statusline`, a Claude Code status line, keeps the newest `rate_limits` (percent used, reset time) in `~/.cache/dangonix/claude-usage.json`; a campaign log's `rate_limit_event` adds its status and reset time.
+6. `checks.campaign-tui` renders it headless on `tests/trace/` (`campaign_tui.py --selftest`).
 
-**Commit.** `feat(c1s6): campaign-tui, a live read-only view of the campaign`
+**Commit.** `feat(c1s6): campaign-tui runs the campaign with a live diagram`
 
 **GM's turn.**
-- In a second terminal during `scripts/campaign`: `scripts/campaign-tui`. The header follows the running attempt, `t` shows its thoughts, the map marks the quest with ▶; when the campaign asks you y/n the header says `хід майстра` and the terminal rings.
-- `scripts/campaign-tui --once | head -n 12` prints a plain frame.
+- In `~/.claude/settings.json`: `"statusLine": {"type": "command", "command": "/home/kit/nixos/scripts/claude-statusline"}`; after one reply in an interactive Claude Code session `~/.cache/dangonix/claude-usage.json` exists.
+- `scripts/campaign-tui`, `s`, `▶ у бій`: the diagram follows the attempt (agent box, its step), `2` shows its thoughts; the campaign's next question opens a dialog and the answer reaches it (`3`).
+- The quota shows percentages for the session and the week.
 - All good → `## c1s6 - виконано`.
 
 ---

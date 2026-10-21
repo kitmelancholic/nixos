@@ -192,7 +192,24 @@ let
     '';
   };
 
+  # scripts/campaign-tui runs this: Python with Textual over the checkout's
+  # scripts/campaign_tui.py, so editing the file needs no rebuild.
+  campaignTuiScript = pkgs.writeShellApplication {
+    name = "repo-campaign-tui";
+    runtimeInputs = [
+      (pkgs.python3.withPackages (p: [ p.textual ]))
+      pkgs.git
+      pkgs.jq
+    ];
+    text = ''
+      top=$(git rev-parse --show-toplevel)
+      export CAMPAIGN_TUI_ROOT=$top
+      exec python3 "$top/scripts/campaign_tui.py" "$@"
+    '';
+  };
+
   scripts = {
+    campaignTui = campaignTuiScript;
     check = checkScript;
     fmt = fmtScript;
     foundryCheck = foundryCheckScript;
@@ -207,6 +224,7 @@ in
   inherit scripts staticCheckCommand;
 
   apps = {
+    campaign-tui = mkApp "Run and watch scripts/campaign in a TUI" "${campaignTuiScript}/bin/repo-campaign-tui";
     check = mkApp "Run repository static checks and Hyprland config validation" "${checkScript}/bin/repo-check";
     fmt = mkApp "Format repository files" "${fmtScript}/bin/repo-fmt";
     foundry-check = mkApp "Validate the configured FoundryVTT payload" "${foundryCheckScript}/bin/repo-foundry-check";

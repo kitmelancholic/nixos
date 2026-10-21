@@ -311,6 +311,24 @@ in
     done
     touch $out
   '';
+  # scripts/campaign_tui.py renders headless with the trace fixtures.
+  campaign-tui =
+    pkgs.runCommand "campaign-tui-check"
+      {
+        nativeBuildInputs = [
+          (pkgs.python3.withPackages (p: [ p.textual ]))
+          pkgs.jq
+        ];
+      }
+      ''
+        mkdir -p repo/.campaign repo/scripts home
+        cp -r --no-preserve=mode ${src}/docs ${src}/.agents repo/
+        cp ${src}/scripts/trace.jq repo/scripts/
+        cp ${src}/tests/trace/claude.jsonl repo/.campaign/c1s5.1.json
+        cp ${src}/tests/trace/codex.jsonl repo/.campaign/c1s5.2.json
+        HOME=$PWD/home CAMPAIGN_TUI_ROOT=$PWD/repo python3 ${src}/scripts/campaign_tui.py --selftest
+        touch $out
+      '';
   inherit registry commands;
   binds-fixture = bindsFixture;
   host = host.config.system.build.toplevel;
