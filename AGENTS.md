@@ -26,6 +26,11 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
 - Unsure of a name: ask the `nixos` MCP server (mcp-nixos, 26.05); options
   of flake inputs (Noctalia, Caelestia, HM): `scripts/opt [--home [<id>]] <path>`.
 - Never start subagents. Compaction keeps the quest id, changed files, last `quest-verify`.
+- A sandbox error from `nix` itself (`Operation not permitted`, `Permission
+  denied` on a repo file) does not go away on retry: after the first one,
+  write `провалений кидок` with the error line and `запит: permission`, as
+  the quest skill says; never retry or work around it.
+- Add to `docs/progress.md` with Edit, never Write.
 
 ## Quests
 
