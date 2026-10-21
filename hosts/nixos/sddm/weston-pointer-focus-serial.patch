@@ -1,0 +1,14 @@
+--- a/libweston/input.c
++++ b/libweston/input.c
+@@ -2043,6 +2043,11 @@
+ 		}
+
+ 		pointer->focus_serial = serial;
++	} else if (view && refocus) {
++		/* The client has no wl_pointer yet; its get_pointer sends this
++		 * serial with wl_pointer.enter, and Qt sets no cursor while the
++		 * enter serial is 0. */
++		pointer->focus_serial = wl_display_next_serial(display);
+ 	}
+
+ 	wl_list_remove(&pointer->focus_view_listener.link);

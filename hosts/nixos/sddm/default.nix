@@ -1,11 +1,19 @@
 {
   config,
+  lib,
+  options,
   pkgs,
   ...
 }:
 
 let
   pamModules = "${config.security.pam.package}/lib/security";
+
+  # The greeter binds wl_pointer after weston focused it, so the enter it
+  # gets carries serial 0 and Qt never sets a cursor.
+  weston = pkgs.weston.overrideAttrs (old: {
+    patches = (old.patches or [ ]) ++ [ ./weston-pointer-focus-serial.patch ];
+  });
 in
 {
   services.displayManager.sddm = {
@@ -15,6 +23,11 @@ in
         patches = (old.patches or [ ]) ++ [ ./cancel-fingerprint-auth.patch ];
       });
     };
+
+    # nixpkgs' weston command and weston.ini, with the patched weston.
+    wayland.compositorCommand =
+      builtins.replaceStrings [ (lib.getExe pkgs.weston) ] [ (lib.getExe weston) ]
+        options.services.displayManager.sddm.wayland.compositorCommand.default;
 
     settings.Theme = {
       CursorTheme = "Bibata-Modern-Ice";

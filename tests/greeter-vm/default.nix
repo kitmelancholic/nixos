@@ -1,6 +1,8 @@
 # The greeter with the host's SDDM module: a typed password logs in while
 # an empty-password (fingerprint) login is pending. `unpatched` is the same
-# machine with stock SDDM, where the password login is dropped.
+# machine with stock SDDM, where the password login is dropped. `wayland`
+# runs the greeter in the host's patched weston and gets a cursor;
+# `stockWeston` shows the serial-0 enter after which Qt sets none.
 { pkgs }:
 
 let
@@ -55,6 +57,35 @@ let
         ];
       };
     };
+
+  # Greeter in weston as on the host; WAYLAND_DEBUG logs its requests,
+  # set_cursor among them. Weston adds ydotoold's pointer to the seat on
+  # its first motion, which the test sends after the greeter's keyboard
+  # enter (kiosk-shell focuses the greeter when it maps).
+  waylandGreeter =
+    patchedWeston:
+    { options, ... }:
+    {
+      imports = [ ../../hosts/nixos/sddm ];
+
+      users.users.alice = {
+        isNormalUser = true;
+        inherit password;
+      };
+
+      services.displayManager.sddm = {
+        enable = true;
+        wayland = {
+          enable = true;
+          compositorCommand = lib.mkIf (!patchedWeston) (
+            lib.mkForce options.services.displayManager.sddm.wayland.compositorCommand.default
+          );
+        };
+        settings.General.GreeterEnvironment = "WAYLAND_DEBUG=1";
+      };
+
+      programs.ydotool.enable = true;
+    };
 in
 pkgs.testers.runNixOSTest {
   name = "greeter-vm";
@@ -62,6 +93,8 @@ pkgs.testers.runNixOSTest {
   nodes = {
     patched = greeter true;
     unpatched = greeter false;
+    wayland = waylandGreeter true;
+    stockWeston = waylandGreeter false;
   };
 
   enableOCR = true;
@@ -72,6 +105,28 @@ pkgs.testers.runNixOSTest {
         machine.send_key("ret")
         machine.wait_for_file("/tmp/fingerprint-waiting")
         machine.send_chars("${password}\n")
+
+    def greeter_log(pattern):
+        return f"journalctl -b -o cat | grep -a -q '{pattern}'"
+
+    # A visible cursor: set_cursor with a surface (nil hides it) that gets a
+    # buffer.
+    cursor_shown = (
+        "log=$(journalctl -b -o cat); "
+        "for s in $(grep -aoE 'wl_pointer#[0-9]+[.]set_cursor[(][1-9][0-9]*, wl_surface#[0-9]+' <<<\"$log\" "
+        "| grep -oE 'wl_surface#[0-9]+$'); do "
+        "grep -aqF \"$s.attach(wl_buffer#\" <<<\"$log\" && exit 0; done; exit 1"
+    )
+
+    # The first motion adds the pointer and focuses the greeter's mapped
+    # surface in one weston dispatch, before the greeter's get_pointer.
+    def pointer_enters(machine):
+        machine.wait_until_succeeds(greeter_log("wl_keyboard#[0-9]*\\.enter("), timeout=120)
+        machine.fail(greeter_log("wl_pointer#[0-9]*\\.enter("))
+        machine.wait_until_succeeds(
+            "ydotool mousemove -a -x 400 -y 300 && " + greeter_log("wl_pointer#[0-9]*\\.enter("),
+            timeout=60,
+        )
 
     start_all()
 
@@ -85,5 +140,16 @@ pkgs.testers.runNixOSTest {
         unpatched.sleep(10)
         unpatched.fail("pgrep -u alice icewm")
         unpatched.succeed("journalctl -u display-manager --grep 'Existing authentication ongoing'")
+
+    with subtest("the Wayland greeter sets a pointer cursor"):
+        pointer_enters(wayland)
+        wayland.fail(greeter_log("wl_pointer#[0-9]*\\.enter(0,"))
+        wayland.wait_until_succeeds(cursor_shown, timeout=10)
+
+    with subtest("stock weston enters with serial 0 and the greeter sets no cursor"):
+        pointer_enters(stockWeston)
+        stockWeston.succeed(greeter_log("wl_pointer#[0-9]*\\.enter(0,"))
+        stockWeston.sleep(10)
+        stockWeston.fail(cursor_shown)
   '';
 }
