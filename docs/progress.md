@@ -303,3 +303,6 @@ GM (campaign, 2026-10-21): так, scope: патч .campaign/c1s3.request.patch.
 - `dangonix theme caelestia`: усе темне, `dangonix status` показує `fixed by caelestia`; `dangonix theme noctalia` — назад.
 - Усе добре → `## c1s3 — виконано`.
 agent: claude claude-sonnet-5-5
+
+## c1s3 — виконано
+GM перевірив чекліст у campaign (2026-10-21).
