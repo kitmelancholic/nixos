@@ -652,7 +652,7 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=~weston-*,~sddm-unwrap
 ---
 
 ## c1s3 — Ink and parchment
-meta: tier=hero effort=medium boss=no diff=leaves leaves=~dangonix*,~dangonix-config.json?,+hm_*?,~hm_*?,+*ghostty*?,~*ghostty*?,~*starship*?,~*zed*?,+*dconf*?,~*dconf*?,+*look.json?,+*manuscript*?
+meta: tier=hero effort=medium boss=no diff=leaves leaves=~dangonix*,~dangonix-config.json?,+hm_*?,~hm_*?,+*ghostty*?,~*ghostty*?,~*starship*?,~*zed*?,+*dconf*?,~*dconf*?,+*look.json?,+*manuscript*?,~activation-script?
 
 **Goal.** The selected theme decides the look of the core apps through one attrset `dangonix.look`: dark or light (and who switches it), the terminal and editor palettes, the fonts. Ghostty looks like Zed: Manuscript Dark in dark mode, Manuscript Light (paper) in light mode, Zed's code font.
 
