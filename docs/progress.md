@@ -315,3 +315,9 @@ GM перевірив чекліст у campaign (2026-10-21).
 запит: permission - sandbox блокує читання `.gitmodules` і сокети для nix; `dangonix check`/`quest-verify` неможливі без цього.
 agent: claude claude-haiku-5-5
 GM (campaign, 2026-10-22): sandbox готовий, має все працювати тепер стабільно
+
+## c1s5 - провалений кидок
+Nix тепер працює, кроки 1–5 з попередньої спроби на місці. `nix fmt` падає: treefmt не може писати кеш у `~/.cache/treefmt` (`read-only file system`). Я запустив `nix fmt -- --no-cache`, а `repo-fmt` з аргументами не передає `--excludes`, тож він переформатував `hosts/nixos/hardware-configuration.nix` (це моя помилка). `bash-guard` не дає мені його повернути, тому `check --fast` і Verify не запускав. Робота квесту не закомічена.
+GM: `git checkout -- hosts/nixos/hardware-configuration.nix`, застосуй `.campaign/c1s5.request.patch` (у Codex rules шляхів sandbox немає), потім `retry c1s5`.
+запит: permission - sandbox не дає treefmt писати кеш `~/.cache/treefmt`, тож `nix fmt` падає; патч додає цей шлях до `sandbox.filesystem.allowWrite`.
+agent: claude claude-opus-5-5
