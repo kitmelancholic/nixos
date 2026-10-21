@@ -40,11 +40,13 @@ in
   ];
 
   # A typed password succeeds at unix and unlocks the keyring; the theme's
-  # empty one fails fast and waits for a finger in the login substack.
+  # empty one fails fast and waits for a finger in the login substack. The
+  # keyring only sees a password unix-early accepted: an empty one would
+  # re-encrypt the login keyring with it.
   security.pam.services.sddm.rules.auth = {
     unix-early = {
       order = 10000;
-      control = "optional";
+      control = "[success=ignore default=1]";
       modulePath = "${pamModules}/pam_unix.so";
       settings = {
         likeauth = true;

@@ -134,6 +134,8 @@ pkgs.testers.runNixOSTest {
         password_during_fingerprint(patched)
         patched.wait_until_succeeds("pgrep -u alice icewm", timeout=10)
         patched.succeed("journalctl -u display-manager --grep 'Cancelling the pending empty-password authentication'")
+        # The keyring got the typed password, not the pending empty one.
+        patched.succeed("journalctl -b -o cat | grep -a 'gkr-pam: .*keyring'")
 
     with subtest("stock SDDM drops the password login"):
         password_during_fingerprint(unpatched)
