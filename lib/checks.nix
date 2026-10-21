@@ -303,6 +303,14 @@ in
         ${staticCheckCommand}
         touch $out
       '';
+  # scripts/trace on recorded Claude Code and Codex logs gives the expected lines.
+  trace = pkgs.runCommand "trace-check" { nativeBuildInputs = [ pkgs.jq ]; } ''
+    for f in claude codex; do
+      jq -rs --arg mode trace -f ${src}/scripts/trace.jq ${src}/tests/trace/$f.jsonl > $f.out
+      diff -u ${src}/tests/trace/$f.expected $f.out
+    done
+    touch $out
+  '';
   inherit registry commands;
   binds-fixture = bindsFixture;
   host = host.config.system.build.toplevel;

@@ -1,6 +1,7 @@
 ---
 name: quest
 description: Run one quest from docs/tasks.md (`quest next`, `quest c1q07`, `quest retry c1q07`)
+disable-model-invocation: true
 ---
 Run exactly one quest, then stop. Argument: $ARGUMENTS (if this still reads
 as a placeholder, the argument is the text after the skill name in the
@@ -48,7 +49,10 @@ Never use a request to skip or weaken a step, a *Do not* or a check.
    lists under *Read first*.
    Do not read other quests or explore beyond what the section names.
    For `retry`, also read the quest's last `провалений кидок` entry and the
-   decision the GM appended under it.
+   decision the GM appended under it. If `.campaign/<id>.diagnosis.md`
+   exists, read it too: the squire's summary of the quest's previous attempt
+   (its first wrong step, what it wasted). Do not repeat that; the section
+   and the journal still decide.
 4. Check *Preconditions*. If one fails or its outcome is not covered by the
    section, append `## <id> — провалений кидок` (max 5 lines: what, why,
    what you need from the GM, plus the `agent:` line), commit only
@@ -85,6 +89,9 @@ Never use a request to skip or weaken a step, a *Do not* or a check.
     from `scripts/next-version` (`c1r3`: `v1.0.0`), stop.
 
 Never print full build logs (tail -n 40 or grep errors). Never push.
+Never start subagents (Claude's Agent tool, Codex's spawned agents): each
+one rebuilds a whole context and multiplies the cost; read and search
+yourself.
 Never edit `docs/tasks.md`, except the quest's own `meta:` line when the
 GM's decision under the last entry says so. Never edit the files the
 section's shared rules list as never touched by agents; if a step needs

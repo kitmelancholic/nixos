@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# What an agent attempt did, from the log scripts/agent wrote: one line per
+# tool call (context size, result, markers for loops and waste), then a
+# summary. No model, no tokens. Rules: scripts/trace.jq.
+#   trace <log>                        .campaign/<id>.<n>.json
+#   trace --story <log> [<outcome>]    also a short diagnosis by the squire:
+#       .campaign/<id>.<n>.md, copied to .campaign/<id>.diagnosis.md (the next
+#       attempt of the quest reads it); its lesson line goes to
+#       .campaign/lessons.md for the scribe.
+set -euo pipefail
+top=$(git rev-parse --show-toplevel)
+story=0
+if [[ ${1:-} == --story ]]; then
+  story=1
+  shift
+fi
+log=${1:?usage: trace [--story] <log> [<outcome>]}
+outcome=${2:-}
+[[ -r $log ]] || {
+  echo "trace: cannot read $log" >&2
+  exit 2
+}
+trace=$(jq -rs --arg mode trace -f "$top/scripts/trace.jq" "$log")
+((story)) || {
+  printf '%s\n' "$trace"
+  exit 0
+}
+
+name=$(basename "$log" .json)
+id=${name%.*}
+dir=$(dirname "$log")
+out=$dir/$name.md
+notes=$(jq -rs --arg mode notes -f "$top/scripts/trace.jq" "$log" | head -c 20000)
+case $(head -n 1 <<<"$trace") in
+codex*) agent=codex ;;
+*) agent=claude ;;
+esac
+agent=${DANGONIX_STORY_AGENT:-$agent}
+
+prompt="You review one attempt of an AI agent at quest $id of this repo (docs/tasks.md, section \`## $id\`). Below are a condensed trace of the attempt, one line per tool call (context size and growth, result, output size; markers: ⟳ repeated call, ↺ file read again, ▲ output over 4k tokens, ⏱ a call that ran long, ⏸ a long pause before a call), a summary, and the agent's own notes and reasoning summaries.
+Do not run tools or read files: answer only from this text.
+Write in Ukrainian, at most 30 lines, with exactly these sections:
+## Кроки
+5 to 15 numbered lines «вирішив → зробив → вийшло», citing step numbers (#n).
+## Перший хибний крок
+The step where the attempt went wrong and why, or «немає».
+## Марні витрати
+Loops, repeated calls, heavy outputs, long waits, with step numbers and rough tokens; or «немає».
+## Урок
+One line starting with «Урок:»: the smallest change to the quest section, AGENTS.md or the permissions that would have avoided the problem; or «Урок: немає».
+
+Outcome in the journal: ${outcome:-unknown}
+
+Trace:
+$trace
+
+Agent notes:
+$notes"
+
+"$top/scripts/agent" ask "$agent" squire low "$dir/$name.story.json" "$prompt" >"$out"
+[[ -s $out ]] || {
+  echo "trace: the squire wrote nothing (see $dir/$name.story.json)" >&2
+  exit 1
+}
+cp "$out" "$dir/$id.diagnosis.md"
+lesson=$(grep -m 1 '^Урок:' "$out" | sed 's/^Урок: *//') || true
+if [[ -n $lesson && $lesson != немає* ]]; then
+  printf '%s %s: %s\n' "$(date +%F)" "$name" "$lesson" >>"$dir/lessons.md"
+fi
+echo "$out"

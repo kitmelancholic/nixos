@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# PostToolUse hook (Claude Code): warns the agent once per threshold when its
-# context passes 80k and 95k tokens, so a quest is finished or handed back
-# before it grows expensive. Only Haiku (the squire tier) is watched: other
-# models exit silently. Thresholds: $DANGONIX_CTX_WARN ("80000 95000").
-# Advisory: it never blocks, and any error exits 0 silently.
+# PostToolUse hook (Claude Code and Codex): warns the agent once per threshold
+# when its context passes the `warn` and `hard` sizes of its tier in
+# .agents/models.md, so a quest is finished or handed back before it grows
+# expensive and loses focus. The tier is $DANGONIX_TIER (scripts/agent sets
+# it), else the row whose model the session runs; a tier without sizes (the
+# judge) and an unknown model are not watched. $DANGONIX_CTX_WARN ("80000
+# 95000") overrides the sizes. Advisory: it never blocks, and any error exits
+# 0 silently.
 set -uo pipefail
 trap 'exit 0' ERR
 
@@ -11,18 +14,36 @@ input=$(cat)
 session=$(jq -r '.session_id // empty' <<<"$input")
 transcript=$(jq -r '.transcript_path // empty' <<<"$input")
 [[ -n $session && -r $transcript ]] || exit 0
+top=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 
-# The last assistant turn's prompt size is the current context. jq stops at
-# the first match, so tac dies of SIGPIPE: ignore the pipeline's status.
-model=$(tac "$transcript" | jq -rn 'first(inputs
+# The current context is the prompt size of the last model call: Claude Code
+# records usage on each assistant message, Codex a token_count event. jq stops
+# at the first match, so tac dies of SIGPIPE: ignore the pipeline's status.
+model=$(jq -r '.model // empty' <<<"$input")
+[[ -n $model ]] || model=$(tac "$transcript" | jq -rn 'first(inputs
   | .message | select(.usage? != null) | .model // empty) // ""') || true
-[[ $model == *haiku* ]] || exit 0
-used=$(tac "$transcript" | jq -n 'first(inputs | .message.usage? // empty
-  | (.input_tokens // 0) + (.cache_creation_input_tokens // 0)
-    + (.cache_read_input_tokens // 0)) // 0') || true
+used=$(tac "$transcript" | jq -n 'first(inputs
+  | (.message.usage? // empty
+      | (.input_tokens // 0) + (.cache_creation_input_tokens // 0)
+        + (.cache_read_input_tokens // 0)),
+    (.payload? | select(.type? == "token_count") | .info.last_token_usage.input_tokens // empty)) // 0') || true
 [[ $used =~ ^[0-9]+$ ]] || exit 0
 
-read -r soft hard <<<"${DANGONIX_CTX_WARN:-80000 95000}"
+if [[ -n ${DANGONIX_CTX_WARN:-} ]]; then
+  read -r soft hard <<<"$DANGONIX_CTX_WARN"
+else
+  read -r soft hard < <(awk -F'|' -v tier="${DANGONIX_TIER:-}" -v model="$model" '
+    function trim(s) { gsub(/ /, "", s); return s }
+    !head && trim($2) == "tier" { for (i = 2; i < NF; i++) c[trim($i)] = i; head = 1; next }
+    head && trim($2) ~ /^[a-z]+$/ {
+      t = trim($2); cl = trim($(c["claude"])); cx = trim($(c["codex"]))
+      if (tier != "" ? t == tier : (index(model, cl) == 1 || index(model, cx) == 1)) {
+        print trim($(c["warn"])), trim($(c["hard"])); exit
+      }
+    }' "$top/.agents/models.md") || true
+fi
+[[ ${soft:-} =~ ^[0-9]+$ && ${hard:-} =~ ^[0-9]+$ ]] || exit 0
+
 state=${XDG_RUNTIME_DIR:-/tmp}/dangonix-ctx-$session
 warned=$(cat "$state" 2>/dev/null || echo 0)
 
