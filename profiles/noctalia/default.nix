@@ -12,6 +12,8 @@
     ../common/hyprpolkitagent.nix
   ];
 
+  dangonix.look.appearance = "shell";
+
   programs.noctalia = {
     enable = true;
     systemd.enable = true;

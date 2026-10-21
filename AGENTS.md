@@ -9,6 +9,7 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
 - A theme never changes the host: themes live in the home configuration only.
 - Every theme passes the checks (`scripts/check`).
 - Never remove or rebind an existing key binding.
+- Apps take dark/light, palettes and fonts from `dangonix.look` (`home/look.nix`); every theme sets `dangonix.look.appearance`.
 
 ## Loop
 

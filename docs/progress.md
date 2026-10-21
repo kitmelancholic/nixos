@@ -295,3 +295,11 @@ GM перевірив чекліст у campaign (2026-10-21).
 запит: scope — додати `~activation-script?` до `leaves=` у `meta:` c1s3 (`.campaign/c1s3.request.patch`), потім `retry c1s3`.
 agent: claude claude-sonnet-5-5
 GM (campaign, 2026-10-21): так, scope: патч .campaign/c1s3.request.patch.applied; retry: own tier
+
+## c1s3 — хід майстра
+Тема вирішує вигляд через `dangonix.look` (`home/look.nix`): `noctalia` — `shell`, `caelestia` — `dark`; Ghostty читає палітри з файлів Manuscript (`home/manuscript.nix`), Zed іде за `mode = "system"`; `dangonix status` має рядок `look`. `quest-verify` пройшов. Змінені derivations: `~dangonix`, `~dangonix-config.json`, `~ghostty-config`, `+ghostty-manuscript-{dark,light}-theme`, `~hm-dconf.ini`, `+hm_dangonixlook.json`, `~starship-config`, `~zed-user-settings`, `~activation-script`.
+- `dangonix switch` (Noctalia). Ghostty: темний Manuscript, Rec Mono Casual, підказки fish читабельні; `dangonix status` має рядок `look`.
+- У налаштуваннях Noctalia, Appearance: «Sync App Color Scheme» увімкнено, шаблон Ghostty вимкнено. Перемкни Noctalia на light: Ghostty (відкриті вікна), Zed і Nautilus стають світлими; познач, чи йдуть за ним Claude і Zen. Назад на dark.
+- `dangonix theme caelestia`: усе темне, `dangonix status` показує `fixed by caelestia`; `dangonix theme noctalia` — назад.
+- Усе добре → `## c1s3 — виконано`.
+agent: claude claude-sonnet-5-5

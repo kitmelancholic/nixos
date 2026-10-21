@@ -28,7 +28,7 @@ map row [
     id = "status";
     name = "status";
     effect = "read";
-    summary = "theme, Foundry, and whether the system is built from state.json";
+    summary = "theme, look, Foundry, and whether the system is built from state.json";
   }
   {
     id = "help";

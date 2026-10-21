@@ -14,6 +14,7 @@ in
     ./dangonix.nix
     ./desktop.nix
     ./foundry.nix
+    ./look.nix
     ./programs.nix
     ./packages.nix
     ./theme-switcher.nix

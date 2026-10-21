@@ -79,6 +79,7 @@ let
     name = "dangonix";
     runtimeInputs = with pkgs; [
       coreutils
+      dconf
       git
       gnugrep
       jq
