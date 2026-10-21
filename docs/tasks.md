@@ -651,6 +651,62 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=~weston-*,~sddm-unwrap
 
 ---
 
+## c1s3 — Ink and parchment
+meta: tier=hero effort=medium boss=no diff=leaves leaves=~dangonix*,~dangonix-config.json?,+hm_*?,~hm_*?,+*ghostty*?,~*ghostty*?,~*starship*?,~*zed*?,+*dconf*?,~*dconf*?,+*look.json?,+*manuscript*?
+
+**Goal.** The selected theme decides the look of the core apps through one attrset `dangonix.look`: dark or light (and who switches it), the terminal and editor palettes, the fonts. Ghostty looks like Zed: Manuscript Dark in dark mode, Manuscript Light (paper) in light mode, Zed's code font.
+
+**Why.** [Design §3 «Вигляд»](design.md#вигляд), approved by the GM on 2026-10-21 after mockups. Today Ghostty has no theme or font (`home/programs/terminal.nix`), Zed is pinned to `Manuscript Dark`, and nothing in the repo sets the system `color-scheme`. Noctalia already writes `org.gnome.desktop.interface color-scheme` from its dark/light/auto mode (`theme.sync_color_scheme`, default true: noctalia `src/app/application_services.cpp`, `syncGSettingsColorScheme`); Caelestia does not, so it gets a fixed `dark` that Home Manager writes. Ghostty, Zed and GTK4 apps follow that one value live through the host's existing `xdg-desktop-portal-gtk`; the host does not change. The Manuscript extension (already pinned in `home/zed.nix`) ships both palettes in `themes/manuscript-{dark,light}.json` (keys `themes[0].style."terminal.background"`, `"terminal.foreground"`, `"terminal.ansi.<colour>"`, `"terminal.ansi.bright_<colour>"`, `players[0].cursor`), so Ghostty reads its colours from the same files and the two apps never drift.
+
+**Files.** `home/look.nix` (new), `home/manuscript.nix` (new), `home/kit.nix`, `home/zed.nix`, `home/programs/terminal.nix`, `profiles/noctalia/default.nix`, `profiles/caelestia/default.nix`, `lib/dangonix/dangonix.sh`, `lib/dangonix/default.nix`, `lib/dangonix/commands.nix`, `AGENTS.md`, `docs/progress.md`.
+
+**Read first.** Design §3 «Вигляд»; `home/zed.nix`, `home/programs/terminal.nix`, `home/options.nix` (option style), `home/desktop/icons.nix`; `lib/dangonix/dangonix.sh` (`cmd_status`, `active_theme`).
+
+**Steps.**
+1. `home/manuscript.nix` (new): a function `{ pkgs }:` returning the `pkgs.fetchzip { … }` of `zed-manuscript-theme` now in `home/zed.nix` (same `url` and `hash`, moved, not changed). In `home/zed.nix` the `"zed/extensions/installed/manuscript-theme".source` becomes `import ./manuscript.nix { inherit pkgs; }`.
+2. `home/look.nix` (new), imported from `home/kit.nix`: options under `dangonix.look`:
+   - `appearance`: `types.enum [ "shell" "dark" "light" ]`, **no default** (every theme must choose);
+   - `terminal.dark`, `terminal.light` (str, defaults `"manuscript-dark"`, `"manuscript-light"`): Ghostty theme names;
+   - `editor.dark`, `editor.light` (str, defaults `"Manuscript Dark"`, `"Manuscript Light"`): Zed theme names;
+   - `fonts.mono` (list of str, default `[ "Rec Mono Casual" "Maple Mono" ]`), `fonts.monoSize` (int, default `14`, points), `fonts.ui` (str, default `"Miriam Libre"`).
+   In its `config`: when `appearance != "shell"`, `dconf.settings."org/gnome/desktop/interface".color-scheme = "prefer-${appearance}"`; always `xdg.configFile."dangonix/look.json".text = builtins.toJSON { inherit appearance; theme = config.kit.profile.id; }`.
+3. `profiles/noctalia/default.nix`: `dangonix.look.appearance = "shell";`. `profiles/caelestia/default.nix`: `dangonix.look.appearance = "dark";` with the comment `# Caelestia does not write color-scheme; switch to "shell" once it does.`
+4. `home/programs/terminal.nix`, `programs.ghostty`:
+   - `themes.manuscript-dark` and `themes.manuscript-light`, built by a local `fromZed = file: …` over `lib.importJSON "${import ../manuscript.nix { inherit pkgs; }}/themes/${file}.json"`: `background`, `foreground` from `terminal.background`/`terminal.foreground`; `palette` = 16 strings `"<i>=<hex>"` in the order black red green yellow blue magenta cyan white, then the same with `bright_`; `cursor-color` from `players[0].cursor`; `selection-background` from a literal `{ manuscript-dark = "#433D38"; manuscript-light = "#E0D9C8"; }` (Zed's `players[0].selection` has alpha; these are it mixed over the background).
+   - in `settings` add `theme = "light:${look.terminal.light},dark:${look.terminal.dark}"`, `font-family = look.fonts.mono`, `font-size = look.fonts.monoSize`, `minimum-contrast = 3`. Keep the three existing keys.
+   - in `starship.settings.git_status`, `style = "orange";` → `style = "yellow";` (`orange` is not a starship colour name).
+5. `home/zed.nix`, `userSettings`:
+   - `theme = "Manuscript Dark";` → `theme = { mode = "system"; inherit (config.dangonix.look.editor) dark light; };`. Leave `theme_overrides."Manuscript Dark"` as is (it applies to the dark theme only).
+   - `buffer_font_family` = `head look.fonts.mono`, `buffer_font_fallbacks` = `tail look.fonts.mono`, `ui_font_family` and `agent_ui_font_family` = `look.fonts.ui`; the values stay exactly what they are now. Add `config` to the module arguments.
+6. `lib/dangonix/default.nix`: add `dconf` to `runtimeInputs`.
+7. `lib/dangonix/dangonix.sh`, `cmd_status`: add `look` to the data: `appearance` from `~/.config/dangonix/look.json` (null when missing), `mode` from `dconf read /org/gnome/desktop/interface/color-scheme` (`'prefer-dark'` → `"dark"`, anything else or empty → `"light"`, null when `dconf` fails). Add a text line after the `theme` line, in the same style: `look      <mode> (set by <theme>)` for `shell`, `look      <mode> (fixed by <theme>)` otherwise, `look      unknown` without `look.json`.
+8. `lib/dangonix/commands.nix`, row `status`: summary `"theme, Foundry, and whether the system is built from state.json"` → `"theme, look, Foundry, and whether the system is built from state.json"`.
+
+**Do not.** Touch the host (the portal is already there). Change the Manuscript hash or Zed's `theme_overrides`. Hard-code the 16 colours (read the JSON). Enable Noctalia's Ghostty template or write Noctalia's `settings.toml`. Change the icon theme.
+
+**Verify.**
+1. `nix eval --raw .#homeConfigurations.kit-noctalia.config.programs.ghostty.settings.theme` → `light:manuscript-light,dark:manuscript-dark`.
+2. `nix eval --json .#homeConfigurations.kit-noctalia.config.programs.ghostty.themes.manuscript-light.palette --apply 'p: [ (builtins.length p) (builtins.head p) (builtins.elemAt p 6) ]'` → `[16,"0=#1C1714","6=#4A8580"]`.
+3. `nix eval --json .#homeConfigurations.kit-caelestia.config.dconf.settings --apply 's: s."org/gnome/desktop/interface".color-scheme or null'` → `"prefer-dark"`; the same for `kit-noctalia` → `null`.
+4. `nix eval --json .#homeConfigurations.kit-noctalia.config.programs.zed-editor.userSettings --apply 's: [ s.theme s.buffer_font_family s.buffer_font_fallbacks ]'` → `[{"dark":"Manuscript Dark","light":"Manuscript Light","mode":"system"},"Rec Mono Casual",["Maple Mono"]]`.
+5. `nix eval .#homeConfigurations.kit-noctalia.config.xdg.configFile --apply 'f: builtins.hasAttr "dangonix/look.json" f'` → `true`.
+6. `nix run . -- --json status | jq -e '.data | has("look")'` → `true`.
+7. `scripts/check --fast` passes.
+
+**Stop if.** A theme evaluates without setting `dangonix.look.appearance` (the missing default must stay an error).
+
+**AGENTS.md.** Under *Invariants* add: `- Apps take dark/light, palettes and fonts from \`dangonix.look\` (\`home/look.nix\`); every theme sets \`dangonix.look.appearance\`.`
+
+**Commit.** `feat(c1s3): the theme decides dark or light, Ghostty looks like Zed`
+
+**GM's turn.**
+- `dangonix switch` (Noctalia). Ghostty: dark Manuscript, Rec Mono Casual, fish autosuggestions readable; `dangonix status` has the `look` line.
+- In Noctalia's settings, Appearance: «Sync App Color Scheme» is on and no Ghostty template is enabled. Switch Noctalia to light: Ghostty (open windows), Zed and Nautilus turn light; note whether Claude and Zen follow. Back to dark.
+- `dangonix theme caelestia`: everything is dark, `dangonix status` says `fixed by caelestia`; `dangonix theme noctalia` back.
+- All good → `## c1s3 — виконано`.
+
+---
+
 ## c1q15 — Trial by fire
 meta: tier=hero effort=high boss=no diff=leaves leaves=~dangonix*? rest=c1r2
 
@@ -833,7 +889,7 @@ meta: tier=hero effort=high boss=yes diff=leaves leaves=~dangonix*,+hm_*roles*?,
 **Read first.** Design §3 in full; `themes/noctalia/binds.nix`, `themes/caelestia/`.
 
 **Steps.**
-1. `themes/contract.nix`: manifest fields (`status`; Caelestia `experimental`) and the four role kinds incl. "frontend with default"; provider roles name their user unit. `keybindings`, `clipboard`, `search` are registered in campaign II.
+1. `themes/contract.nix`: manifest fields (`status`; Caelestia `experimental`) and the four role kinds incl. "frontend with default"; provider roles name their user unit. `keybindings`, `clipboard`, `search` are registered in campaign II. The declaration `appearance` is `dangonix.look.appearance` (c1s3, design §3 «Вигляд»), not a second option.
 2. Noctalia declares every role, values from `themes/noctalia/binds.nix`.
 3. Warning mode: missing roles in an experimental theme are warnings.
 4. `home/dangonix.nix` writes the active theme's roles to `~/.config/dangonix/roles.json`.
