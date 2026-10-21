@@ -329,3 +329,4 @@ Nix тепер працює, кроки 1–5 з попередньої спро
 GM: `git checkout -- hosts/nixos/hardware-configuration.nix`, застосуй `.campaign/c1s5.request.patch` (у Codex rules шляхів sandbox немає), потім `retry c1s5`.
 запит: permission - sandbox не дає treefmt писати кеш `~/.cache/treefmt`, тож `nix fmt` падає; патч додає цей шлях до `sandbox.filesystem.allowWrite`.
 agent: claude claude-opus-5-5
+GM (campaign, 2026-10-22): все зробив наче, повтори
