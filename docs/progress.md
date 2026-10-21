@@ -289,3 +289,8 @@ agent: claude claude-opus-5-5
 
 ## c1s2 — виконано
 GM перевірив чекліст у campaign (2026-10-21).
+
+## c1s3 — провалений кидок
+Усі кроки зроблено, `scripts/check` ок, Verify 2–7 ок (Verify 1: HM загортає значення в список, `--raw` не працює, `--json` дає `["light:manuscript-light,dark:manuscript-dark"]`). `quest-verify` двічі падає на `leaves=`: `unexpected change: ~activation-script` (HM activation змінюється через нові файли `look.json`, ghostty, dconf). Робота не закомічена.
+запит: scope — додати `~activation-script?` до `leaves=` у `meta:` c1s3 (`.campaign/c1s3.request.patch`), потім `retry c1s3`.
+agent: claude claude-sonnet-5-5
