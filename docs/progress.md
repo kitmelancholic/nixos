@@ -269,3 +269,9 @@ GM (campaign, 2026-10-20): так, scope: патч .campaign/c1s2.request.patch.
 - Усе добре → `## c1s2 — виконано`.
 agent: claude claude-opus-5-5
 GM (campaign, 2026-10-20): уже можна просто ввести пароль, круто працює, але курсора немає
+
+## c1s2 — провалений кидок
+Курсора немає через weston 15: pointer потрапляє в seat лише після першого руху (`ensure_pointer_capability`), greeter робить `get_pointer` уже після фокуса й отримує `wl_pointer.enter(0, …)`, а Qt 6.11 не ставить курсор при serial 0 (`updateCursor`). Виправлення не закомічене: патч `hosts/nixos/sddm/weston-pointer-focus-serial.patch` (serial для фокуса без pointer-ресурсу), weston у `wayland.compositorCommand` з тим самим `weston.ini`, VM-підтести `wayland`/`stockWeston` (з патчем є `set_cursor`, без нього `enter(0,` і курсора немає). `nix build .#greeter-vm` ок, Verify 1–2 ок, `scripts/check` ок.
+`quest-verify` падає на `leaves=` (база `HEAD`, де вже є перший коміт квесту): `unexpected change: ~weston-15.0.1`; `expected change missing: ~sddm-unwrapped*`, `~sddm.conf`, `~sddm.pam`, `+bibata-cursors*`.
+запит: scope — `leaves=` у `meta:` c1s2: додати `~weston-*`, а глоби першого коміту зробити необов'язковими (`.campaign/c1s2.request.patch`), потім `retry c1s2`.
+agent: claude claude-opus-5-5
