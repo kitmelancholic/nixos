@@ -139,7 +139,11 @@
         "~/.ssh",
         "~/.config/gh",
         "~/.local/share/keyrings",
-        "~/.1password"
+        "~/.1password",
+        "/run/user",
+        "/run/dbus",
+        "/run/docker.sock",
+        "/tmp/.X11-unix"
       ]
     },
     "network": {
@@ -150,9 +154,7 @@
         "cache.nixos.org",
         "*.cachix.org"
       ],
-      "allowUnixSockets": [
-        "/nix/var/nix/daemon-socket/socket"
-      ]
+      "allowAllUnixSockets": true
     }
   }
 }
