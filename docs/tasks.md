@@ -807,6 +807,30 @@ meta: tier=squire effort=medium boss=no diff=leaves leaves=~dangonix*,~hm_*dango
 
 ---
 
+## c1s6 - Scrying glass
+meta: tier=hero effort=low boss=no diff=none
+
+**Goal.** The GM watches a campaign live in a second terminal: the quest map, who works on what, how long and how quiet, context and cost, the last steps with trace's markers, and what the agent says, thinks and runs.
+
+**Why.** `scripts/campaign` prints one line per attempt, so between notifications the GM sees nothing; the logs, `runs.tsv` and diagnoses already hold everything (c1s4). Done outside the campaign (the GM asked for it in the project on 2026-10-21); this section records what was built. The viewer only reads, so the campaign behaves the same with or without it.
+
+**Files.** `scripts/campaign-tui`.
+
+**Done.**
+1. `scripts/campaign-tui` (bash and jq, nothing new to install): reads `docs/tasks.md`, `docs/progress.md`, `.agents/models.md`, `.campaign/` and the running `scripts/agent` process; writes, signals and answers nothing. Refreshes every 2 s.
+2. Header: state (agent at work, squire's diagnosis, judge, `хід майстра` with a terminal bell when the campaign waits for the GM, campaign not running); quest, attempt, tier, CLI, model, effort; run time, silence against `QUEST_IDLE`, context against the tier's `hard`, steps, output tokens, cost, trace markers (⟳ ↺ ▲ ⏱ ⏸, search loop).
+3. Quest map from the journal (✓ done, ⚑ GM's turn, ✗ failed roll, ▶ current, ☠ boss, ⛺ long rest) with a progress bar.
+4. Views: `d` last steps, `t` everything the agent said, thought and ran, `r` `runs.tsv` with the total spent, `s` the diagnosis and the newest lessons; `[` `]` older and newer attempt logs, `0` live, `q` quit. `--once` prints one frame (no colour in a pipe, `NO_COLOR`).
+
+**Commit.** `feat(c1s6): campaign-tui, a live read-only view of the campaign`
+
+**GM's turn.**
+- In a second terminal during `scripts/campaign`: `scripts/campaign-tui`. The header follows the running attempt, `t` shows its thoughts, the map marks the quest with ▶; when the campaign asks you y/n the header says `хід майстра` and the terminal rings.
+- `scripts/campaign-tui --once | head -n 12` prints a plain frame.
+- All good → `## c1s6 - виконано`.
+
+---
+
 ## c1q15 - Trial by fire
 meta: tier=hero effort=high boss=no diff=leaves leaves=~dangonix*? rest=c1r2
 

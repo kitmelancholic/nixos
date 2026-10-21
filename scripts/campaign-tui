@@ -1,0 +1,522 @@
+#!/usr/bin/env bash
+# A live, read-only view of scripts/campaign in a second terminal: the quest
+# map, who works on what (agent, tier, model, attempt), how long and how
+# quiet, context and cost, the last steps with scripts/trace's markers, and
+# what the agent writes and thinks. It only reads docs/tasks.md,
+# docs/progress.md and .campaign/; it never writes, signals or answers, so the
+# campaign behaves the same with or without it.
+#   campaign-tui           full screen, refreshes every 2 s
+#   campaign-tui --once    one frame on stdout (no keys, no colour in a pipe)
+# Keys: d dashboard, t thoughts (everything the agent says, thinks and runs),
+# r attempts (.campaign/runs.tsv), s diagnosis and lessons, [ ] older/newer
+# attempt log, 0 back to live, q quit.
+set -uo pipefail
+shopt -s extglob nullglob
+# Widths are counted in characters: Cyrillic and box drawing need UTF-8.
+[[ $(locale charmap 2>/dev/null) == UTF-8 ]] || export LC_ALL=C.UTF-8
+cd "$(git rev-parse --show-toplevel)" || exit 1
+once=0
+case ${1:-} in
+--once) once=1 ;;
+'') ;;
+*)
+  echo "usage: campaign-tui [--once]" >&2
+  exit 2
+  ;;
+esac
+
+# Colours by role (design §5): green ok, yellow warn, red error, cyan
+# commands, dim labels, bold values; none for NO_COLOR or a pipe.
+if [[ -z ${NO_COLOR:-} ]] && { [[ -t 1 ]] || [[ -n ${CLICOLOR_FORCE:-} ]]; }; then
+  B=$'\e[1m' D=$'\e[2m' R=$'\e[31m' G=$'\e[32m' Y=$'\e[33m' BL=$'\e[34m' M=$'\e[35m' C=$'\e[36m' N=$'\e[0m'
+else
+  B='' D='' R='' G='' Y='' BL='' M='' C='' N=''
+fi
+
+idle_limit=${QUEST_IDLE:-20m}
+seconds() {
+  case $1 in
+  *h) echo $((${1%h} * 3600)) ;;
+  *m) echo $((${1%m} * 60)) ;;
+  *s) echo "${1%s}" ;;
+  *) echo "$1" ;;
+  esac
+}
+idle_max=$(seconds "$idle_limit")
+
+# --- reading the campaign --------------------------------------------------
+
+# Quest ids in order, with flags: b boss, r<tag> long rest after it.
+quests() {
+  awk '/^## c[0-9]+[qs][0-9]+ - / {
+         id = $2; boss = ($0 ~ /⚔/) ? "b" : "-"; name = $0
+         sub(/^## [^ ]+ - /, "", name); sub(/ *⚔️? *$/, "", name)
+         getline meta; rest = "-"
+         if (match(meta, /rest=[^ ]+/)) rest = substr(meta, RSTART + 5, RLENGTH - 5)
+         print id "\t" boss "\t" rest "\t" name }' docs/tasks.md
+}
+
+# Last journal heading kind per quest id.
+journal_states() {
+  awk '/^## c[0-9]+[qs][0-9]+ - / { id = $2; k = $0; sub(/^## [^ ]+ - /, "", k); s[id] = k }
+       END { for (i in s) print i "\t" s[i] }' docs/progress.md
+}
+
+# The newest attempt logs, oldest first.
+attempt_logs() {
+  local f
+  for f in .campaign/c*.json; do
+    [[ ${f##*/} =~ ^c[0-9]+[qs][0-9]+\.[0-9]+\.json$ ]] && printf '%s\t%s\n' "$(stat -c %Y "$f")" "$f"
+  done | sort -n | cut -f2
+}
+
+# A running scripts/agent: sets p_pid p_mode p_agent p_tier p_effort p_log.
+agent_process() {
+  local line w
+  p_pid='' p_mode='' p_agent='' p_tier='' p_effort='' p_log=''
+  # `run` (the quest) wins over `ask` (judge or squire).
+  line=$(pgrep -af '^[^ ]*bash [^ ]*scripts/agent (run|ask) ' 2>/dev/null) || true
+  line=$(grep -m 1 'agent run ' <<<"$line" || grep -m 1 'agent ask ' <<<"$line") || true
+  [[ -n $line ]] || return 1
+  read -ra w <<<"$line"
+  local i
+  for i in "${!w[@]}"; do
+    [[ ${w[i]} == */agent || ${w[i]} == agent ]] || continue
+    p_pid=${w[0]} p_mode=${w[i + 1]} p_agent=${w[i + 2]} p_tier=${w[i + 3]} p_effort=${w[i + 4]} p_log=${w[i + 5]}
+    return 0
+  done
+  return 1
+}
+
+campaign_alive() { pgrep -f '^[^ ]*bash [^ ]*scripts/campaign( |$)' >/dev/null 2>&1; }
+
+# A context column of .agents/models.md for a tier.
+limit() {
+  awk -F'|' -v want="$1" -v tier="$2" '
+    function trim(s) { gsub(/ /, "", s); return s }
+    !head && trim($2) == "tier" { for (i = 2; i < NF; i++) if (trim($i) == want) col = i; head = 1; next }
+    head && col && trim($2) == tier { print trim($col); exit }' .agents/models.md 2>/dev/null
+}
+
+# One line per event of a log: kind<TAB>text. C call, R result, T thought,
+# S said, E end. Tolerates a half-written last line.
+feed() {
+  jq -rR 'fromjson? | select(type == "object") |
+    def one: tostring | gsub("\\s+"; " ") | sub("^ "; "") | .[0:2000];
+    def rel: sub("^/.*?/nixos/"; "");
+    def body: if type == "array" then map(.text? // "") | join("\n") else tostring end;
+    def n: if . == "" then 0 else rtrimstr("\n") | split("\n") | length end;
+    if .type == "assistant" and (.parent_tool_use_id // null) == null then
+      .message.content[]? |
+      if .type == "thinking" then select((.thinking // "") != "") | "T\t" + (.thinking | one)
+      elif .type == "text" then select((.text // "") != "") | "S\t" + (.text | one)
+      elif .type == "tool_use" then "C\t" + .name + "\t" + ((.input.command // (.input.file_path | rel?) // .input.pattern // (.input | tojson)) | one)
+      else empty end
+    elif .type == "user" then
+      .message.content[]? | select(type == "object" and .type == "tool_result")
+      | "R\t" + (if .is_error then "✗" else "ok" end) + "\t" + (.content | body | n | tostring)
+    elif .type == "item.completed" then .item |
+      if .type == "reasoning" then select((.text // "") != "") | "T\t" + (.text | one)
+      elif .type == "agent_message" then "S\t" + (.text | one)
+      elif .type == "command_execution" then
+        "C\tshell\t" + (.command | sub("^(/usr/bin/env )?(ba)?sh -l?c "; "") | sub("^\u0027(?<c>.*)\u0027$"; "\(.c)") | sub("^\"(?<c>.*)\"$"; "\(.c)") | one),
+        "R\t" + (if (.exit_code // 0) != 0 then "✗" else "ok" end) + "\t" + ((.aggregated_output // "") | n | tostring)
+      elif .type == "file_change" then "C\tpatch\t" + ([.changes[]?.path | rel] | join(", ")), "R\t" + (if .status == "failed" then "✗" else "ok" end) + "\t0"
+      elif .type == "mcp_tool_call" then "C\tmcp\t\(.server)/\(.tool)", "R\t" + (if .status == "failed" then "✗" else "ok" end) + "\t0"
+      else empty end
+    elif .type == "result" then "E\tкінець: \(.subtype // "?")" + (if .total_cost_usd then " · $\(.total_cost_usd * 100 | round / 100)" else "" end)
+    elif .type == "turn.completed" then "E\tхід завершено"
+    else empty end' "$1" 2>/dev/null
+}
+
+# Facts from a log: model ctx out_tokens cost steps first_ts last_ts.
+facts() {
+  jq -rRn '[inputs | fromjson? | select(type == "object")] as $e
+    | ([$e[] | select(.type == "assistant" and (.parent_tool_use_id // null) == null) | .message.usage // empty] | last) as $u
+    | ([$e[] | select(.type == "turn.completed") | .usage] | last) as $tu
+    | [($e | map(select(.subtype == "init") | .model) | last // "-"),
+       (if $u then ($u.input_tokens // 0) + ($u.cache_creation_input_tokens // 0) + ($u.cache_read_input_tokens // 0)
+        elif $tu then $tu.input_tokens else 0 end),
+       ([$e[] | select(.type == "assistant") | .message.usage.output_tokens // 0] | add // ($tu.output_tokens // 0)),
+       ($e | map(select(.type == "result") | .total_cost_usd) | last // "-"),
+       ([$e[] | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use")] | length
+        + ([$e[] | select(.type == "item.completed" and (.item.type | IN("command_execution", "file_change", "mcp_tool_call", "web_search")))] | length)),
+       ($e | map(._ts // empty) | (min // 0), (max // 0) | floor)]
+    | @tsv' "$1" 2>/dev/null
+}
+
+# --- drawing ---------------------------------------------------------------
+
+out=()
+plain() {
+  local s=${1//$'\e['*([0-9;])m/}
+  printf '%s' "$s"
+}
+vlen() {
+  local s=${1//$'\e['*([0-9;])m/}
+  echo "${#s}"
+}
+clip() {
+  local s=$1 n=$2
+  ((${#s} > n)) && s="${s:0:n-1}…"
+  printf '%s' "$s"
+}
+
+# A row inside the frame, padded or cut to the inner width.
+row() {
+  local s=$1 len
+  len=$(vlen "$s")
+  if ((len > inner)); then
+    s=$(plain "$s")
+    s=$(clip "$s" "$inner")
+    len=${#s}
+  fi
+  out+=("${D}│${N} $s$(printf '%*s' $((inner - len)) '')${D} │${N}")
+}
+
+rule() {
+  local left=$1 title=$2 right=$3 tail=${4:-} fill
+  fill=$((width - 3 - $(vlen "$title") - $(vlen "$tail")))
+  ((fill < 1)) && fill=1
+  local line
+  printf -v line '%*s' "$fill" ''
+  out+=("${D}${left}─${N}${title}${D}${line// /─}${N}${tail}${D}${right}${N}")
+}
+
+bar() {
+  local val=$1 max=$2 n=$3 full colour=$G
+  ((max > 0)) || max=1
+  full=$((val * n / max))
+  ((full > n)) && full=$n
+  ((val * 100 / max >= 70)) && colour=$Y
+  ((val * 100 / max >= 90)) && colour=$R
+  local a b
+  printf -v a '%*s' "$full" ''
+  printf -v b '%*s' $((n - full)) ''
+  printf '%s' "${D}▕${N}${colour}${a// /█}${N}${D}${b// /░}▏${N}"
+}
+
+k() { awk -v n="$1" 'BEGIN { if (n >= 1000) printf "%.1fk", n / 1000; else printf "%d", n }'; }
+clock() { printf '%d:%02d' $(($1 / 60)) $(($1 % 60)); }
+
+tier_icon() {
+  case $1 in
+  squire) printf '%s' "${G}◆ squire${N}" ;;
+  hero) printf '%s' "${C}⚔ hero${N}" ;;
+  cleric) printf '%s' "${M}✚ cleric${N}" ;;
+  judge) printf '%s' "${BL}⚖ judge${N}" ;;
+  *) printf '%s' "${D}? $1${N}" ;;
+  esac
+}
+
+# --- state per frame -------------------------------------------------------
+
+view=dash pick=0 last_bell=
+declare -A cache_size=() cache_feed=() cache_trace=() cache_facts=()
+
+load_log() {
+  local f=$1 size
+  size=$(stat -c %s "$f" 2>/dev/null || echo 0)
+  [[ ${cache_size[$f]:-} == "$size" ]] && return
+  cache_size[$f]=$size
+  cache_feed[$f]=$(feed "$f")
+  cache_facts[$f]=$(facts "$f")
+  cache_trace[$f]=$(jq -rs --arg mode trace -f scripts/trace.jq "$f" 2>/dev/null)
+}
+
+frame() {
+  width=${COLUMNS:-$(tput cols 2>/dev/null || echo 100)}
+  height=${LINES:-$(tput lines 2>/dev/null || echo 40)}
+  ((width < 60)) && width=60
+  ((width > 140)) && width=140
+  inner=$((width - 4))
+  out=()
+  local now logs=() log live=0 id n
+  now=$(date +%s)
+  mapfile -t logs < <(attempt_logs)
+  if agent_process && [[ $p_mode == run ]]; then live=1; fi
+  if ((pick == 0)); then
+    if ((live)); then log=$p_log; else log=${logs[-1]:-}; fi
+  else
+    ((pick >= ${#logs[@]})) && pick=$((${#logs[@]} - 1))
+    ((pick < 0)) && pick=0
+    log=${logs[${#logs[@]} - 1 - pick]:-}
+  fi
+
+  # Status line.
+  local status
+  if ((live && pick == 0)); then
+    status="${G}${B}● у бою${N}"
+  elif [[ -n $p_pid && $p_mode == ask ]]; then
+    case $p_tier in
+    squire) status="${G}◆ зброєносець пише діагноз${N}" ;;
+    *) status="${BL}⚖ суддя зважує запит${N}" ;;
+    esac
+  elif campaign_alive; then
+    status="${Y}${B}⚑ хід майстра: campaign чекає на твою відповідь${N}"
+    if [[ $last_bell != "$log" ]] && ((once == 0)); then
+      printf '\a'
+      last_bell=$log
+    fi
+  else
+    status="${D}○ campaign не запущено${N}"
+  fi
+  ((pick)) && status="${BL}◂ архів: спроба $pick з кінця${N} ${D}(0 - наживо)${N}"
+  rule "╭" " ${B}⚔ dangoNix · кампанія${N} " "╮" " ${D}$(date +%T)${N} "
+  row "$status"
+
+  # Current attempt.
+  local name="" tier=- agent=- effort=- model=- ctx=0 outk=0 cost=- steps=0 age=0 run=0
+  if [[ -n $log && -r $log ]]; then
+    load_log "$log"
+    id=${log##*/}
+    n=${id%.json}
+    n=${n##*.}
+    id=${id%%.*}
+    name=$(quests | awk -F'\t' -v id="$id" '$1 == id { print $4 }')
+    local t0 t1
+    IFS=$'\t' read -r model ctx outk cost steps t0 t1 <<<"${cache_facts[$log]:-}"
+    run=$((${t1:-0} - ${t0:-0}))
+    local tsv
+    tsv=$(awk -F'\t' -v id="$id" -v n="$n" '$2 == id && $3 == n' .campaign/runs.tsv 2>/dev/null | tail -n 1)
+    if ((live && pick == 0)); then
+      tier=$p_tier agent=$p_agent effort=$p_effort
+      run=$(ps -o etimes= -p "$p_pid" 2>/dev/null) || run=0
+      run=${run//+( )/}
+    elif [[ -n $tsv ]]; then
+      IFS=$'\t' read -r _ _ _ agent model tier _ _ <<<"$tsv"
+      [[ $cost == - ]] && cost=$(cut -f9 <<<"$tsv")
+    fi
+    local meta
+    meta=$(awk -v id="$id" '$0 ~ "^## " id " " { f = 1; next } f && /^meta:/ { print; exit }' docs/tasks.md)
+    [[ $tier == - ]] && tier=$(grep -oP 'tier=\K\S+' <<<"$meta")
+    [[ $effort == - ]] && effort=$(grep -oP 'effort=\K\S+' <<<"$meta")
+    [[ $agent == - ]] && { [[ ${cache_trace[$log]:-} == codex* ]] && agent=codex || agent=claude; }
+    age=$((now - $(stat -c %Y "$log")))
+    row "${B}${id}${N} ${name}   ${D}кидок${N} ${B}#${n}${N}"
+    row "$(tier_icon "$tier")  ${D}·${N} ${agent} ${D}·${N} ${model:--} ${D}· effort${N} ${effort}"
+    local quiet warn hard ctxline
+    quiet="${D}тиша${N} $(clock "$age") $(bar "$age" "$idle_max" 10) ${D}${idle_limit}${N}"
+    ((live && pick == 0)) || quiet="${D}тиша${N} $(clock "$age")"
+    hard=$(limit hard "$tier")
+    warn=$(limit warn "$tier")
+    ctxline="${D}ctx${N} ${B}$(k "${ctx:-0}")${N}"
+    [[ $hard =~ ^[0-9]+$ ]] && ctxline+=" $(bar "${ctx:-0}" "$hard" 10) ${D}$(k "$hard")${N}"
+    [[ $warn =~ ^[0-9]+$ ]] && ((${ctx:-0} >= warn)) && ctxline+=" ${Y}стоп розвідка${N}"
+    row "${D}⏱${N} $(clock "${run:-0}")   $quiet   $ctxline"
+    local marks loop_n rep reread heavy pause slow cline
+    marks=${cache_trace[$log]:-}
+    rep=$(grep -c '⟳' <<<"$marks")
+    reread=$(grep -c '↺' <<<"$marks")
+    heavy=$(grep -c '▲' <<<"$marks")
+    pause=$(grep -c '⏸' <<<"$marks")
+    slow=$(grep -c '⏱' <<<"$marks")
+    loop_n=$(grep -o 'цикл пошуку' <<<"$marks" | wc -l)
+    cline="${B}${steps:-0}${N} ${D}кроків · вихід${N} $(k "${outk:-0}") ${D}ток. ·${N} "
+    [[ $cost == - ]] && cline+="${D}\$ у кінці${N}" || cline+="${B}\$${cost}${N}"
+    if ((rep + reread + heavy + pause + slow + loop_n)); then
+      cline+="   ${Y}⚠"
+      ((rep)) && cline+=" ⟳${rep}"
+      ((reread)) && cline+=" ↺${reread}"
+      ((heavy)) && cline+=" ▲${heavy}"
+      ((slow)) && cline+=" ⏱${slow}"
+      ((pause)) && cline+=" ⏸${pause}"
+      ((loop_n)) && cline+=" цикл пошуку"
+      cline+="${N}"
+    else
+      cline+="   ${G}✓ без петель${N}"
+    fi
+    row "$cline"
+  else
+    row "${D}ще жодної спроби в .campaign/${N}"
+  fi
+
+  # Quest map.
+  local -A js=()
+  local qid boss rest cell cells=() done_n=0 total=0 next=""
+  while IFS=$'\t' read -r qid k2; do js[$qid]=$k2; done < <(journal_states)
+  while IFS=$'\t' read -r qid boss rest _; do
+    total=$((total + 1))
+    local short=${qid#c[0-9]}
+    local st=${js[$qid]:-}
+    case $st in
+    виконано)
+      cell="${G}✓${short}${N}"
+      done_n=$((done_n + 1))
+      ;;
+    "хід майстра") cell="${Y}⚑${short}${N}" ;;
+    "провалений кидок") cell="${R}✗${short}${N}" ;;
+    "") cell="${D}·${short}${N}" ;;
+    *) cell="${Y}?${short}${N}" ;;
+    esac
+    [[ -z $next && $st != виконано ]] && next=$qid
+    [[ $qid == "${id:-}" ]] && cell="${C}${B}▶${short}${N}"
+    [[ $boss == b ]] && cell+="${R}☠${N}"
+    [[ $rest != - ]] && cell+=" ${D}⛺${N}"
+    cells+=("$cell")
+  done < <(quests)
+  rule "├" " ${B}мапа${N} ${D}${done_n}/${total}${N} $(bar "$done_n" "$total" 12) " "┤" " ${D}далі: ${next:-—}${N} "
+  local line="" c
+  for c in "${cells[@]}"; do
+    if (($(vlen "$line $c") > inner)); then
+      row "$line"
+      line=$c
+    else
+      line=${line:+$line }$c
+    fi
+  done
+  [[ -n $line ]] && row "$line"
+
+  # The body: one of the views.
+  local used=$((${#out[@]} + 2)) room
+  room=$((height - used - 1))
+  ((once)) && room=14
+  ((room < 4)) && room=4
+  case $view in
+  dash) body_dash "$log" "$room" ;;
+  thoughts) body_thoughts "$log" "$room" ;;
+  runs) body_runs "$room" ;;
+  story) body_story "${id:-}" "$room" ;;
+  esac
+  local keys=" ${C}d${N} ${D}дашборд${N} ${C}t${N} ${D}думки${N} ${C}r${N} ${D}спроби${N} ${C}s${N} ${D}діагноз${N} ${C}[ ]${N} ${D}архів${N} ${C}q${N} ${D}вийти${N} "
+  rule "╰" "$keys" "╯"
+}
+
+# The last steps, one line each, with trace's markers, then the last thing
+# the agent said or thought.
+body_dash() {
+  local log=$1 room=$2 kind a b lines=() last="" mark US=$'\x1f'
+  rule "├" " ${B}стрічка${N} " "┤"
+  [[ -n $log ]] || {
+    row "${D}порожньо${N}"
+    return
+  }
+  local -a tr=()
+  mapfile -t tr < <(grep '^#' <<<"${cache_trace[$log]:-}")
+  local i=0
+  while IFS=$'\t' read -r kind a b; do
+    case $kind in
+    C)
+      i=$((i + 1))
+      mark=${tr[i - 1]:-}
+      mark=${mark#*рядк.}
+      mark=${mark# ~+([0-9.])k}
+      mark=${mark##+( )}
+      lines+=("${D}#$(printf '%-3s' "$i")${N} ${C}$(printf '%-6s' "$(clip "$a" 6)")${N} $(clip "$b" $((inner - 34)))$US${mark}")
+      ;;
+    R)
+      local l=${lines[-1]:-}
+      [[ -n $l ]] || continue
+      local res="${G}ok${N}"
+      [[ $a == ✗ ]] && res="${R}✗${N}"
+      lines[-1]="${l%%"$US"*} ${D}→${N} $res ${D}${b}р${N}$US${l#*"$US"}"
+      ;;
+    T) last="${D}💭 $(clip "$a" $((inner - 3)))${N}" ;;
+    S) last="${B}✎${N} $(clip "$a" $((inner - 3)))" ;;
+    E) last="${G}⚑ $a${N}" ;;
+    esac
+  done <<<"${cache_feed[$log]:-}"
+  local start=$((${#lines[@]} - room + 2))
+  ((start < 0)) && start=0
+  local l
+  for l in "${lines[@]:start}"; do
+    mark=${l#*"$US"}
+    row "${l%%"$US"*}${mark:+  ${Y}${mark}${N}}"
+  done
+  ((${#lines[@]})) || row "${D}агент ще думає над першим кроком…${N}"
+  [[ -n $last ]] && row "$last"
+}
+
+# Everything the agent said, thought and ran, wrapped, newest at the bottom.
+body_thoughts() {
+  local log=$1 room=$2 kind a b w=() piece
+  rule "├" " ${B}думки й дії${N} ${D}${log##*/}${N} " "┤"
+  while IFS=$'\t' read -r kind a b; do
+    case $kind in
+    C) w+=("${C}▸ $a${N} $b") ;;
+    R) [[ $a == ✗ ]] && w+=("  ${R}↳ ✗ ${b} рядк.${N}") ;;
+    T) while IFS= read -r piece; do w+=("${D}💭 $piece${N}"); done < <(fold -s -w $((inner - 3)) <<<"$a") ;;
+    S) while IFS= read -r piece; do w+=("${B}✎${N} $piece"); done < <(fold -s -w $((inner - 3)) <<<"$a") ;;
+    E) w+=("${G}⚑ $a${N}") ;;
+    esac
+  done <<<"${cache_feed[$log]:-}"
+  local start=$((${#w[@]} - room))
+  ((start < 0)) && start=0
+  local l
+  for l in "${w[@]:start}"; do row "$l"; done
+  ((${#w[@]})) || row "${D}порожньо${N}"
+}
+
+# .campaign/runs.tsv, newest first, with the total spent.
+body_runs() {
+  local room=$1 total
+  total=$(awk -F'\t' '$9 != "-" { s += $9 } END { printf "%.2f", s }' .campaign/runs.tsv 2>/dev/null)
+  rule "├" " ${B}спроби${N} ${D}скарбниця витратила${N} ${B}\$${total:-0}${N} ${D}за $(wc -l <.campaign/runs.tsv 2>/dev/null || echo 0) кидків${N} " "┤"
+  local ts qid n agent model tier rc mins cost denied outcome colour
+  while IFS=$'\t' read -r ts qid n agent model tier rc mins cost denied outcome; do
+    case $outcome in
+    виконано) colour=$G ;;
+    "хід майстра") colour=$Y ;;
+    *) colour=$R ;;
+    esac
+    row "${D}${ts:5:11}${N} ${B}$(printf '%-6s' "$qid")${N} #$n $(printf '%-6s' "$agent") $(tier_icon "$tier") ${D}${mins} \$${cost} rc=${rc}${N}$( ((denied)) && printf ' %s' "${Y}⛔${denied}${N}") ${colour}${outcome}${N}"
+  done < <(tail -n "$room" .campaign/runs.tsv 2>/dev/null | tac)
+  [[ -s .campaign/runs.tsv ]] || row "${D}ще порожньо${N}"
+}
+
+# The squire's diagnosis of the quest, then the newest lessons.
+body_story() {
+  local id=$1 room=$2 f=.campaign/$1.diagnosis.md l
+  rule "├" " ${B}діагноз зброєносця${N} ${D}${f}${N} " "┤"
+  if [[ -n $id && -s $f ]]; then
+    while IFS= read -r l; do
+      case $l in
+      '## '*) row "${C}${B}${l#\#\# }${N}" ;;
+      Урок:*) row "${Y}$l${N}" ;;
+      *) row "$l" ;;
+      esac
+    done < <(fold -s -w "$inner" "$f" | head -n $((room - 4)))
+  else
+    row "${D}діагнозу немає (буває лише після невдалої чи дорогої спроби)${N}"
+  fi
+  rule "├" " ${B}уроки для писаря${N} " "┤"
+  if [[ -s .campaign/lessons.md ]]; then
+    while IFS= read -r l; do row "$l"; done < <(tail -n 3 .campaign/lessons.md)
+  else
+    row "${D}поки без уроків${N}"
+  fi
+}
+
+if ((once)); then
+  frame
+  printf '%s\n' "${out[@]}"
+  exit 0
+fi
+
+[[ -t 0 && -t 1 ]] || {
+  echo "campaign-tui: needs a terminal (or --once)" >&2
+  exit 2
+}
+cleanup() { printf '\e[?25h\e[?1049l'; }
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+trap 'unset COLUMNS LINES' WINCH
+printf '\e[?1049h\e[?25l'
+while :; do
+  frame
+  printf '\e[H'
+  printf '%s\e[K\n' "${out[@]::${#out[@]}-1}"
+  printf '%s\e[K\e[J' "${out[-1]}"
+  key=
+  read -rsn1 -t 2 key || true
+  case $key in
+  q | Q) exit 0 ;;
+  d) view=dash ;;
+  t) view=thoughts ;;
+  r) view=runs ;;
+  s) view=story ;;
+  '[') pick=$((pick + 1)) ;;
+  ']') ((pick > 0)) && pick=$((pick - 1)) ;;
+  0) pick=0 ;;
+  esac
+done
