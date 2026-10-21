@@ -833,35 +833,50 @@ cmd_switch() {
 
 cmd_update() {
   need_flake
-  local inputs named held update
+  local inputs named excluded held update arg
+  local -a names=() skips=()
   inputs=$(jq -c '.nodes.root.inputs | keys' "$lock_file")
-  named=$(jq -cn '$ARGS.positional' --args "$@")
+  for arg; do
+    case $arg in
+    -?*) skips+=("${arg#-}") ;;
+    *) names+=("$arg") ;;
+    esac
+  done
+  [ "${#names[@]}" -eq 0 ] || [ "${#skips[@]}" -eq 0 ] ||
+    usage "name inputs to update or -<input> to skip them, not both"
+  named=$(json_list "${names[@]}")
+  excluded=$(json_list "${skips[@]}")
   local unknown
-  unknown=$(jq -rn --argjson inputs "$inputs" --argjson named "$named" '$named - $inputs | join(" ")')
+  unknown=$(jq -rn --argjson inputs "$inputs" --argjson named "$named" --argjson excluded "$excluded" \
+    '($named + $excluded) - $inputs | join(" ")')
   [ -z "$unknown" ] || usage "unknown inputs: $unknown"
-  if [ "$#" -gt 0 ]; then
+  if [ "${#names[@]}" -gt 0 ]; then
     update=$named held='[]'
   else
-    held=$(cfg -c --argjson inputs "$inputs" '[.held[] | select(IN($inputs[]))]')
-    update=$(jq -cn --argjson inputs "$inputs" --argjson held "$held" '$inputs - $held')
+    held=$(cfg -c --argjson inputs "$inputs" --argjson excluded "$excluded" \
+      '[.held[] | select(IN($inputs[])) | select(IN($excluded[]) | not)]')
+    update=$(jq -cn --argjson inputs "$inputs" --argjson held "$held" --argjson excluded "$excluded" \
+      '$inputs - $held - $excluded')
   fi
+  [ "$update" != '[]' ] || usage "nothing left to update"
   [ "$held" = '[]' ] || warn "held, name them to update: $(jq -r 'join(" ")' <<<"$held")"
   tx_update=$update
   plan_snapshot
   plan_preflight
   plan update "nix flake update $(jq -r 'join(" ")' <<<"$update")"
   plan check "dangonix check; on failure flake.lock goes back byte for byte"
-  planned "$(jq -cn --argjson update "$update" --argjson held "$held" '{update: $update, held: $held}')"
+  planned "$(jq -cn --argjson update "$update" --argjson held "$held" --argjson excluded "$excluded" '{update: $update, held: $held, excluded: $excluded}')"
   execute
   # The inputs whose lock changed.
   local changed
   changed=$(jq -cn --slurpfile old "$snapshot_dir/flake.lock" --slurpfile new "$lock_file" '
     ($old[0].nodes) as $o | ($new[0].nodes) as $n
     | [$n.root.inputs | keys[] | select($o[$o.root.inputs[.]].locked != $n[$n.root.inputs[.]].locked)]')
-  finish "$(jq -cn --argjson update "$update" --argjson held "$held" --argjson changed "$changed" \
-    '{update: $update, held: $held, changed: $changed}')" \
+  finish "$(jq -cn --argjson update "$update" --argjson held "$held" --argjson excluded "$excluded" --argjson changed "$changed" \
+    '{update: $update, held: $held, excluded: $excluded, changed: $changed}')" \
     '"updated: \(.changed | join(" ") | if . == "" then "nothing changed" else . end)",
-     (if .held == [] then empty else "held: \(.held | join(" "))" end)'
+     (if .held == [] then empty else "held: \(.held | join(" "))" end),
+     (if .excluded == [] then empty else "excluded: \(.excluded | join(" "))" end)'
 }
 
 themes_json() {

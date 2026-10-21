@@ -90,11 +90,14 @@ map row [
   {
     id = "update";
     name = "update";
-    args = "[<input>...]";
+    args = "[<input>... | -<input>...]";
     effect = "state";
-    complete = [ "inputs" ];
+    complete = [
+      "inputs"
+      "excludes"
+    ];
     wraps = [ "nix flake update" ];
-    summary = "update every input but the held ones, then check; never switches or commits";
+    summary = "update every input but the held ones (or only the named ones, or all but -<input>), then check; never switches or commits";
   }
   {
     id = "theme";

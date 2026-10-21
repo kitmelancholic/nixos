@@ -330,3 +330,10 @@ GM: `git checkout -- hosts/nixos/hardware-configuration.nix`, застосуй `
 запит: permission - sandbox не дає treefmt писати кеш `~/.cache/treefmt`, тож `nix fmt` падає; патч додає цей шлях до `sandbox.filesystem.allowWrite`.
 agent: claude claude-opus-5-5
 GM (campaign, 2026-10-22): все зробив наче, повтори
+
+## c1s5 - хід майстра
+Попередньої роботи в дереві не було (схоже, вона в `stash@{0}`; stash не чіпав), кроки 1–5 зроблено заново. `nix fmt` без аргументів змінив лише файли квесту; `check --fast` ок; Verify 1–7 збігаються; `quest-verify c1s5` ок (змінено `dangonix`, `dangonix-config.json`, `dangonix.fish`).
+- `dangonix switch` (новий `dangonix` і completions), потім `dangonix update -zen-browser`: `zen-browser` і held-входи зберігають ревізії в `flake.lock` (`git diff flake.lock`), підсумок показує `excluded: zen-browser`.
+- У fish `dangonix update -` + Tab пропонує `-zen-browser` та інші входи.
+- Усе добре → закоміть `flake.lock` сам, потім `## c1s5 - виконано`.
+agent: claude claude-opus-5-5

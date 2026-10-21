@@ -51,6 +51,7 @@ let
     themes = "-a ${quote (lib.concatStringsSep " " themes)}";
     instances = "-a ${quote "(${jq} -r '.foundry.instances | keys[]' ${repo}/state.json 2>/dev/null)"}";
     inputs = "-a ${quote "(${jq} -r '.nodes.root.inputs | keys[]' ${repo}/flake.lock 2>/dev/null)"}";
+    excludes = "-a ${quote "(${jq} -r '.nodes.root.inputs | keys[] | \"-\" + .' ${repo}/flake.lock 2>/dev/null)"}";
     commands = "-a ${quote (lib.concatStringsSep " " nouns)}";
     files = "-F";
   };
