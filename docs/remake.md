@@ -135,6 +135,9 @@ CI на кожен push у `redesign` і PR у `main`: лінт доків і к
 **c1s3 · Чорнило й пергамент** (side quest). Вибрана тема вирішує вигляд програм через `dangonix.look`: темний чи світлий режим і хто його перемикає (Noctalia своїм перемикачем, Caelestia завжди темна), палітри терміналу й Zed, шрифти. Ghostty виглядає як Zed: Manuscript Dark уночі, паперовий Manuscript Light удень, шрифт Rec Mono Casual. `dangonix status` показує режим.
 - Твій хід: switch, перемкнути Noctalia на світлу й назад, `dangonix theme caelestia` і назад.
 
+**c1s5 · Обхідна стежка** (side quest). `dangonix update -zen-browser` оновлює все, крім held і названих з мінусом; невідомий input — помилка, fish доповнює `-<input>`.
+- Твій хід: `dangonix update -zen-browser`, переглянути diff `flake.lock`.
+
 **c1q15 · Випробування вогнем.** Віртуальна машина навмисно ламає активацію і перевіряє, що `dangonix` відкочується.
 
 🛏️ **c1r2**

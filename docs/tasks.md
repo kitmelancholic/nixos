@@ -707,6 +707,86 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=~dangonix*,~dangonix-co
 
 ---
 
+## c1s5 — Detour around the toll
+meta: tier=squire effort=medium boss=no diff=leaves leaves=~dangonix*,~hm_*dangonix*?,~*fish-completions?,~man-paths?,~source?
+
+**Goal.** `dangonix update -zen-browser` updates every flake input except the held ones and the ones named with a leading `-`; mixing names with `-<input>` and an unknown input are usage errors (exit 2); fish completes `-<input>`.
+
+**Why.** The GM approved this syntax on 2026-10-21 (design §5 `update` row, §6 held list): a one-off "update everything but X" without editing the held list. Today `cmd_update` in `lib/dangonix/dangonix.sh` takes only names (update exactly those) or nothing (all but held). Global flags are parsed before the command and `-h`/`--help` anywhere becomes `help …`, so any other word after `update` that starts with `-` reaches `cmd_update` and is free for this. `nix flake update` with no inputs updates every input, so an empty update list must never reach it.
+
+**Files.** `lib/dangonix/dangonix.sh`, `lib/dangonix/commands.nix`, `lib/dangonix/completions.nix`, `docs/progress.md`.
+
+**Read first.** Design §5 (`update` row, grammar) and §6 (held list); `cmd_update` and `json_list` in `lib/dangonix/dangonix.sh`; the `update` row in `lib/dangonix/commands.nix`; `values` and `rowLines` in `lib/dangonix/completions.nix`.
+
+**Preconditions.** `grep -c '^cmd_update() {' lib/dangonix/dangonix.sh` prints `1` and the function still begins with `need_flake` and `inputs=$(jq -c '.nodes.root.inputs | keys' "$lock_file")`; otherwise stop.
+
+**Steps.**
+1. In `lib/dangonix/dangonix.sh`, replace the start of `cmd_update`, from `  local inputs named held update` through the line `  [ "$held" = '[]' ] || warn "held, name them to update: $(jq -r 'join(" ")' <<<"$held")"`, with:
+   ```bash
+     local inputs named excluded held update arg
+     local -a names=() skips=()
+     inputs=$(jq -c '.nodes.root.inputs | keys' "$lock_file")
+     for arg; do
+       case $arg in
+       -?*) skips+=("${arg#-}") ;;
+       *) names+=("$arg") ;;
+       esac
+     done
+     [ "${#names[@]}" -eq 0 ] || [ "${#skips[@]}" -eq 0 ] ||
+       usage "name inputs to update or -<input> to skip them, not both"
+     named=$(json_list "${names[@]}")
+     excluded=$(json_list "${skips[@]}")
+     local unknown
+     unknown=$(jq -rn --argjson inputs "$inputs" --argjson named "$named" --argjson excluded "$excluded" \
+       '($named + $excluded) - $inputs | join(" ")')
+     [ -z "$unknown" ] || usage "unknown inputs: $unknown"
+     if [ "${#names[@]}" -gt 0 ]; then
+       update=$named held='[]'
+     else
+       held=$(cfg -c --argjson inputs "$inputs" --argjson excluded "$excluded" \
+         '[.held[] | select(IN($inputs[])) | select(IN($excluded[]) | not)]')
+       update=$(jq -cn --argjson inputs "$inputs" --argjson held "$held" --argjson excluded "$excluded" \
+         '$inputs - $held - $excluded')
+     fi
+     [ "$update" != '[]' ] || usage "nothing left to update"
+     [ "$held" = '[]' ] || warn "held, name them to update: $(jq -r 'join(" ")' <<<"$held")"
+   ```
+   The old `inputs=$(…)` and `named=$(jq -cn '$ARGS.positional' --args "$@")` lines are part of the replaced block; `need_flake` stays the first line.
+2. In the same function, replace every `--argjson update "$update" --argjson held "$held"` (two places: the `planned` call and the `finish` call) with `--argjson update "$update" --argjson held "$held" --argjson excluded "$excluded"`; replace `'{update: $update, held: $held}'` with `'{update: $update, held: $held, excluded: $excluded}'` and `'{update: $update, held: $held, changed: $changed}'` with `'{update: $update, held: $held, excluded: $excluded, changed: $changed}'`.
+3. In the `finish` text of `cmd_update`, after the line `     (if .held == [] then empty else "held: \(.held | join(" "))" end)'`, keep the closing quote at the end and insert before it: change that line to
+   ```
+        (if .held == [] then empty else "held: \(.held | join(" "))" end),
+        (if .excluded == [] then empty else "excluded: \(.excluded | join(" "))" end)'
+   ```
+4. In `lib/dangonix/commands.nix`, `update` row: `args = "[<input>...]";` → `args = "[<input>... | -<input>...]";`, `complete = [ "inputs" ];` → `complete = [ "inputs" "excludes" ];`, summary → `"update every input but the held ones (or only the named ones, or all but -<input>), then check; never switches or commits"`.
+5. In `lib/dangonix/completions.nix`, `values`: after the `inputs = …;` line add
+   `excludes = "-a ${quote "(${jq} -r '.nodes.root.inputs | keys[] | \"-\" + .' ${repo}/flake.lock 2>/dev/null)"}";`
+6. `nix fmt`, then `dangonix check --fast` passes.
+
+**Do not.** Add a flag such as `--except`, change the held list, or make `-<input>` persistent. Touch `flake.lock` in the checkout. Let an empty list reach `nix flake update`.
+
+**Verify.** All with `--dry`, which changes nothing:
+1. `nix run . -- --dry --json update -zen-browser | jq -c '.data | {excluded, held, z: (.update | index("zen-browser")), h: (.update | index("hyprland"))}'` → `{"excluded":["zen-browser"],"held":["hyprland","noctalia","caelestia"],"z":null,"h":null}` (held lists the held inputs that exist in `flake.lock`).
+2. `nix run . -- --dry --json update -zen-browser -nixpkgs-unstable | jq -c '.data.excluded'` → `["zen-browser","nixpkgs-unstable"]`.
+3. `nix run . -- --dry update nixpkgs -zen-browser; echo $status` → message `name inputs to update or -<input> to skip them, not both` and `2`.
+4. `nix run . -- --dry update -no-such-input; echo $status` → `unknown inputs: no-such-input` and `2`.
+5. `nix run . -- --dry --json update nixpkgs | jq -c '.data | {update, excluded}'` → `{"update":["nixpkgs"],"excluded":[]}`.
+6. `nix run . -- --dry --json update | jq -c '.data.excluded'` → `[]`.
+7. `git status --porcelain flake.lock` prints nothing.
+
+**Stop if.** `--dry` runs need something outside `.claude/settings.json` (a `запит: permission`). Any Verify output differs after one fix attempt.
+
+**AGENTS.md.** no change.
+
+**Commit.** `feat(c1s5): dangonix update -<input> skips inputs`
+
+**GM's turn.**
+- `dangonix switch` (the new `dangonix` and its completions), then `dangonix update -zen-browser`: `zen-browser` and the held inputs keep their `flake.lock` revisions (`git diff flake.lock`), the summary shows `excluded: zen-browser`.
+- In fish, `dangonix update -` + Tab offers `-zen-browser` and the other inputs.
+- All good → commit `flake.lock` yourself, then `## c1s5 — виконано`.
+
+---
+
 ## c1q15 — Trial by fire
 meta: tier=hero effort=high boss=no diff=leaves leaves=~dangonix*? rest=c1r2
 
