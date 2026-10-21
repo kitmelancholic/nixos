@@ -32,6 +32,7 @@ from pathlib import Path
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.command import DiscoveryHit, Hit, Hits, Provider
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import (
@@ -157,6 +158,18 @@ def model_limits() -> dict[str, dict[str, int]]:
         if head:
             rows[cells[0]] = {h: int(c) for h, c in zip(head, cells) if c.isdigit()}
     return rows
+
+
+def model_name(agent: str, tier: str) -> str:
+    """The model .agents/models.md gives an agent's tier."""
+    head: list[str] = []
+    for line in read(ROOT / ".agents/models.md").splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if cells and cells[0] == "tier":
+            head = cells
+        elif head and cells[0] == tier and agent in head:
+            return cells[head.index(agent)]
+    return ""
 
 
 def runs() -> list[list[str]]:
@@ -532,7 +545,65 @@ for _r, _line in enumerate(DIAGRAM):
         FIELDS[_m[1]] = (_r, _m.start(), _m.end() - _m.start())
 
 
-def render_diagram(active: set, trail: set, step: int | None, values: dict[str, str], tick: int) -> Text:
+# Arrows, traced cell by cell from where they leave a box to their head.
+MOVES = {"E": (0, 1), "W": (0, -1), "S": (1, 0), "N": (-1, 0)}
+TURNS = {
+    ("┐", "E"): "S", ("┘", "E"): "N", ("┘", "S"): "W", ("└", "S"): "E",
+    ("└", "W"): "N", ("┌", "W"): "S", ("┌", "N"): "E", ("├", "W"): "N",
+}
+
+
+def trace_edge(r: int, c: int, d: str) -> list[tuple[int, int]]:
+    path = []
+    while 0 <= r < len(DIAGRAM) and 0 <= c < len(DIAGRAM[r]) and len(path) < 300:
+        ch = DIAGRAM[r][c]
+        path.append((r, c))
+        if ch in "▶▼▲":
+            break
+        d = TURNS.get((ch, d), d)
+        dr, dc = MOVES[d]
+        r, c = r + dr, c + dc
+    return path
+
+
+def below(key: str, ch: str = "│") -> tuple[int, int]:
+    top, bottom, left, right = RECTS[key]
+    return bottom + 1, DIAGRAM[bottom + 1].index(ch, left, right)
+
+
+def right_of(key: str) -> tuple[int, int]:
+    top, _, _, right = RECTS[key]
+    return top + 1, right + 1
+
+
+EDGES = {
+    "start>next": trace_edge(*right_of("start"), "E"),
+    "next>journal": trace_edge(*right_of("next"), "E"),
+    "journal>gm": trace_edge(*right_of("journal"), "E"),
+    "journal>agent": trace_edge(*below("journal"), "S"),
+    "agent>outcome": trace_edge(*below("agent"), "S"),
+    "outcome>diag": trace_edge(*right_of("outcome"), "E"),
+    "outcome>done": trace_edge(*below("outcome", "┼"), "W"),
+    "outcome>rerun": trace_edge(below("outcome", "┼")[0] + 1, below("outcome", "┼")[1], "S"),
+    "outcome>timeout": trace_edge(*below("outcome", "┼"), "E"),
+    "gm>loop": trace_edge(*below("gm"), "S"),
+    "done>loop": trace_edge(RECTS["done"][0] + 1, RECTS["done"][2] - 1, "W"),
+}
+# Which arrows lead into each box.
+INTO = {
+    "next": ["start>next"],
+    "journal": ["next>journal"],
+    "gm": ["journal>gm"],
+    "agent": ["journal>agent"],
+    "outcome": ["agent>outcome"],
+    "diag": ["outcome>diag"],
+    "done": ["outcome>done"],
+    "rerun": ["outcome>rerun"],
+    "timeout": ["outcome>timeout"],
+}
+
+
+def render_diagram(active: set, trail: set, step: int | None, values: dict[str, str], tick: int, phase: int = 0) -> Text:
     rows = [list(line) for line in DIAGRAM]
     for name, (r, c, n) in FIELDS.items():
         v = values.get(name, "")[:n].ljust(n)
@@ -563,6 +634,22 @@ def render_diagram(active: set, trail: set, step: int | None, values: dict[str, 
             r, c = find(SPANS[done][0])
             for x in range(c, c + len(SPANS[done][0])):
                 styles[r][x] = "green"
+    # A comet runs along every arrow into the active box (and around the
+    # loop when the round was closed by the GM or a commit).
+    flows = [e for key in active for e in INTO.get(key, [])]
+    if "next" in active or "start" in active:
+        flows += [e for key, e in (("gm", "gm>loop"), ("done", "done>loop")) if key in trail]
+    hot = "bold yellow" if "gm" in active else "bold cyan"
+    for e in flows:
+        path = EDGES[e]
+        head = phase % (len(path) + 4)
+        for i, (r, c) in enumerate(path):
+            if head - 3 <= i <= head:
+                styles[r][c] = hot if i == head else hot.replace("bold ", "")
+                if i == head and rows[r][c] in "─│┼├┐┘└┌":
+                    rows[r][c] = "●"
+            elif styles[r][c] == "":
+                styles[r][c] = "dim"
     # A spinner in the corner of the active box.
     for key in active & RECTS.keys():
         top, _, _, right = RECTS[key]
@@ -670,8 +757,71 @@ class Confirm(ModalScreen[bool]):
 # --- the app ---------------------------------------------------------------
 
 
+class Banner(ModalScreen[None]):
+    """A new quest: its id in big letters for a few seconds."""
+
+    def __init__(self, quest: str, name: str, line: str) -> None:
+        super().__init__()
+        self.quest, self.name_, self.line = quest, name, line
+
+    def compose(self) -> ComposeResult:
+        try:
+            import pyfiglet
+
+            big = pyfiglet.figlet_format(self.quest.upper(), font="ansi_shadow").rstrip("\n ")
+        except Exception:  # noqa: BLE001  # a plain banner is fine
+            big = self.quest.upper()
+        t = Text(justify="center")
+        t.append("✦ новий квест ✦\n\n", style="dim")
+        t.append(big + "\n\n", style="bold cyan")
+        t.append(self.name_ + "\n", style="bold")
+        t.append(self.line, style="dim")
+        with Vertical(id="banner"):
+            yield Static(t)
+
+    def on_mount(self) -> None:
+        self.set_timer(4, self.close)
+
+    def close(self) -> None:
+        if self.is_current:
+            self.dismiss(None)
+
+    def on_key(self, event) -> None:
+        self.close()
+
+
+class Commands(Provider):
+    """Ctrl+P: the campaign's own commands."""
+
+    def items(self):
+        app = self.app
+        return [
+            ("Почати кампанію", "s · герой і суддя на вибір", app.action_start),
+            ("Зупинити кампанію", "x · Ctrl+C у campaign", app.action_stop),
+            ("Відповісти на питання campaign", "a · знову відкрити діалог", app.action_answer),
+            ("Trace спроби в less", "scripts/trace поточного логу", lambda: app.pager("trace")),
+            ("Діагноз сквайра в less", ".campaign/<id>.diagnosis.md", lambda: app.pager("diagnosis")),
+            ("Сирий лог спроби в less", ".campaign/<id>.<n>.json, jq", lambda: app.pager("log")),
+            ("Розділ квесту з tasks.md в less", "## <id> у docs/tasks.md", lambda: app.pager("quest")),
+            ("Скопіювати останню команду агента", "у буфер обміну (OSC 52)", app.copy_last),
+            ("Уроки для писаря в less", ".campaign/lessons.md", lambda: app.pager("lessons")),
+        ]
+
+    async def discover(self) -> Hits:
+        for name, help_, cb in self.items():
+            yield DiscoveryHit(name, cb, help=help_)
+
+    async def search(self, query: str) -> Hits:
+        matcher = self.matcher(query)
+        for name, help_, cb in self.items():
+            score = matcher.match(name)
+            if score > 0:
+                yield Hit(score, matcher.highlight(name), cb, help=help_)
+
+
 class CampaignTUI(App):
     TITLE = "dangoNix"
+    COMMANDS = App.COMMANDS | {Commands}
     CSS = """
     Screen { layout: vertical; }
     #top { height: auto; padding: 0 1; }
@@ -684,6 +834,9 @@ class CampaignTUI(App):
     #diagram { width: auto; }
     #right { width: 1fr; min-width: 36; height: auto; }
     #ctx-spark { height: 3; }
+    #timeline { height: auto; }
+    Banner { align: center middle; background: $background 60%; }
+    #banner { width: auto; height: auto; padding: 1 4; border: double $accent; background: $surface; }
     TabbedContent { height: 1fr; }
     RichLog, VerticalScroll.tab { height: 1fr; }
     #ask { width: 90; max-width: 95%; height: auto; max-height: 90%; padding: 1 2;
@@ -729,6 +882,10 @@ class CampaignTUI(App):
         self.steps_shown = (None, 0, "")
         self.belled = False
         self.runs_seen = -1
+        self.phase = 0
+        self.diag_args: tuple | None = None
+        self.current: Attempt | None = None
+        self.bannered: str | None = None
 
     def compose(self) -> ComposeResult:
         yield Static(id="top")
@@ -739,6 +896,7 @@ class CampaignTUI(App):
                 yield Static(id="side", classes="panel")
                 yield Sparkline([], id="ctx-spark", classes="panel", summary_function=max)
                 yield Static(id="quota", classes="panel")
+        yield Static(id="timeline", classes="panel")
         with TabbedContent(initial="steps"):
             with TabPane("1 кроки", id="steps"):
                 yield RichLog(id="steps-log", wrap=False, markup=False)
@@ -756,6 +914,8 @@ class CampaignTUI(App):
         self.query_one("#diagram-wrap").border_title = "цикл кампанії"
         self.query_one("#ctx-spark").border_title = "ріст контексту"
         self.query_one("#quota").border_title = "Claude Pro"
+        self.query_one("#timeline").border_title = "сьогодні"
+        self.set_interval(0.12, self.animate)
         self.follow_look()
         self.refresh_all()
         self.set_interval(1, self.refresh_all)
@@ -1060,7 +1220,7 @@ class CampaignTUI(App):
             "run": "йде" if campaign or mine else "s · почати",
             "next": f"{nxt or '—'}",
             "jst": "",
-            "agent": f"{icon} {tier} · {a.model if a and a.model else (row[4] if row else '')} · кидок #{n}" if a else "",
+            "agent": f"{icon} {tier} · {a.model or (row[4] if row else '') or model_name('codex' if a.codex else 'claude', tier)} · кидок #{n}" if a else "",
             "step": "",
             "out": "",
             "diag": "",
@@ -1081,7 +1241,17 @@ class CampaignTUI(App):
                 self.trail.add("rerun")
             elif not active & {"agent"}:
                 self.trail.add("done")
-        self.query_one("#diagram", Static).update(render_diagram(active, self.trail - active, step, values, self.tick))
+        self.diag_args = (active, self.trail - active, step, values)
+        self.animate()
+        self.current = a
+        # A banner when a new attempt starts while the TUI watches.
+        name = live_log.name if live_log else ""
+        if self.bannered is None:
+            self.bannered = name
+        elif name and name != self.bannered:
+            self.bannered = name
+            if a and a.path == live_log and self.pick == 0:
+                self.push_screen(Banner(cur, quest.name if quest else "", values["agent"]))
         wrap = self.query_one("#diagram-wrap")
         wrap.set_class("gm" in active, "hot")
         wrap.set_class("agent" in active, "live")
@@ -1169,7 +1339,90 @@ class CampaignTUI(App):
         side.rstrip()
         self.query_one("#quota", Static).update(side)
         self.toast_runs()
+        self.draw_timeline(now, live_log if self.pick == 0 else None, agent)
         self.fill_tabs(a)
+
+    def animate(self) -> None:
+        if self.diag_args:
+            self.phase += 1
+            active, trail, step, values = self.diag_args
+            self.query_one("#diagram", Static).update(render_diagram(active, trail, step, values, self.phase // 8, self.phase))
+
+    def draw_timeline(self, now: float, live: Path | None, agent: Proc | None) -> None:
+        """Today's attempts as coloured runs on a time axis."""
+        width = max(20, self.query_one("#timeline").size.width - 4)
+        day = time.strftime("%Y-%m-%d")
+        spans = []
+        for r in runs():
+            if not r[0].startswith(day):
+                continue
+            try:
+                end = time.mktime(time.strptime(r[0], "%Y-%m-%dT%H:%M:%S"))
+                mins = int(r[7].rstrip("m") or 0)
+            except ValueError:
+                continue
+            colour = "green" if r[10] == "виконано" else "yellow" if r[10] == "хід майстра" else "red"
+            spans.append((end - mins * 60 - 30, end, colour, r[1][2:]))
+        if live and agent:
+            spans.append((now - proc_age(agent.pid), now, "cyan", LOG_NAME.match(live.name)[1][2:]))
+        t = Text()
+        if not spans:
+            t.append("сьогодні ще не було спроб", style="dim")
+            self.query_one("#timeline", Static).update(t)
+            return
+        start = min(sp[0] for sp in spans)
+        start -= start % 3600
+        stop = max(now, start + 3600)
+        scale = (stop - start) / width
+        cells = [("·", "dim")] * width
+        labels = [" "] * width
+        for a, b, colour, label in spans:
+            i, j = int((a - start) / scale), max(int((a - start) / scale) + 1, int((b - start) / scale))
+            for x in range(i, min(j, width)):
+                cells[x] = ("█", colour)
+            for x, ch in enumerate(label[: max(0, min(j, width) - i)]):
+                labels[i + x] = ch
+        ticks = [" "] * width
+        h = start
+        while h < stop:
+            x = int((h - start) / scale)
+            for y, ch in enumerate(time.strftime("%H", time.localtime(h))):
+                if x + y < width:
+                    ticks[x + y] = ch
+            h += 3600 if (stop - start) / 3600 <= width / 4 else 7200
+        t.append("".join(ticks) + "\n", style="dim")
+        for ch, st in cells:
+            t.append(ch, style=st)
+        t.append("\n" + "".join(labels), style="dim")
+        self.query_one("#timeline", Static).update(t)
+
+    def pager(self, what: str) -> None:
+        a = self.current
+        if not a:
+            self.notify("немає спроби")
+            return
+        qid = LOG_NAME.match(a.path.name)[1]
+        if what == "trace":
+            cmd = f"scripts/trace {a.path} | less -R"
+        elif what == "log":
+            cmd = f"jq -C . {a.path} | less -R"
+        elif what == "diagnosis":
+            cmd = f"less .campaign/{qid}.diagnosis.md"
+        elif what == "lessons":
+            cmd = "less .campaign/lessons.md"
+        else:
+            cmd = f"awk '/^## {qid} /{{f=1}} f&&/^---$/{{exit}} f' docs/tasks.md | less"
+        with self.suspend():
+            subprocess.run(["bash", "-c", cmd], cwd=ROOT)
+
+    def copy_last(self) -> None:
+        a = self.current
+        cmds = [s.text for s in (a.steps if a else []) if s.tool in ("Bash", "shell")]
+        if not cmds:
+            self.notify("агент ще не виконав жодної команди")
+            return
+        self.copy_to_clipboard(cmds[-1])
+        self.notify(cmds[-1][:80], title="скопійовано")
 
     def toast_runs(self) -> None:
         """A toast for every attempt that ends while the TUI is open."""

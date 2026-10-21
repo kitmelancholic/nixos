@@ -197,9 +197,13 @@ let
   campaignTuiScript = pkgs.writeShellApplication {
     name = "repo-campaign-tui";
     runtimeInputs = [
-      (pkgs.python3.withPackages (p: [ p.textual ]))
+      (pkgs.python3.withPackages (p: [
+        p.textual
+        p.pyfiglet
+      ]))
       pkgs.git
       pkgs.jq
+      pkgs.less
     ];
     text = ''
       top=$(git rev-parse --show-toplevel)

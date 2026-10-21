@@ -316,7 +316,10 @@ in
     pkgs.runCommand "campaign-tui-check"
       {
         nativeBuildInputs = [
-          (pkgs.python3.withPackages (p: [ p.textual ]))
+          (pkgs.python3.withPackages (p: [
+            p.textual
+            p.pyfiglet
+          ]))
           pkgs.jq
         ];
       }
