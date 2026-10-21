@@ -275,3 +275,4 @@ GM (campaign, 2026-10-20): уже можна просто ввести паро�
 `quest-verify` падає на `leaves=` (база `HEAD`, де вже є перший коміт квесту): `unexpected change: ~weston-15.0.1`; `expected change missing: ~sddm-unwrapped*`, `~sddm.conf`, `~sddm.pam`, `+bibata-cursors*`.
 запит: scope — `leaves=` у `meta:` c1s2: додати `~weston-*`, а глоби першого коміту зробити необов'язковими (`.campaign/c1s2.request.patch`), потім `retry c1s2`.
 agent: claude claude-opus-5-5
+GM (campaign, 2026-10-21): так, scope: патч .campaign/c1s2.request.patch.applied; retry: own tier
