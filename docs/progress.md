@@ -311,9 +311,21 @@ GM перевірив чекліст у campaign (2026-10-21).
 Зроблено поза кампанією в PR #12 (`328b187`, `feat(scripts): …`): повні логи спроб, `scripts/trace` з `--story`, `QUEST_IDLE`, Stop hook `scripts/quest-stop`, ліміти контексту за рівнями в `.agents/models.md`. Секцію в `docs/tasks.md` додано заднім числом (2026-10-21).
 
 ## c1s6 - хід майстра
-Зроблено поза кампанією (запит GM у проєкті, 2026-10-21): `scripts/campaign-tui` - TUI на Python/Textual, що сам запускає `scripts/campaign` у псевдотерміналі, відповідає на його питання в діалогах і показує живу діаграму циклу, поточну спробу, квоту Claude, думки й кроки агента. `checks.campaign-tui` зібрано в хмарі; на ноутбуці ще не запускався.
+Зроблено поза кампанією (запит GM у проєкті, 2026-10-21): `scripts/campaign-tui` - TUI на Python/Textual, що сам запускає `scripts/campaign` у псевдотерміналі, відповідає на його питання в діалогах і показує живу діаграму циклу, поточну спробу, квоту Claude, думки й кроки агента. `checks.campaign-tui` зібрано в хмарі; на ноутбуці ще не запускався. Запис стоїть перед c1s5, бо c1s5 ще йде і campaign дописує відповіді в кінець журналу.
 - У `~/.claude/settings.json`: `"statusLine": {"type": "command", "command": "/home/kit/nixos/scripts/claude-statusline"}`; після однієї відповіді в інтерактивному Claude Code з'являється `~/.cache/dangonix/claude-usage.json`.
 - `scripts/campaign-tui`, `s`, `▶ у бій`: діаграма йде за спробою (блок агента, його крок), `2` показує думки; наступне питання campaign відкриває діалог, відповідь доходить (`3`).
 - Квота показує відсотки за сесію і тиждень.
 - Усе добре → `## c1s6 - виконано`.
+agent: claude claude-opus-5-5
+
+## c1s5 - провалений кидок
+Зміни зроблено в `lib/dangonix/dangonix.sh`, `commands.nix`, `completions.nix`; `bash -n` ок, логіка вибору перевірена через jq. Але `nix fmt`, `dangonix check --fast` і `quest-verify` не запускаються: sandbox ховає untracked `.gitmodules` (символьний пристрій `/dev/null`, власник `nobody`), тож libgit2 падає з `Permission denied`; `nix` з `path:` падає з `cannot create Unix domain socket`. Verify 1–7 не виконано. Потрібно: дозвіл на читання `.gitmodules` (або прибрати його) і запуск nix поза sandbox; тоді `retry c1s5`. Робота не закомічена.
+запит: permission - sandbox блокує читання `.gitmodules` і сокети для nix; `dangonix check`/`quest-verify` неможливі без цього.
+agent: claude claude-haiku-5-5
+GM (campaign, 2026-10-22): sandbox готовий, має все працювати тепер стабільно
+
+## c1s5 - провалений кидок
+Nix тепер працює, кроки 1–5 з попередньої спроби на місці. `nix fmt` падає: treefmt не може писати кеш у `~/.cache/treefmt` (`read-only file system`). Я запустив `nix fmt -- --no-cache`, а `repo-fmt` з аргументами не передає `--excludes`, тож він переформатував `hosts/nixos/hardware-configuration.nix` (це моя помилка). `bash-guard` не дає мені його повернути, тому `check --fast` і Verify не запускав. Робота квесту не закомічена.
+GM: `git checkout -- hosts/nixos/hardware-configuration.nix`, застосуй `.campaign/c1s5.request.patch` (у Codex rules шляхів sandbox немає), потім `retry c1s5`.
+запит: permission - sandbox не дає treefmt писати кеш `~/.cache/treefmt`, тож `nix fmt` падає; патч додає цей шлях до `sandbox.filesystem.allowWrite`.
 agent: claude claude-opus-5-5
