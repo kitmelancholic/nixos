@@ -9,6 +9,7 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
 - A theme never changes the host: themes live in the home configuration only.
 - Every theme passes the checks (`scripts/check`).
 - Never remove or rebind an existing key binding.
+- Apps take dark/light, palettes and fonts from `dangonix.look` (`home/look.nix`); every theme sets `dangonix.look.appearance`.
 
 ## Loop
 
@@ -21,10 +22,10 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
   stage paths explicitly, never `git commit -a`.
 - State-changing tests run in a worktree under `.campaign/` (tasks.md rules).
 - Never print full build logs (`tail -n 40`); full check via `quest-verify`.
+- `nix build .#greeter-vm` tests the greeter; run it when SDDM, PAM or `thyx` change.
 - Unsure of a name: ask the `nixos` MCP server (mcp-nixos, 26.05); options
   of flake inputs (Noctalia, Caelestia, HM): `scripts/opt [--home [<id>]] <path>`.
-- Never start subagents. When compacting, keep the quest id, the files you
-  changed and the last `quest-verify` output.
+- Never start subagents. Compaction keeps the quest id, changed files, last `quest-verify`.
 
 ## Quests
 

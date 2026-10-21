@@ -8,6 +8,8 @@ let
   hyprlandPackages = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system};
 in
 {
+  imports = [ ./sddm ];
+
   services = {
     pulseaudio.enable = false;
 

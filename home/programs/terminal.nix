@@ -1,4 +1,43 @@
 {
+  config,
+  lib,
+  pkgs,
+  ...
+}:
+
+let
+  look = config.dangonix.look;
+  colours = [
+    "black"
+    "red"
+    "green"
+    "yellow"
+    "blue"
+    "magenta"
+    "cyan"
+    "white"
+  ];
+
+  # A Ghostty theme from the Manuscript palette Zed uses.
+  fromZed =
+    file: selection:
+    let
+      theme = lib.head (lib.importJSON "${
+        import ../manuscript.nix { inherit pkgs; }
+      }/themes/${file}.json").themes;
+      inherit (theme) style;
+      ansi =
+        map (c: style."terminal.ansi.${c}") colours ++ map (c: style."terminal.ansi.bright_${c}") colours;
+    in
+    {
+      background = style."terminal.background";
+      foreground = style."terminal.foreground";
+      palette = lib.imap0 (i: hex: "${toString i}=${hex}") ansi;
+      cursor-color = (lib.head style.players).cursor;
+      selection-background = selection;
+    };
+in
+{
   programs = {
     fish = {
       enable = true;
@@ -45,7 +84,7 @@
 
         git_status = {
           format = "[$all_status$ahead_behind]($style) ";
-          style = "orange";
+          style = "yellow";
         };
 
         nix_shell = {
@@ -86,7 +125,15 @@
       enable = true;
       enableFishIntegration = true;
       enableBashIntegration = true;
+      themes = {
+        manuscript-dark = fromZed "manuscript-dark" "#433D38";
+        manuscript-light = fromZed "manuscript-light" "#E0D9C8";
+      };
       settings = {
+        theme = "light:${look.terminal.light},dark:${look.terminal.dark}";
+        font-family = look.fonts.mono;
+        font-size = look.fonts.monoSize;
+        minimum-contrast = 3;
         window-padding-x = 8;
         window-padding-y = 8;
         confirm-close-surface = false;

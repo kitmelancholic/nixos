@@ -258,3 +258,51 @@ GM перевірив чекліст у campaign (2026-10-20).
 запит: scope — `leaves=` у `meta:` c1s2: `~sddm-wrapped*` → `~sddm-wrapped*?`, додати `~man-paths?,~system_fish-completions?` (`.campaign/c1s2.request.patch`), потім `retry c1s2`.
 agent: claude claude-opus-5-5
 GM (campaign, 2026-10-20): так, scope: патч .campaign/c1s2.request.patch.applied; retry: own tier
+
+## c1s2 — хід майстра
+Курсор `Bibata-Modern-Ice` у SDDM (`Theme.CursorTheme`, пакет у хості); SDDM з патчем `Display::startAuth` (пароль скасовує очікувану fingerprint-автентифікацію без перезапуску greeter); PAM `sddm`: `pam_unix` (`nodelay`) перед `substack login`; `thyx` follows `nixpkgs`. `quest-verify` пройшов, `nix build .#greeter-vm` пройшов, суддя: `no defects`. Змінені derivation: `+bibata-cursors-2.0.7_fish-completions`, `~sddm-unwrapped-0.21.0`, `~sddm.conf`, `~sddm.pam`, `~man-paths`, `~system_fish-completions`.
+- Перед switch перевір логін у TTY (`Ctrl+Alt+F2`; його PAM не змінюється); якщо greeter зламається — завантаж попередню generation.
+- `dangonix switch` (sudo), перезавантаж.
+- Курсор видно, кліки по меню сеансів працюють.
+- Введи пароль, поки greeter показує запит відбитка: вхід одразу; keyring розблоковано (немає запиту пароля keyring після входу).
+- Перезавантаж, приклади палець без введення: вхід.
+- Усе добре → `## c1s2 — виконано`.
+agent: claude claude-opus-5-5
+GM (campaign, 2026-10-20): уже можна просто ввести пароль, круто працює, але курсора немає
+
+## c1s2 — провалений кидок
+Курсора немає через weston 15: pointer потрапляє в seat лише після першого руху (`ensure_pointer_capability`), greeter робить `get_pointer` уже після фокуса й отримує `wl_pointer.enter(0, …)`, а Qt 6.11 не ставить курсор при serial 0 (`updateCursor`). Виправлення не закомічене: патч `hosts/nixos/sddm/weston-pointer-focus-serial.patch` (serial для фокуса без pointer-ресурсу), weston у `wayland.compositorCommand` з тим самим `weston.ini`, VM-підтести `wayland`/`stockWeston` (з патчем є `set_cursor`, без нього `enter(0,` і курсора немає). `nix build .#greeter-vm` ок, Verify 1–2 ок, `scripts/check` ок.
+`quest-verify` падає на `leaves=` (база `HEAD`, де вже є перший коміт квесту): `unexpected change: ~weston-15.0.1`; `expected change missing: ~sddm-unwrapped*`, `~sddm.conf`, `~sddm.pam`, `+bibata-cursors*`.
+запит: scope — `leaves=` у `meta:` c1s2: додати `~weston-*`, а глоби першого коміту зробити необов'язковими (`.campaign/c1s2.request.patch`), потім `retry c1s2`.
+agent: claude claude-opus-5-5
+GM (campaign, 2026-10-21): так, scope: патч .campaign/c1s2.request.patch.applied; retry: own tier
+
+## c1s2 — хід майстра
+Курсора не було через weston 15: pointer потрапляє в seat на першому русі, фокус на greeter ставиться в тій самій події, ще до `get_pointer`, тож `wl_pointer.enter` має serial 0, а Qt 6.11 при ньому курсор не ставить. Патч `weston-pointer-focus-serial.patch` дає фокусу serial і без pointer-ресурсу; greeter запускається в патченому weston (команда й `weston.ini` з nixpkgs). VM: `wayland` → `enter(5, …)` і `set_cursor` з буфером, `stockWeston` → `enter(0, …)` без курсора. `quest-verify` пройшов, `nix build .#greeter-vm` пройшов, суддя: `no defects`. Змінений derivation: `~weston-15.0.1`.
+- Перед switch перевір логін у TTY (`Ctrl+Alt+F2`; його PAM не змінюється); якщо greeter зламається — завантаж попередню generation.
+- `dangonix switch` (sudo), перезавантаж.
+- Поворуш мишею/тачпадом: курсор видно, кліки по меню сеансів працюють.
+- Введи пароль, поки greeter показує запит відбитка: вхід одразу; keyring розблоковано.
+- Перезавантаж, приклади палець без введення: вхід.
+- Усе добре → `## c1s2 — виконано`.
+agent: claude claude-opus-5-5
+
+## c1s2 — виконано
+GM перевірив чекліст у campaign (2026-10-21).
+
+## c1s3 — провалений кидок
+Усі кроки зроблено, `scripts/check` ок, Verify 2–7 ок (Verify 1: HM загортає значення в список, `--raw` не працює, `--json` дає `["light:manuscript-light,dark:manuscript-dark"]`). `quest-verify` двічі падає на `leaves=`: `unexpected change: ~activation-script` (HM activation змінюється через нові файли `look.json`, ghostty, dconf). Робота не закомічена.
+запит: scope — додати `~activation-script?` до `leaves=` у `meta:` c1s3 (`.campaign/c1s3.request.patch`), потім `retry c1s3`.
+agent: claude claude-sonnet-5-5
+GM (campaign, 2026-10-21): так, scope: патч .campaign/c1s3.request.patch.applied; retry: own tier
+
+## c1s3 — хід майстра
+Тема вирішує вигляд через `dangonix.look` (`home/look.nix`): `noctalia` — `shell`, `caelestia` — `dark`; Ghostty читає палітри з файлів Manuscript (`home/manuscript.nix`), Zed іде за `mode = "system"`; `dangonix status` має рядок `look`. `quest-verify` пройшов. Змінені derivations: `~dangonix`, `~dangonix-config.json`, `~ghostty-config`, `+ghostty-manuscript-{dark,light}-theme`, `~hm-dconf.ini`, `+hm_dangonixlook.json`, `~starship-config`, `~zed-user-settings`, `~activation-script`.
+- `dangonix switch` (Noctalia). Ghostty: темний Manuscript, Rec Mono Casual, підказки fish читабельні; `dangonix status` має рядок `look`.
+- У налаштуваннях Noctalia, Appearance: «Sync App Color Scheme» увімкнено, шаблон Ghostty вимкнено. Перемкни Noctalia на light: Ghostty (відкриті вікна), Zed і Nautilus стають світлими; познач, чи йдуть за ним Claude і Zen. Назад на dark.
+- `dangonix theme caelestia`: усе темне, `dangonix status` показує `fixed by caelestia`; `dangonix theme noctalia` — назад.
+- Усе добре → `## c1s3 — виконано`.
+agent: claude claude-sonnet-5-5
+
+## c1s3 — виконано
+GM перевірив чекліст у campaign (2026-10-21).

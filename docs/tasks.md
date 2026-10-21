@@ -608,7 +608,7 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangon
 ---
 
 ## c1s2 — Gatekeeper's lantern ⚔️
-meta: tier=cleric effort=high boss=yes diff=leaves leaves=~sddm-unwrapped*,~sddm-wrapped*?,~sddm.conf,~sddm.pam,+bibata-cursors*,~man-paths?,~system_fish-completions?,~unit-display-manager.service?,~*pam*?,~source?
+meta: tier=cleric effort=high boss=yes diff=leaves leaves=~weston-*,~sddm-unwrapped*?,~sddm-wrapped*?,~sddm.conf?,~sddm.pam?,+bibata-cursors*?,~man-paths?,~system_fish-completions?,~unit-display-manager.service?,~*pam*?,~source?
 
 **Goal.** At the SDDM greeter the pointer is visible and clicks work, and password and fingerprint are accepted at the same time: a typed password logs in at once even while the greeter waits for a finger.
 
@@ -648,6 +648,142 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=~sddm-unwrapped*,~sddm
 - Type the password while the greeter shows the fingerprint prompt: logs in at once; the keyring is unlocked (no keyring password prompt after login).
 - Reboot, put a finger without typing: logs in.
 - All good → `## c1s2 — виконано`.
+
+---
+
+## c1s3 — Ink and parchment
+meta: tier=hero effort=medium boss=no diff=leaves leaves=~dangonix*,~dangonix-config.json?,+hm_*?,~hm_*?,+*ghostty*?,~*ghostty*?,~*starship*?,~*zed*?,+*dconf*?,~*dconf*?,+*look.json?,+*manuscript*?,~activation-script?
+
+**Goal.** The selected theme decides the look of the core apps through one attrset `dangonix.look`: dark or light (and who switches it), the terminal and editor palettes, the fonts. Ghostty looks like Zed: Manuscript Dark in dark mode, Manuscript Light (paper) in light mode, Zed's code font.
+
+**Why.** [Design §3 «Вигляд»](design.md#вигляд), approved by the GM on 2026-10-21 after mockups. Today Ghostty has no theme or font (`home/programs/terminal.nix`), Zed is pinned to `Manuscript Dark`, and nothing in the repo sets the system `color-scheme`. Noctalia already writes `org.gnome.desktop.interface color-scheme` from its dark/light/auto mode (`theme.sync_color_scheme`, default true: noctalia `src/app/application_services.cpp`, `syncGSettingsColorScheme`); Caelestia does not, so it gets a fixed `dark` that Home Manager writes. Ghostty, Zed and GTK4 apps follow that one value live through the host's existing `xdg-desktop-portal-gtk`; the host does not change. The Manuscript extension (already pinned in `home/zed.nix`) ships both palettes in `themes/manuscript-{dark,light}.json` (keys `themes[0].style."terminal.background"`, `"terminal.foreground"`, `"terminal.ansi.<colour>"`, `"terminal.ansi.bright_<colour>"`, `players[0].cursor`), so Ghostty reads its colours from the same files and the two apps never drift.
+
+**Files.** `home/look.nix` (new), `home/manuscript.nix` (new), `home/kit.nix`, `home/zed.nix`, `home/programs/terminal.nix`, `profiles/noctalia/default.nix`, `profiles/caelestia/default.nix`, `lib/dangonix/dangonix.sh`, `lib/dangonix/default.nix`, `lib/dangonix/commands.nix`, `AGENTS.md`, `docs/progress.md`.
+
+**Read first.** Design §3 «Вигляд»; `home/zed.nix`, `home/programs/terminal.nix`, `home/options.nix` (option style), `home/desktop/icons.nix`; `lib/dangonix/dangonix.sh` (`cmd_status`, `active_theme`).
+
+**Steps.**
+1. `home/manuscript.nix` (new): a function `{ pkgs }:` returning the `pkgs.fetchzip { … }` of `zed-manuscript-theme` now in `home/zed.nix` (same `url` and `hash`, moved, not changed). In `home/zed.nix` the `"zed/extensions/installed/manuscript-theme".source` becomes `import ./manuscript.nix { inherit pkgs; }`.
+2. `home/look.nix` (new), imported from `home/kit.nix`: options under `dangonix.look`:
+   - `appearance`: `types.enum [ "shell" "dark" "light" ]`, **no default** (every theme must choose);
+   - `terminal.dark`, `terminal.light` (str, defaults `"manuscript-dark"`, `"manuscript-light"`): Ghostty theme names;
+   - `editor.dark`, `editor.light` (str, defaults `"Manuscript Dark"`, `"Manuscript Light"`): Zed theme names;
+   - `fonts.mono` (list of str, default `[ "Rec Mono Casual" "Maple Mono" ]`), `fonts.monoSize` (int, default `14`, points), `fonts.ui` (str, default `"Miriam Libre"`).
+   In its `config`: when `appearance != "shell"`, `dconf.settings."org/gnome/desktop/interface".color-scheme = "prefer-${appearance}"`; always `xdg.configFile."dangonix/look.json".text = builtins.toJSON { inherit appearance; theme = config.kit.profile.id; }`.
+3. `profiles/noctalia/default.nix`: `dangonix.look.appearance = "shell";`. `profiles/caelestia/default.nix`: `dangonix.look.appearance = "dark";` with the comment `# Caelestia does not write color-scheme; switch to "shell" once it does.`
+4. `home/programs/terminal.nix`, `programs.ghostty`:
+   - `themes.manuscript-dark` and `themes.manuscript-light`, built by a local `fromZed = file: …` over `lib.importJSON "${import ../manuscript.nix { inherit pkgs; }}/themes/${file}.json"`: `background`, `foreground` from `terminal.background`/`terminal.foreground`; `palette` = 16 strings `"<i>=<hex>"` in the order black red green yellow blue magenta cyan white, then the same with `bright_`; `cursor-color` from `players[0].cursor`; `selection-background` from a literal `{ manuscript-dark = "#433D38"; manuscript-light = "#E0D9C8"; }` (Zed's `players[0].selection` has alpha; these are it mixed over the background).
+   - in `settings` add `theme = "light:${look.terminal.light},dark:${look.terminal.dark}"`, `font-family = look.fonts.mono`, `font-size = look.fonts.monoSize`, `minimum-contrast = 3`. Keep the three existing keys.
+   - in `starship.settings.git_status`, `style = "orange";` → `style = "yellow";` (`orange` is not a starship colour name).
+5. `home/zed.nix`, `userSettings`:
+   - `theme = "Manuscript Dark";` → `theme = { mode = "system"; inherit (config.dangonix.look.editor) dark light; };`. Leave `theme_overrides."Manuscript Dark"` as is (it applies to the dark theme only).
+   - `buffer_font_family` = `head look.fonts.mono`, `buffer_font_fallbacks` = `tail look.fonts.mono`, `ui_font_family` and `agent_ui_font_family` = `look.fonts.ui`; the values stay exactly what they are now. Add `config` to the module arguments.
+6. `lib/dangonix/default.nix`: add `dconf` to `runtimeInputs`.
+7. `lib/dangonix/dangonix.sh`, `cmd_status`: add `look` to the data: `appearance` from `~/.config/dangonix/look.json` (null when missing), `mode` from `dconf read /org/gnome/desktop/interface/color-scheme` (`'prefer-dark'` → `"dark"`, anything else or empty → `"light"`, null when `dconf` fails). Add a text line after the `theme` line, in the same style: `look      <mode> (set by <theme>)` for `shell`, `look      <mode> (fixed by <theme>)` otherwise, `look      unknown` without `look.json`.
+8. `lib/dangonix/commands.nix`, row `status`: summary `"theme, Foundry, and whether the system is built from state.json"` → `"theme, look, Foundry, and whether the system is built from state.json"`.
+
+**Do not.** Touch the host (the portal is already there). Change the Manuscript hash or Zed's `theme_overrides`. Hard-code the 16 colours (read the JSON). Enable Noctalia's Ghostty template or write Noctalia's `settings.toml`. Change the icon theme.
+
+**Verify.**
+1. `nix eval --raw .#homeConfigurations.kit-noctalia.config.programs.ghostty.settings.theme` → `light:manuscript-light,dark:manuscript-dark`.
+2. `nix eval --json .#homeConfigurations.kit-noctalia.config.programs.ghostty.themes.manuscript-light.palette --apply 'p: [ (builtins.length p) (builtins.head p) (builtins.elemAt p 6) ]'` → `[16,"0=#1C1714","6=#4A8580"]`.
+3. `nix eval --json .#homeConfigurations.kit-caelestia.config.dconf.settings --apply 's: s."org/gnome/desktop/interface".color-scheme or null'` → `"prefer-dark"`; the same for `kit-noctalia` → `null`.
+4. `nix eval --json .#homeConfigurations.kit-noctalia.config.programs.zed-editor.userSettings --apply 's: [ s.theme s.buffer_font_family s.buffer_font_fallbacks ]'` → `[{"dark":"Manuscript Dark","light":"Manuscript Light","mode":"system"},"Rec Mono Casual",["Maple Mono"]]`.
+5. `nix eval .#homeConfigurations.kit-noctalia.config.xdg.configFile --apply 'f: builtins.hasAttr "dangonix/look.json" f'` → `true`.
+6. `nix run . -- --json status | jq -e '.data | has("look")'` → `true`.
+7. `scripts/check --fast` passes.
+
+**Stop if.** A theme evaluates without setting `dangonix.look.appearance` (the missing default must stay an error).
+
+**AGENTS.md.** Under *Invariants* add: `- Apps take dark/light, palettes and fonts from \`dangonix.look\` (\`home/look.nix\`); every theme sets \`dangonix.look.appearance\`.`
+
+**Commit.** `feat(c1s3): the theme decides dark or light, Ghostty looks like Zed`
+
+**GM's turn.**
+- `dangonix switch` (Noctalia). Ghostty: dark Manuscript, Rec Mono Casual, fish autosuggestions readable; `dangonix status` has the `look` line.
+- In Noctalia's settings, Appearance: «Sync App Color Scheme» is on and no Ghostty template is enabled. Switch Noctalia to light: Ghostty (open windows), Zed and Nautilus turn light; note whether Claude and Zen follow. Back to dark.
+- `dangonix theme caelestia`: everything is dark, `dangonix status` says `fixed by caelestia`; `dangonix theme noctalia` back.
+- All good → `## c1s3 — виконано`.
+
+---
+
+## c1s5 — Detour around the toll
+meta: tier=squire effort=medium boss=no diff=leaves leaves=~dangonix*,~hm_*dangonix*?,~*fish-completions?,~man-paths?,~source?
+
+**Goal.** `dangonix update -zen-browser` updates every flake input except the held ones and the ones named with a leading `-`; mixing names with `-<input>` and an unknown input are usage errors (exit 2); fish completes `-<input>`.
+
+**Why.** The GM approved this syntax on 2026-10-21 (design §5 `update` row, §6 held list): a one-off "update everything but X" without editing the held list. Today `cmd_update` in `lib/dangonix/dangonix.sh` takes only names (update exactly those) or nothing (all but held). Global flags are parsed before the command and `-h`/`--help` anywhere becomes `help …`, so any other word after `update` that starts with `-` reaches `cmd_update` and is free for this. `nix flake update` with no inputs updates every input, so an empty update list must never reach it.
+
+**Files.** `lib/dangonix/dangonix.sh`, `lib/dangonix/commands.nix`, `lib/dangonix/completions.nix`, `docs/progress.md`.
+
+**Read first.** Design §5 (`update` row, grammar) and §6 (held list); `cmd_update` and `json_list` in `lib/dangonix/dangonix.sh`; the `update` row in `lib/dangonix/commands.nix`; `values` and `rowLines` in `lib/dangonix/completions.nix`.
+
+**Preconditions.** `grep -c '^cmd_update() {' lib/dangonix/dangonix.sh` prints `1` and the function still begins with `need_flake` and `inputs=$(jq -c '.nodes.root.inputs | keys' "$lock_file")`; otherwise stop.
+
+**Steps.**
+1. In `lib/dangonix/dangonix.sh`, replace the start of `cmd_update`, from `  local inputs named held update` through the line `  [ "$held" = '[]' ] || warn "held, name them to update: $(jq -r 'join(" ")' <<<"$held")"`, with:
+   ```bash
+     local inputs named excluded held update arg
+     local -a names=() skips=()
+     inputs=$(jq -c '.nodes.root.inputs | keys' "$lock_file")
+     for arg; do
+       case $arg in
+       -?*) skips+=("${arg#-}") ;;
+       *) names+=("$arg") ;;
+       esac
+     done
+     [ "${#names[@]}" -eq 0 ] || [ "${#skips[@]}" -eq 0 ] ||
+       usage "name inputs to update or -<input> to skip them, not both"
+     named=$(json_list "${names[@]}")
+     excluded=$(json_list "${skips[@]}")
+     local unknown
+     unknown=$(jq -rn --argjson inputs "$inputs" --argjson named "$named" --argjson excluded "$excluded" \
+       '($named + $excluded) - $inputs | join(" ")')
+     [ -z "$unknown" ] || usage "unknown inputs: $unknown"
+     if [ "${#names[@]}" -gt 0 ]; then
+       update=$named held='[]'
+     else
+       held=$(cfg -c --argjson inputs "$inputs" --argjson excluded "$excluded" \
+         '[.held[] | select(IN($inputs[])) | select(IN($excluded[]) | not)]')
+       update=$(jq -cn --argjson inputs "$inputs" --argjson held "$held" --argjson excluded "$excluded" \
+         '$inputs - $held - $excluded')
+     fi
+     [ "$update" != '[]' ] || usage "nothing left to update"
+     [ "$held" = '[]' ] || warn "held, name them to update: $(jq -r 'join(" ")' <<<"$held")"
+   ```
+   The old `inputs=$(…)` and `named=$(jq -cn '$ARGS.positional' --args "$@")` lines are part of the replaced block; `need_flake` stays the first line.
+2. In the same function, replace every `--argjson update "$update" --argjson held "$held"` (two places: the `planned` call and the `finish` call) with `--argjson update "$update" --argjson held "$held" --argjson excluded "$excluded"`; replace `'{update: $update, held: $held}'` with `'{update: $update, held: $held, excluded: $excluded}'` and `'{update: $update, held: $held, changed: $changed}'` with `'{update: $update, held: $held, excluded: $excluded, changed: $changed}'`.
+3. In the `finish` text of `cmd_update`, after the line `     (if .held == [] then empty else "held: \(.held | join(" "))" end)'`, keep the closing quote at the end and insert before it: change that line to
+   ```
+        (if .held == [] then empty else "held: \(.held | join(" "))" end),
+        (if .excluded == [] then empty else "excluded: \(.excluded | join(" "))" end)'
+   ```
+4. In `lib/dangonix/commands.nix`, `update` row: `args = "[<input>...]";` → `args = "[<input>... | -<input>...]";`, `complete = [ "inputs" ];` → `complete = [ "inputs" "excludes" ];`, summary → `"update every input but the held ones (or only the named ones, or all but -<input>), then check; never switches or commits"`.
+5. In `lib/dangonix/completions.nix`, `values`: after the `inputs = …;` line add
+   `excludes = "-a ${quote "(${jq} -r '.nodes.root.inputs | keys[] | \"-\" + .' ${repo}/flake.lock 2>/dev/null)"}";`
+6. `nix fmt`, then `dangonix check --fast` passes.
+
+**Do not.** Add a flag such as `--except`, change the held list, or make `-<input>` persistent. Touch `flake.lock` in the checkout. Let an empty list reach `nix flake update`.
+
+**Verify.** All with `--dry`, which changes nothing:
+1. `nix run . -- --dry --json update -zen-browser | jq -c '.data | {excluded, held, z: (.update | index("zen-browser")), h: (.update | index("hyprland"))}'` → `{"excluded":["zen-browser"],"held":["hyprland","noctalia","caelestia"],"z":null,"h":null}` (held lists the held inputs that exist in `flake.lock`).
+2. `nix run . -- --dry --json update -zen-browser -nixpkgs-unstable | jq -c '.data.excluded'` → `["zen-browser","nixpkgs-unstable"]`.
+3. `nix run . -- --dry update nixpkgs -zen-browser; echo $status` → message `name inputs to update or -<input> to skip them, not both` and `2`.
+4. `nix run . -- --dry update -no-such-input; echo $status` → `unknown inputs: no-such-input` and `2`.
+5. `nix run . -- --dry --json update nixpkgs | jq -c '.data | {update, excluded}'` → `{"update":["nixpkgs"],"excluded":[]}`.
+6. `nix run . -- --dry --json update | jq -c '.data.excluded'` → `[]`.
+7. `git status --porcelain flake.lock` prints nothing.
+
+**Stop if.** `--dry` runs need something outside `.claude/settings.json` (a `запит: permission`). Any Verify output differs after one fix attempt.
+
+**AGENTS.md.** no change.
+
+**Commit.** `feat(c1s5): dangonix update -<input> skips inputs`
+
+**GM's turn.**
+- `dangonix switch` (the new `dangonix` and its completions), then `dangonix update -zen-browser`: `zen-browser` and the held inputs keep their `flake.lock` revisions (`git diff flake.lock`), the summary shows `excluded: zen-browser`.
+- In fish, `dangonix update -` + Tab offers `-zen-browser` and the other inputs.
+- All good → commit `flake.lock` yourself, then `## c1s5 — виконано`.
 
 ---
 
@@ -833,7 +969,7 @@ meta: tier=hero effort=high boss=yes diff=leaves leaves=~dangonix*,+hm_*roles*?,
 **Read first.** Design §3 in full; `themes/noctalia/binds.nix`, `themes/caelestia/`.
 
 **Steps.**
-1. `themes/contract.nix`: manifest fields (`status`; Caelestia `experimental`) and the four role kinds incl. "frontend with default"; provider roles name their user unit. `keybindings`, `clipboard`, `search` are registered in campaign II.
+1. `themes/contract.nix`: manifest fields (`status`; Caelestia `experimental`) and the four role kinds incl. "frontend with default"; provider roles name their user unit. `keybindings`, `clipboard`, `search` are registered in campaign II. The declaration `appearance` is `dangonix.look.appearance` (c1s3, design §3 «Вигляд»), not a second option.
 2. Noctalia declares every role, values from `themes/noctalia/binds.nix`.
 3. Warning mode: missing roles in an experimental theme are warnings.
 4. `home/dangonix.nix` writes the active theme's roles to `~/.config/dangonix/roles.json`.

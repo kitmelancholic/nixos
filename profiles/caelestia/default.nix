@@ -11,6 +11,9 @@
     ../common/hyprpolkitagent.nix
   ];
 
+  # Caelestia does not write color-scheme; switch to "shell" once it does.
+  dangonix.look.appearance = "dark";
+
   assertions = [
     {
       assertion = config.programs.caelestia.enable;

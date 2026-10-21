@@ -90,6 +90,7 @@ themes.noctalia = {
 | `batteryWarning` | provider | так (з кампанії II) | shell або `themes/common/low-battery-notify.nix` |
 | `palette` | declaration | так | `shell \| static` |
 | `toolkit` | declaration | так | GTK/Qt/cursor: `shell \| none` |
+| `appearance` | declaration | так | темний чи світлий режим: `shell \| dark \| light`, з `dangonix.look` ([вигляд](#вигляд)) |
 | `keybindings`, `clipboard`, `search` | frontend with default | ні | SUPER+F1, `dangonix clipboard`, SUPER+R |
 | `windowSwitcher`, `controlCenter`, `settings` | command | ні | ALT+Tab, SUPER+S, SUPER+comma |
 
@@ -101,6 +102,21 @@ themes.noctalia = {
 Кожен bind — запис з описом: `{ key = "SUPER+Return"; action = …; description = "Open terminal"; }`. Ідентичність bind'а — **повний resolved запис**: ключ, action, аргументи, всі flags. Ключі нормалізуються (`mod` → `SUPER`, фіксований порядок модифікаторів SUPER, CTRL, ALT, SHIFT, роздільник ` + `). З тих самих даних генеруються `hyprland.lua`, cheatsheet (`keys.json`), перевірка дублікатів і frozen fixture — тому вони не можуть розійтись.
 
 Правило: кожен наявний bind лишається (з усіма flags). Нові — тільки на вільні клавіші. Cheatsheet — SUPER+F1 (однаково під UA і EN), search — апгрейд launcher'а на SUPER+R; SUPER+Space лишається "float toggle", SUPER+K — "focus up".
+
+### Вигляд
+Тема задає вигляд програм ядра одним attrset `dangonix.look` (`home/look.nix`): ядро дає значення за замовчуванням, тема перебиває потрібні.
+```nix
+dangonix.look = {
+  appearance = "shell";   # shell | dark | light; без значення за замовчуванням, кожна тема вибирає
+  terminal = { dark = "manuscript-dark"; light = "manuscript-light"; };   # теми Ghostty
+  editor = { dark = "Manuscript Dark"; light = "Manuscript Light"; };     # теми Zed
+  fonts = { mono = [ "Rec Mono Casual" "Maple Mono" ]; monoSize = 14; ui = "Miriam Libre"; };
+};
+```
+- Режим живе в одному значенні `org.gnome.desktop.interface color-scheme`, а портал GTK хоста віддає його програмам. `shell`: його пише перемикач оболонки (у Noctalia темний, світлий чи «авто», `theme.sync_color_scheme`), ядро не чіпає. `dark`, `light`: його пише Home Manager під час активації (`dconf.settings`), перемикача немає. Noctalia — `shell`, Caelestia — `dark`, поки сама не пише `color-scheme`.
+- За режимом ідуть Ghostty (`theme = "light:…,dark:…"`), Zed (`theme.mode = "system"`), GTK4, Electron і Firefox через портал; dangonix, starship і fish — через 16 ANSI-кольорів терміналу. Іконки (Papirus-Dark) однакові в обох режимах.
+- Палітри Manuscript Dark і Light беруться з одного зафіксованого розширення Zed (`home/manuscript.nix`): Ghostty читає кольори з його JSON, тож редактор і термінал не розходяться. У Ghostty `minimum-contrast = 3`; шаблон Ghostty з палітри Noctalia не вмикається.
+- `home/look.nix` пише `~/.config/dangonix/look.json` (`appearance` і тема), його читає `dangonix status`.
 
 ### Перевірки (static, `lib/checks.nix`, на кожну тему)
 1. **Registry** — унікальні id, `themes/<family>` існує, поля manifest валідні, `dangonix.theme.id == id`, `state.json` theme є в реєстрі. Інваріанти family — assertions у самому модулі family.
@@ -164,12 +180,12 @@ Runtime-відповідник — **`dangonix doctor`**: один власни�
 |---|---|---|---|
 | **Система** | | | |
 | `dangonix` | read | allow | `status` + коротка довідка |
-| `dangonix status` | read | allow | тема, power і net mode, Foundry, щит, чи система зібрана з поточного `state.json`; бар читає `dangonix --json status` |
+| `dangonix status` | read | allow | тема, вигляд (режим і хто його ставить), power і net mode, Foundry, щит, чи система зібрана з поточного `state.json`; бар читає `dangonix --json status` |
 | `dangonix help [<команда>]` | read | allow | довідка з таблиці команд |
 | `dangonix commands` | read | allow | всі команди з описом, effect, agent (`--json` — API для агентів, search і shell'ів) |
 | `dangonix version` | read | allow | версія dangoNix (`git describe`), коміт, чи брудне дерево, host і home generations, дата `nixpkgs` |
 | `dangonix switch [--home\|--host] [--overwrite]` | host | ask | транзакція: build host + home, nvd diff, активувати хост (тільки якщо змінився), потім home; `--overwrite` відкладає вбік файли, з якими зіткнувся Home Manager (`-b`) |
-| `dangonix update [<input>...]` | state | ask | оновити всі inputs крім held, `dangonix check`, при помилці повернути `flake.lock`; ніколи не switch'ить і не комітить |
+| `dangonix update [<input>...\|-<input>...]` | state | ask | оновити всі inputs крім held, `dangonix check`, при помилці повернути `flake.lock`; ніколи не switch'ить і не комітить. Імена — оновити тільки їх; `-<input>` — оновити все, крім held і названих з мінусом (`update -zen-browser`); змішувати не можна, невідомий input — exit 2 |
 | `dangonix history` | read | allow | журнал транзакцій (команда, час, результат, `failedStep`) разом з host і home generations |
 | `dangonix rollback [--host\|--home]` | host | ask | активувати попередню пару generations з журналу; `state.json` не чіпає, тож `status` попереджає, що система не з нього |
 | `dangonix clean [--older-than <14d>]` | host | ask | видалити старші generations (поточна й попередня лишаються завжди) і зібрати сміття store; GC roots Foundry не чіпає; друкує, скільки звільнено |
@@ -270,7 +286,7 @@ nix --extra-experimental-features 'nix-command flakes' run ~/nixos -- switch
 
 ## 6. Стабільність
 - `flake.lock` пінить усе, без `?rev=` у `flake.nix`.
-- `dangonix update` пропускає **held list** (`hyprland`, `noctalia`, `caelestia`), якщо input не названо явно; повідомляє про held.
+- `dangonix update` пропускає **held list** (`hyprland`, `noctalia`, `caelestia`), якщо input не названо явно; повідомляє про held. Разове виключення — `-<input>` (`dangonix update -zen-browser`), JSON `excluded`; постійно не оновлювати — додати input у held.
 - Gate — `dangonix check`: збирає host toplevel і кожну тему; при помилці повертає `flake.lock` байт-у-байт; ніколи не switch'ить.
 - CI на GitHub — другий, eval-only gate: та сама `check --fast` і оракул на кожен push. CD немає: switch завжди робиш ти.
 - Kernel — `linuxPackages_latest`, оновлюється тільки через gated `dangonix update`.

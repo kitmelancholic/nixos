@@ -615,15 +615,28 @@ step_check() { "$0" --flake "$flake" check; }
 cmd_status() {
   no_args "$@"
   need_flake
-  local data text
+  local data text look_file="${XDG_CONFIG_HOME:-$HOME/.config}/dangonix/look.json" look_json=null mode=null scheme
+  if [ -f "$look_file" ]; then
+    look_json=$(jq -c . "$look_file" 2>/dev/null || echo null)
+  fi
+  if scheme=$(dconf read /org/gnome/desktop/interface/color-scheme 2>/dev/null); then
+    case $scheme in
+    "'prefer-dark'") mode='"dark"' ;;
+    *) mode='"light"' ;;
+    esac
+  fi
   data=$(jq -cn --arg selected "$(jq -r .theme "$state_file")" --arg active "$(active_theme)" \
-    --argjson foundry "$(foundry_instances)" '{
+    --argjson foundry "$(foundry_instances)" \
+    --argjson lookfile "$look_json" --argjson mode "$mode" '{
       theme: {selected: $selected, active: (if $active == "" then null else $active end)},
       foundry: $foundry,
+      look: {appearance: $lookfile.appearance, theme: $lookfile.theme, mode: $mode},
       built: ($selected == $active
         and ($foundry | all(.deployed == {version: .version, port: .port})))}')
   text='
     "theme     \(.theme.selected) (active: \(.theme.active // "none"))",
+    (if .look.appearance == null then "look      unknown"
+     else "look      \(.look.mode // "unknown") (\(if .look.appearance == "shell" then "set" else "fixed" end) by \(.look.theme))" end),
     (if .foundry == [] then "foundry   none" else
       (.foundry[] | "foundry   \(.name) \(.version) on :\(.port), \(.state)"
         + (if .deployed == {version: .version, port: .port} then ""
