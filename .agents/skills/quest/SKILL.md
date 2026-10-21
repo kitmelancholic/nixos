@@ -25,8 +25,8 @@ that is denied), and you know the exact change: write it as a patch and ask.
   .campaign/<id>.request.patch` must pass. If those commands are denied,
   write the unified diff with the Write tool, three lines of context. A permission changes
   `.claude/settings.json` and `.codex/rules/dangonix.rules` together.
-- In the `провалений кидок` entry, put `запит: scope — <why>` or
-  `запит: permission — <why>` (one line) right above the `agent:` line.
+- In the `провалений кидок` entry, put `запит: scope - <why>` or
+  `запит: permission - <why>` (one line) right above the `agent:` line.
 - Keep the quest's own work uncommitted, as for any failure. The judge and
   the GM see the patch in `scripts/campaign`; on yes the campaign applies and
   commits it, and the `retry` runs on the quest's own tier.
@@ -54,7 +54,7 @@ Never use a request to skip or weaken a step, a *Do not* or a check.
    (its first wrong step, what it wasted). Do not repeat that; the section
    and the journal still decide.
 4. Check *Preconditions*. If one fails or its outcome is not covered by the
-   section, append `## <id> — провалений кидок` (max 5 lines: what, why,
+   section, append `## <id> - провалений кидок` (max 5 lines: what, why,
    what you need from the GM, plus the `agent:` line), commit only
    `docs/progress.md` as `chore(<id>): провалений кидок`, stop.
 5. Do *Steps*. Loop: edit → `nix fmt` → `scripts/check --fast` → fix. Respect *Do not*.
@@ -79,9 +79,9 @@ Never use a request to skip or weaken a step, a *Do not* or a check.
    body, plus a `BREAKING CHANGE:` line if the subject has `!`. Append to
    `docs/progress.md` in the same commit, each entry ending with the
    `agent:` line:
-   - `## <id> — хід майстра` + the section's *GM's turn* checklist with exact
+   - `## <id> - хід майстра` + the section's *GM's turn* checklist with exact
      commands, if it has one;
-   - otherwise `## <id> — виконано` (max 5 lines).
+   - otherwise `## <id> - виконано` (max 5 lines).
 10. If the quest ends an act (`rest=<tag>` in the meta line): run
     `scripts/review --range <previous rest tag>..HEAD <id>` (skip for `c1r0`,
     which has no previous tag), put its findings and the long-rest steps in a

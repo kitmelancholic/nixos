@@ -1,34 +1,34 @@
-# dangoNix — поточний стан репозиторію
+# dangoNix - стан репозиторію на c1q00
 
-Стан на 2026-10-16. Код — ще kitOS (`flake.nix`: `description = "kitOS v0.16.3"`), жоден квест remake'у не виконано. Ціль — [design](design.md).
+Знімок точки відліку від 2026-10-16, до першого квесту remake'у (тег `redesign-baseline`). Він не оновлюється: що змінилось відтоді - у `docs/progress.md` і git. Код тоді був ще kitOS (`flake.nix`: `description = "kitOS v0.16.3"`). Ціль - [design](design.md), цілі - [vision](vision.md#цілі-по-пріоритетності).
 
 **Гілки.** На GitHub `main` = `ff258ef` (plan + routine). Гілка `redesign` теж на GitHub: доки, правила кампанії і tooling перед c1q00. Хмарний писар пушить туди доки й скрипти; на ноутбуці лежать незакомічені `flake.lock`, `flake.nix`, `home/packages.nix` (їх закомітить c1q00).
 
 ## 1. Що є
-- **Розмір:** ~3.3k рядків Nix, з них `flake.nix` — 285 (≈120 — checks).
+- **Розмір:** ~3.3k рядків Nix, з них `flake.nix` - 285 (≈120 - checks).
 - **Inputs:** nixpkgs 26.05 + unstable, home-manager 26.05, hyprland (git master), noctalia, caelestia, dms, stylix, thyx, foundryvtt, zen-browser, claude-desktop-extra, graphify + pyproject-nix/uv2nix (pdf2md).
 - **Хост** `hosts/nixos/`: `configuration.nix` (kernel `linuxPackages_latest`), `hardware.nix` (thermald), `desktop.nix` (SDDM + thyx, Hyprland, PipeWire, ppd, host hyprlock, hyprpolkitagent), `workloads.nix` (gaming, streaming, Docker), `foundryvtt.nix`.
 - **Home** `home/`: інваріантне середовище + Hyprland (Lua), класичні модулі (waybar, osd, power, screenshots, wallpaper, theme), `theme-switcher.nix` (`kit-profile`), foundry, graphify, pdf2md, zed, claude-desktop.
-- **Теми (у коді — "profiles")** — реєстр `profiles/default.nix`, default `catppuccin`:
+- **Теми (у коді - "profiles")** - реєстр `profiles/default.nix`, default `catppuccin`:
   - classic family: `catppuccin`, `tokyo-night`, `gruvbox`, `kit-dark` (палітри в `themes/`; Waybar, Dunst, SwayOSD, awww, Hyprlock, Hypridle, Wlogout);
   - external shells: `dms`, `noctalia`, `caelestia`.
 - **Agent tooling:** Graphify (`graphify-nix/`, patch, `home/graphify.nix`, 37 MB `graphify-out/`), `AGENTS.md` (спільні правила; `CLAUDE.md` імпортує його), `.agents/skills/quest/` (`/quest` і `$quest`), `.claude/settings.json` з дозволами, `.codex/` (config, hooks, rules), `scripts/` (`check`, `quest-verify`, `campaign`, `agent`, `review`, `lint-docs`, `lint-commits`, `next-version`, `hooks/`).
-- **CI:** `.github/workflows/ci.yml` — `scripts/check --fast` (лінт доків і комітів, shellcheck, eval без збірки) і оракул з c1q03.
+- **CI:** `.github/workflows/ci.yml` - `scripts/check --fast` (лінт доків і комітів, shellcheck, eval без збірки) і оракул з c1q03.
 
 ## 2. Що добре (лишаємо)
-- **Host і home розділені.** Standalone Home Manager — зміна теми не перебудовує NixOS.
+- **Host і home розділені.** Standalone Home Manager - зміна теми не перебудовує NixOS.
 - **Один явний реєстр тем**, без auto-discovery.
 - **Реальна валідація:** кожна тема збирає activation package, її `hyprland.lua` проходить `luac -p` і `Hyprland --verify-config`.
 - **Безпечна активація:** per-user lock; identity file змінюється тільки після успішної активації.
 - **Foundry зроблено добре:** один pin версії, перевірка payload і GC root, NOPASSWD sudo лише для трьох точних `systemctl` команд.
 - **"Why"-коментарі** там, де поведінка неочевидна.
-- **`writeShellApplication` скрізь** — shellcheck під час build.
+- **`writeShellApplication` скрізь** - shellcheck під час build.
 - **Static checks** (treefmt, statix, deadnix) у `nix flake check`.
 
 ## 3. Недоліки
 
-### Command surface (ціль 5)
-Одна дія — до п'яти точок входу:
+### Command surface ([ціль 5](vision.md#цілі-по-пріоритетності))
+Одна дія - до п'яти точок входу:
 
 | Дія | Точки входу |
 |---|---|
@@ -38,35 +38,35 @@
 | Перевірка | `just check`, `just theme-check`, `just hyprland-check`, `nix run .#…`, fish `jc` |
 | Foundry | `foundry`, `foundry-stop`, `foundry-restart`, `foundry-status`, `just foundry-check` |
 
-- README вже розійшовся з кодом: `.#kit-dark` не існує (output — `kit-kit-dark`).
+- README вже розійшовся з кодом: `.#kit-dark` не існує (output - `kit-kit-dark`).
 - Order-sensitive bootstrap (home → host, `-b hm-backup` при колізії) задокументований замість того, щоб його робив інструмент.
 
 ### Два джерела правди для flake
-- `kit-profile` switch'ить з копії репо в store, `just home-switch` — з checkout'у. Зміна теми мовчки ігнорує незакомічені правки.
+- `kit-profile` switch'ить з копії репо в store, `just home-switch` - з checkout'у. Зміна теми мовчки ігнорує незакомічені правки.
 - Копія репо в home closure: кожен коміт (навіть typo в README) = нова home generation. Через це неможливо довести "нічого не змінилось" порівнянням out paths.
 
 ### Дубльована логіка
 - Activation lock і таблиця profile → output написані двічі (`lib/repo-apps.nix`, `home/theme-switcher.nix`).
-- Hyprland input/misc settings — двічі (`invariant-settings.nix`, `settings.nix`).
-- ~70% `profiles/noctalia/binds.nix` — копія `home/hyprland/binds.nix`; відрізняються тільки launcher, session, osd, screenshot.
+- Hyprland input/misc settings - двічі (`invariant-settings.nix`, `settings.nix`).
+- ~70% `profiles/noctalia/binds.nix` - копія `home/hyprland/binds.nix`; відрізняються тільки launcher, session, osd, screenshot.
 
 ### Перевірки
-- Частина — text grep по source-файлах (`selectorArchitectureCheck`).
-- Частина — hard-coded назви тем (`profileOwnershipCheck`).
+- Частина - text grep по source-файлах (`selectorArchitectureCheck`).
+- Частина - hard-coded назви тем (`profileOwnershipCheck`).
 - Canary тільки для classic family (`themeOverrideCanary`).
 - Три alias'и, що збирають те саме під іншими іменами (`theme`, `hyprland`, `home`).
-- **Жодна не збирає host toplevel** — host-only помилка (напр. kernel) проходить усі checks.
+- **Жодна не збирає host toplevel** - host-only помилка (напр. kernel) проходить усі checks.
 
 ### Немає контракту тем
 `dms` і `caelestia` мають **0 Hyprland binds**, Stylix/GTK/hyprlock/hypridle вимкнені: ні SUPER+Return, ні клавіш гучності. Нічого це не впіймало, бо ніщо не визначає, що тема мусить дати.
 
-### Стабільність (ціль 1)
-- `hyprland` трекає git master, `noctalia` і `caelestia` — default branches; будь-який `nix flake update` їх бампає.
-- Fish `nfu` — ungated `nix flake update`.
+### Стабільність ([ціль 1](vision.md#цілі-по-пріоритетності))
+- `hyprland` трекає git master, `noctalia` і `caelestia` - default branches; будь-який `nix flake update` їх бампає.
+- Fish `nfu` - ungated `nix flake update`.
 
-### Енергія і фон (цілі 2-3)
+### Енергія і фон (цілі [2 і 3](vision.md#цілі-по-пріоритетності))
 - Тільки ppd і thermald; на відключення від мережі ніщо не реагує.
-- `foundryvtt.service` стартує при boot і цілий день тримає Node; Docker — теж при boot.
+- `foundryvtt.service` стартує при boot і цілий день тримає Node; Docker - теж при boot.
 - `low-battery-notify` полить кожні 5 хв і, ймовірно, дублює попередження Noctalia.
 - На мережі немає ощадливого режиму, тож зарядитись швидше під навантаженням нічим.
 - Ніщо не реагує на лімітне з'єднання (хотспот): оновлення і фонові завантаження йдуть як завжди.
@@ -75,26 +75,26 @@
 Один інстанс, одна версія, один `/var/lib/foundryvtt`: тримати світи під різні версії поруч неможливо.
 
 ### Безпека
-Ціль — [design §11](design.md#11-безпека).
-- Диск не зашифровано: `/` — ext4, swap без шифрування; Secure Boot немає, `systemd-boot.editor` явно не вимкнено.
+[Ціль 8](vision.md#цілі-по-пріоритетності), дизайн - [design §11](design.md#11-безпека).
+- Диск не зашифровано: `/` - ext4, swap без шифрування; Secure Boot немає, `systemd-boot.editor` явно не вимкнено.
 - Firewall увімкнений, але в кожній мережі відкриті TCP 30000 (Foundry, HTTP) і порти Steam Remote Play та LAN transfers.
 - `kit` у групі `docker`, тобто root без пароля для будь-якої програми від його імені, зокрема агента.
 - Бекапів немає.
 - Агенти обмежені лише текстовими правилами й hooks, sandbox Claude Code вимкнений: агент може читати `~/.ssh` і токен `gh`. Ніщо не ловить коміт, який послаблює захист.
 - Bluetooth вмикається при старті (`powerOnBoot = true`).
 
-### Agent tooling (ціль 7)
-- Graphify: 1287-рядковий Nix extractor + тести, patch проти upstream internals, flake input, 92-рядковий модуль, hook на кожен Codex Bash call, 37 MB output — для 3.3k рядків Nix. Запит "how are desktop themes selected" дав 245 вузлів, переважно Zed syntax colours.
-- Старий `AGENTS.md` робив Graphify обов'язковим (видалений у ff258ef); новий `AGENTS.md` — спільні правила для Claude Code і Codex, `CLAUDE.md` лише імпортує його.
+### Agent tooling ([ціль 9](vision.md#цілі-по-пріоритетності))
+- Graphify: 1287-рядковий Nix extractor + тести, patch проти upstream internals, flake input, 92-рядковий модуль, hook на кожен Codex Bash call, 37 MB output - для 3.3k рядків Nix. Запит "how are desktop themes selected" дав 245 вузлів, переважно Zed syntax colours.
+- Старий `AGENTS.md` робив Graphify обов'язковим (видалений у ff258ef); новий `AGENTS.md` - спільні правила для Claude Code і Codex, `CLAUDE.md` лише імпортує його.
 
 ### Дрібне
-- **Naming drift:** kitOS, `kit-profile`/`kit-theme`, `profile-id`/`theme-id`, `KIT_PROFILE_FLAKE`/`KIT_THEME_FLAKE`; checks звуться "theme", код — "profile".
+- **Naming drift:** kitOS, `kit-profile`/`kit-theme`, `profile-id`/`theme-id`, `KIT_PROFILE_FLAKE`/`KIT_THEME_FLAKE`; checks звуться "theme", код - "profile".
 - `scripts/list-packages.py` (180 рядків) парсить Nix регулярками.
 - Stylix і `dms` input потрібні лише темам, які йдуть під видалення.
 - Host `hyprlock` і невикористаний системний `hyprpolkitagent`.
 - Відбиток: `sudo/login/sddm.fprintAuth = true` дублюють default NixOS; `pam_fprintd` у `login` конфліктує з lock screen Noctalia, який сам тримає сенсор; на SDDM блокує поле пароля і не розблоковує keyring; записати палець можна лише руками (`fprintd-enroll`).
 
-## 4. Ручні кроки на fresh install (ціль 4: кожен — дефект)
+## 4. Ручні кроки на fresh install ([ціль 4](vision.md#цілі-по-пріоритетності): кожен - дефект)
 
 | # | Ручний крок | Статус у remake |
 |---|---|---|
@@ -104,11 +104,11 @@
 | 4 | Створити юзера `kit` | inherent; dangonix відмовляє іншим юзерам |
 | 5 | Foundry payload: `nix-store --add-fixed` + ручний GC root | `dangonix foundry import <zip>` |
 | 6 | Foundry licence, admin password, worlds | inherent data; задокументувати backup |
-| 7 | Noctalia `settings.toml`: палітра, wallpaper, `telemetry_enabled = true`, lockscreen widgets | telemetry і wallpaper — named keys; палітра — runtime за рішенням |
+| 7 | Noctalia `settings.toml`: палітра, wallpaper, `telemetry_enabled = true`, lockscreen widgets | telemetry і wallpaper - named keys; палітра - runtime за рішенням |
 | 8 | Noctalia plugins ставляться в runtime | задекларувати, якщо можливо |
 | 9 | Git identity в unmanaged `~/.gitconfig` | `programs.git`/`programs.gh` |
 | 10 | Proton-GE через `protonup-qt` | `programs.steam.extraCompatPackages` |
 | 11 | Fingerprint, Wi-Fi, Bluetooth, логіни, SSH keys, `gh auth` | inherent / secret |
 | 12 | EasyEffects presets | можна задекларувати пізніше |
-| 13 | Вибрана тема — локальний стан (`~/.config/kit/profile-id`) | `state.json` |
+| 13 | Вибрана тема - локальний стан (`~/.config/kit/profile-id`) | `state.json` |
 | 14 | Логін у Claude Code | inherent |

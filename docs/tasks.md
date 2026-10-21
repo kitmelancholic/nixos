@@ -10,7 +10,7 @@ This file links to the design and never restates it.
 ## Section format
 
 ```
-## <id> — <quest name>
+## <id> - <quest name>
 meta: tier=squire|hero|cleric effort=… boss=yes|no diff=<mode> [removed=<ids>] [leaves=<globs>] [rest=<tag>]
 Goal           one sentence: the end state.
 Why            enough context to resolve ambiguity in the steps.
@@ -27,9 +27,9 @@ GM's turn      checklist for the GM with exact commands (omitted if none).
 ```
 
 **`diff` modes** (enforced by `scripts/quest-verify <id>`):
-- `baseline` / `source-only` — no oracle yet (before c1q03); only `scripts/check`.
-- `none` — `scripts/closure-diff --assert-same HEAD` (compares derivation paths, evaluation only), plus `--removed` for each id in `removed=`.
-- `leaves` — `scripts/closure-diff --names HEAD`: every changed leaf derivation must match a glob in `leaves=` (prefix `+` added, `-` removed, `~` changed); a glob ending in `?` is optional, every other glob must match at least once. Wrapper derivations (`home-manager-files`, `home-manager-path`, `home-manager-generation`, `etc`, `system-path`, `system-units`, `nixos-system-*`) are never listed.
+- `baseline` / `source-only` - no oracle yet (before c1q03); only `scripts/check`.
+- `none` - `scripts/closure-diff --assert-same HEAD` (compares derivation paths, evaluation only), plus `--removed` for each id in `removed=`.
+- `leaves` - `scripts/closure-diff --names HEAD`: every changed leaf derivation must match a glob in `leaves=` (prefix `+` added, `-` removed, `~` changed); a glob ending in `?` is optional, every other glob must match at least once. Wrapper derivations (`home-manager-files`, `home-manager-path`, `home-manager-generation`, `etc`, `system-path`, `system-units`, `nixos-system-*`) are never listed.
 
 **Commits** follow [Conventional Commits](https://www.conventionalcommits.org): `<type>(<quest id>)[!]: <subject>`, with the type and `!` given in each section's *Commit*. `!` marks a change the GM notices as a removal or an incompatible change; the body then has a `BREAKING CHANGE:` line saying what. Journal-only commits are `chore(<quest id>): <state>`; commits outside quests use a normal scope (`docs: …`, `fix(scripts): …`).
 
@@ -55,7 +55,7 @@ GM's turn      checklist for the GM with exact commands (omitted if none).
 
 ---
 
-## c1q00 — Roll call of heroes
+## c1q00 - Roll call of heroes
 meta: tier=hero effort=medium boss=no diff=baseline rest=c1r0
 
 **Goal.** The uncommitted work that predates the remake is committed as the baseline, after the GM blesses it.
@@ -84,11 +84,11 @@ meta: tier=hero effort=medium boss=no diff=baseline rest=c1r0
 **GM's turn.**
 - Read the summary.
 - `just switch`, then `just home-switch`; use the desktop for a while.
-- All good → append `## c1q00 — благословення`, run `/quest retry c1q00`.
+- All good → append `## c1q00 - благословення`, run `/quest retry c1q00`.
 
 ---
 
-## c1q01 — Reading the map
+## c1q01 - Reading the map
 meta: tier=hero effort=medium boss=no diff=source-only
 
 **Goal.** Confirm the docs and the pre-campaign tooling are in the branch and consistent, so later quests can rely on them.
@@ -98,7 +98,7 @@ meta: tier=hero effort=medium boss=no diff=source-only
 **Read first.** `docs/` listing, `README.md`.
 
 **Steps.**
-1. Check that `docs/vision.md`, `docs/design.md`, `docs/current-state.md`, `docs/remake.md`, `docs/tasks.md`, `AGENTS.md`, `CLAUDE.md` (only `@AGENTS.md`), `.agents/skills/quest/SKILL.md`, `.claude/skills/quest` (a symlink to it), `.claude/settings.json`, `.codex/config.toml`, `.codex/hooks.json`, `.codex/rules/dangonix.rules`, `.github/workflows/ci.yml`, `scripts/check`, `scripts/lint-docs`, `scripts/lint-commits`, `scripts/quest-verify`, `scripts/campaign`, `scripts/agent`, `scripts/review`, `scripts/hooks/` exist and `docs/redesign-plan.md`, `.claude/commands/` and `.claude/hooks/` do not.
+1. Check that `docs/vision.md`, `docs/design.md`, `docs/pre-historic-state.md`, `docs/remake.md`, `docs/tasks.md`, `AGENTS.md`, `CLAUDE.md` (only `@AGENTS.md`), `.agents/skills/quest/SKILL.md`, `.claude/skills/quest` (a symlink to it), `.claude/settings.json`, `.codex/config.toml`, `.codex/hooks.json`, `.codex/rules/dangonix.rules`, `.github/workflows/ci.yml`, `scripts/check`, `scripts/lint-docs`, `scripts/lint-commits`, `scripts/quest-verify`, `scripts/campaign`, `scripts/agent`, `scripts/review`, `scripts/hooks/` exist and `docs/redesign-plan.md`, `.claude/commands/` and `.claude/hooks/` do not.
 2. `scripts/check --fast` passes (its `lint-docs` step checks links, quest headings, meta lines and commit subjects).
 3. The git hooks installed in c1q00 (`commit-msg`, `reference-transaction`, `pre-push`) exist in `.git/hooks/` and match `scripts/hooks/`.
 4. Anything wrong → `провалений кидок` naming it (do not fix docs yourself).
@@ -113,12 +113,12 @@ meta: tier=hero effort=medium boss=no diff=source-only
 
 ---
 
-## c1q02 — The mirror twin
+## c1q02 - The mirror twin
 meta: tier=hero effort=medium boss=no diff=source-only
 
 **Goal.** The repo is no longer copied into the home closure, and `kit-profile` switches from the checkout.
 
-**Why.** Today every commit (even a README typo) makes a new home generation, so "nothing changed" cannot be proven by out paths ([current-state](current-state.md)). The oracle in c1q03 needs this gone.
+**Why.** Today every commit (even a README typo) makes a new home generation, so "nothing changed" cannot be proven by out paths ([pre-historic-state](pre-historic-state.md)). The oracle in c1q03 needs this gone.
 
 **Read first.** `flake.nix` (around line 139, `profileFlakeSource`), `lib/mk-home.nix` (lines 9, 34), `home/theme-switcher.nix`.
 
@@ -140,11 +140,11 @@ meta: tier=hero effort=medium boss=no diff=source-only
 
 **GM's turn.**
 - `kit-profile switch noctalia`; the desktop comes back as before.
-- All good → `## c1q02 — виконано`.
+- All good → `## c1q02 - виконано`.
 
 ---
 
-## c1q03 — Eye of the oracle ⚔️
+## c1q03 - Eye of the oracle ⚔️
 meta: tier=cleric effort=high boss=yes diff=none
 
 **Goal.** `scripts/closure-diff` proves "the system would not change" or names exactly what changes, by evaluation alone.
@@ -175,7 +175,7 @@ meta: tier=cleric effort=high boss=yes diff=none
 
 ---
 
-## c1q04 — Banishing the graphomaniac
+## c1q04 - Banishing the graphomaniac
 meta: tier=hero effort=medium boss=no diff=leaves leaves=-graphify-*,-graphify-codex-skill*,-graphifyy*,-networkx*,-numpy*,-rapidfuzz*,-tree*sitter*,-ncurses-abi5-compat*,-python3*?,~*?
 
 **Goal.** Graphify is gone; Codex keeps its repo files (`.codex/`), and Zed's `codex-acp` stays.
@@ -200,7 +200,7 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=-graphify-*,-graphify-c
 
 ---
 
-## c1q05 — Guild charter
+## c1q05 - Guild charter
 meta: tier=hero effort=medium boss=no diff=leaves leaves=+mcp-nixos*,+bash-guard,+codex*,~claude-code*?,+*?,~*?
 
 **Goal.** `AGENTS.md`, permissions for both CLIs, a fail-closed Bash guard, `mcp-nixos` and `scripts/opt` give Claude Code and Codex the same safe, short guidance.
@@ -211,7 +211,7 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=+mcp-nixos*,+bash-guard
 
 **Steps.**
 1. `AGENTS.md` (English, ≤ 60 lines) describes only what exists now: what the repo is (two sentences, one machine); invariants (never edit `hardware-configuration.nix`; a theme never changes the host; every theme passes the checks; never remove or rebind an existing key); the loop `edit → nix fmt → scripts/check --fast → scripts/quest-verify <id>`; quests via `/quest` or `$quest` and the model table (keep it as is); stage files explicitly, never `git commit -a`; temporary worktrees for state-changing tests; the mcp-nixos line (look up names when unsure, 26.05 channel, it does not know flake-input options; for those use `scripts/opt`); one-line permission reminders; one line per top-level directory. `CLAUDE.md` stays the single line `@AGENTS.md`.
-2. CLIs from nixpkgs-unstable without self-update: Claude Code — confirm the wrapper sets `DISABLE_AUTOUPDATER=1`, else wrap it; Codex — add `pkgsUnstable.codex` to home packages and turn its update check off (`check_for_update_on_startup = false` in `~/.codex/config.toml` via HM, if the key exists in that version). Note in the GM's turn any `~/.local/bin/claude`, `~/.npm-global` or other non-Nix `codex` install to remove.
+2. CLIs from nixpkgs-unstable without self-update: Claude Code - confirm the wrapper sets `DISABLE_AUTOUPDATER=1`, else wrap it; Codex - add `pkgsUnstable.codex` to home packages and turn its update check off (`check_for_update_on_startup = false` in `~/.codex/config.toml` via HM, if the key exists in that version). Note in the GM's turn any `~/.local/bin/claude`, `~/.npm-global` or other non-Nix `codex` install to remove.
 3. `pkgs.mcp-nixos` in home packages; committed `.mcp.json` `{"mcpServers":{"nixos":{"command":"mcp-nixos"}}}` and `enabledMcpjsonServers: ["nixos"]` for Claude Code; `[mcp_servers.nixos] command = "mcp-nixos"` in `.codex/config.toml` for Codex.
 4. Plugin `claude-md-management` only, via `extraKnownMarketplaces` (`claude-plugins-official`) and `enabledPlugins` in `.claude/settings.json`; marketplace auto-update off if the key exists. Codex gets no plugins.
 5. Guard: a `writeShellApplication` `bash-guard` (deps in Nix, any internal error exits 2) that blocks any shell command whose text mentions `hardware-configuration.nix`, installed by HM at `~/.config/dangonix/hooks/bash-guard` (`xdg.configFile`, executable). Hook command `"$HOME/.config/dangonix/hooks/bash-guard" || exit 2` in both `.claude/settings.json` and `.codex/hooks.json`, next to `git-guard`. Claude Code: deny Edit/Write of `hosts/nixos/hardware-configuration.nix`, `.git/**`, `scripts/hooks/**`. Codex: if its hooks also see file edits (`apply_patch`), guard the same paths there; otherwise write in the GM's turn that Codex relies on its sandbox and the GM's review for them.
@@ -232,11 +232,11 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=+mcp-nixos*,+bash-guard
 - In a new `claude` session: `claude mcp list` shows `nixos` connected; `/plugin` lists only `claude-md-management`; editing `hardware-configuration.nix` is refused; `cat hosts/nixos/hardware-configuration.nix` is blocked; `nix flake check` runs without a prompt; `sudo true` asks.
 - In a new `codex` session in `~/nixos` (trust the project when asked): `/mcp` shows `nixos`; `$quest` is offered; `cat hosts/nixos/hardware-configuration.nix` is blocked; `git push` is refused; `nix flake check` runs without a prompt; `sudo true` asks.
 - Negative: rename `~/.config/dangonix/hooks/bash-guard` away → every Bash command is blocked; `just home-switch` restores it.
-- All good → `## c1q05 — виконано`.
+- All good → `## c1q05 - виконано`.
 
 ---
 
-## c1q06 — Under one banner
+## c1q06 - Under one banner
 meta: tier=squire effort=medium boss=no diff=none
 
 **Goal.** The registry default (what `.#kit` and a fresh install build) is `noctalia`, and the classic-only override canary is gone.
@@ -276,7 +276,7 @@ meta: tier=squire effort=medium boss=no diff=none
 
 ---
 
-## c1q07 — Fall of the Dark Master
+## c1q07 - Fall of the Dark Master
 meta: tier=squire effort=medium boss=no diff=none removed=dms
 
 **Goal.** The `dms` theme (Dank Material Shell) no longer exists in the repo.
@@ -315,7 +315,7 @@ meta: tier=squire effort=medium boss=no diff=none removed=dms
 
 ---
 
-## c1q08 — Twilight of the classics
+## c1q08 - Twilight of the classics
 meta: tier=squire effort=medium boss=no diff=none removed=catppuccin,tokyo-night,gruvbox,kit-dark
 
 **Goal.** The classic family is gone; only Noctalia and Caelestia remain.
@@ -357,7 +357,7 @@ meta: tier=squire effort=medium boss=no diff=none removed=catppuccin,tokyo-night
 
 ---
 
-## c1q09 — Dispelling Stylix
+## c1q09 - Dispelling Stylix
 meta: tier=squire effort=medium boss=no diff=none
 
 **Goal.** Stylix is gone.
@@ -387,7 +387,7 @@ meta: tier=squire effort=medium boss=no diff=none
 
 ---
 
-## c1q10 — Cleaning the castle ⚔️
+## c1q10 - Cleaning the castle ⚔️
 meta: tier=hero effort=medium boss=yes diff=leaves leaves=-blueman*,-network-manager-applet*,-hyprpolkitagent*?,-hyprlock*?,-*?,~dbus*?,~unit-*?,~*pam*?,~man-paths?,~source?,~system-generators?,~system-shutdown?,~system_fish-completions?,~user-generators?,~user-units? rest=c1r1
 
 **Goal.** The host keeps only what the remaining lock screens need, and the tray no longer duplicates the shells' own Wi-Fi and Bluetooth.
@@ -425,16 +425,16 @@ meta: tier=hero effort=medium boss=yes diff=leaves leaves=-blueman*,-network-man
 - `just switch` (sudo).
 - In Noctalia and Caelestia: lock, unlock with password, unlock with fingerprint (only if `fprintd-list kit` shows an enrolled finger), suspend and resume; the tray shows no blueman or nm-applet icon, and the shell's own Wi-Fi and Bluetooth panels still connect.
 - Long rest: read the reviewer's findings, push `redesign`, merge the PR into `main` as a merge commit, `git switch main && git pull --ff-only && git switch redesign`.
-- All good → `## c1q10 — виконано`.
+- All good → `## c1q10 - виконано`.
 
 ---
 
-## c1q11 — Warding runes ⚔️
+## c1q11 - Warding runes ⚔️
 meta: tier=hero effort=high boss=yes diff=none
 
 **Goal.** All checks live in `lib/checks.nix`, generic over the registry, plus a host build check and a frozen bind fixture.
 
-**Why.** Today some checks grep source files or hard-code theme names, and none builds the host, so a host-only error passes ([current-state](current-state.md)). Design: [§3 checks](design.md#перевірки-static-libchecksnix-на-кожну-тему), [binds as data](design.md#бінди--це-дані).
+**Why.** Today some checks grep source files or hard-code theme names, and none builds the host, so a host-only error passes ([pre-historic-state](pre-historic-state.md)). Design: [§3 checks](design.md#перевірки-static-libchecksnix-на-кожну-тему), [binds as data](design.md#бінди--це-дані).
 
 **Files.** `lib/checks.nix` (new), `flake.nix`, `lib/repo-apps.nix`, `profiles/noctalia/default.nix`, `profiles/caelestia/default.nix`, `home/hyprland/lua-helpers.nix`, `tests/binds/` (new), `AGENTS.md`, `docs/progress.md`.
 
@@ -462,7 +462,7 @@ meta: tier=hero effort=high boss=yes diff=none
 
 ---
 
-## c1q12 — Book of choices
+## c1q12 - Book of choices
 meta: tier=hero effort=medium boss=no diff=none
 
 **Goal.** A tracked `state.json` holds every choice a command can make: the theme and the Foundry instances.
@@ -492,7 +492,7 @@ meta: tier=hero effort=medium boss=no diff=none
 
 ---
 
-## c1q13 — Forging dangonix ⚔️
+## c1q13 - Forging dangonix ⚔️
 meta: tier=cleric effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_*dangonix*?,~kit-fish-completions?,~man-paths?
 
 **Goal.** `dangonix` v1 exists next to the old commands: every subcommand, the grammar, `--json` and `--dry`; the read commands and `check` work for real, and every `state`/`host` command so far only plans (`--dry`).
@@ -526,11 +526,11 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_*dangon
 
 **GM's turn.**
 - `just home-switch`; `dangonix status`, `dangonix help`, `dangonix --dry switch` look right to you.
-- All good → `## c1q13 — виконано`.
+- All good → `## c1q13 - виконано`.
 
 ---
 
-## c1q14 — Tempering the blade ⚔️
+## c1q14 - Tempering the blade ⚔️
 meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangonix*?,+nvd*,+nix-output-monitor*,~source?
 
 **Goal.** Every `state`/`host` command of `dangonix` runs as a transaction, and the agents' permission rules for `dangonix` are fixed by its grammar.
@@ -561,11 +561,11 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangon
 - `dangonix switch` (sudo); `dangonix theme caelestia` and `dangonix theme noctalia`; after both `git -C ~/nixos diff state.json` is empty.
 - `sudo -u nobody dangonix switch` refuses.
 - Foundry round-trip: `dangonix foundry remove main`, then `dangonix foundry add main <zip>`; `git -C ~/nixos diff state.json` is empty afterwards.
-- All good → `## c1q14 — виконано`.
+- All good → `## c1q14 - виконано`.
 
 ---
 
-## c1s1 — Unbroken thread ⚔️
+## c1s1 - Unbroken thread ⚔️
 meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangonix*?,~dangonix-config.json?,~caelestia.service
 
 **Goal.** A `dangonix` transaction runs to its end (done or recovered) even when the terminal it was started from, or the user unit that terminal lives in, dies halfway; and the Caelestia shell no longer takes the apps it launched down with it.
@@ -603,11 +603,11 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangon
 - From a terminal opened with `Super+Return` (Hyprland's, not the shell's): `dangonix switch`. It puts home back in line with `state.json` and the host back on generation 36 (the laptop booted generation 34 after the incident).
 - Kill test: `systemd-run --user --unit=dangonix-victim --pty dangonix theme noctalia`; while it activates, from another terminal `systemctl --user stop dangonix-victim`. `dangonix history` → the line ends `ok`; `systemctl --user list-units 'dangonix-*'` is empty afterwards.
 - Real case: switch to Caelestia, open ghostty from the Caelestia launcher, run `dangonix theme noctalia` in it: the desktop comes up in Noctalia and that ghostty is still open.
-- All good → `## c1s1 — виконано`.
+- All good → `## c1s1 - виконано`.
 
 ---
 
-## c1s2 — Gatekeeper's lantern ⚔️
+## c1s2 - Gatekeeper's lantern ⚔️
 meta: tier=cleric effort=high boss=yes diff=leaves leaves=~weston-*,~sddm-unwrapped*?,~sddm-wrapped*?,~sddm.conf?,~sddm.pam?,+bibata-cursors*?,~man-paths?,~system_fish-completions?,~unit-display-manager.service?,~*pam*?,~source?
 
 **Goal.** At the SDDM greeter the pointer is visible and clicks work, and password and fingerprint are accepted at the same time: a typed password logs in at once even while the greeter waits for a finger.
@@ -647,11 +647,11 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=~weston-*,~sddm-unwrap
 - The pointer is visible and clicks on the session menu work.
 - Type the password while the greeter shows the fingerprint prompt: logs in at once; the keyring is unlocked (no keyring password prompt after login).
 - Reboot, put a finger without typing: logs in.
-- All good → `## c1s2 — виконано`.
+- All good → `## c1s2 - виконано`.
 
 ---
 
-## c1s3 — Ink and parchment
+## c1s3 - Ink and parchment
 meta: tier=hero effort=medium boss=no diff=leaves leaves=~dangonix*,~dangonix-config.json?,+hm_*?,~hm_*?,+*ghostty*?,~*ghostty*?,~*starship*?,~*zed*?,+*dconf*?,~*dconf*?,+*look.json?,+*manuscript*?,~activation-script?
 
 **Goal.** The selected theme decides the look of the core apps through one attrset `dangonix.look`: dark or light (and who switches it), the terminal and editor palettes, the fonts. Ghostty looks like Zed: Manuscript Dark in dark mode, Manuscript Light (paper) in light mode, Zed's code font.
@@ -703,11 +703,11 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=~dangonix*,~dangonix-co
 - `dangonix switch` (Noctalia). Ghostty: dark Manuscript, Rec Mono Casual, fish autosuggestions readable; `dangonix status` has the `look` line.
 - In Noctalia's settings, Appearance: «Sync App Color Scheme» is on and no Ghostty template is enabled. Switch Noctalia to light: Ghostty (open windows), Zed and Nautilus turn light; note whether Claude and Zen follow. Back to dark.
 - `dangonix theme caelestia`: everything is dark, `dangonix status` says `fixed by caelestia`; `dangonix theme noctalia` back.
-- All good → `## c1s3 — виконано`.
+- All good → `## c1s3 - виконано`.
 
 ---
 
-## c1s5 — Detour around the toll
+## c1s5 - Detour around the toll
 meta: tier=squire effort=medium boss=no diff=leaves leaves=~dangonix*,~hm_*dangonix*?,~*fish-completions?,~man-paths?,~source?
 
 **Goal.** `dangonix update -zen-browser` updates every flake input except the held ones and the ones named with a leading `-`; mixing names with `-<input>` and an unknown input are usage errors (exit 2); fish completes `-<input>`.
@@ -783,11 +783,11 @@ meta: tier=squire effort=medium boss=no diff=leaves leaves=~dangonix*,~hm_*dango
 **GM's turn.**
 - `dangonix switch` (the new `dangonix` and its completions), then `dangonix update -zen-browser`: `zen-browser` and the held inputs keep their `flake.lock` revisions (`git diff flake.lock`), the summary shows `excluded: zen-browser`.
 - In fish, `dangonix update -` + Tab offers `-zen-browser` and the other inputs.
-- All good → commit `flake.lock` yourself, then `## c1s5 — виконано`.
+- All good → commit `flake.lock` yourself, then `## c1s5 - виконано`.
 
 ---
 
-## c1q15 — Trial by fire
+## c1q15 - Trial by fire
 meta: tier=hero effort=high boss=no diff=leaves leaves=~dangonix*? rest=c1r2
 
 **Goal.** The transaction cases that break activation on purpose are tested in a VM by `dangonix check --vm`.
@@ -820,11 +820,11 @@ meta: tier=hero effort=high boss=no diff=leaves leaves=~dangonix*? rest=c1r2
 - `dangonix check --vm` passes on the laptop too.
 - Decide whether `hyprland` tracks release tags (`github:hyprwm/Hyprland?ref=v0.x.y`) instead of git master; tell the scribe in the project.
 - Long rest: read the reviewer's findings, push `redesign`, merge into `main` as a merge commit, sync `main`.
-- All good → `## c1q15 — виконано`.
+- All good → `## c1q15 - виконано`.
 
 ---
 
-## c1q16 — Vow of silence
+## c1q16 - Vow of silence
 meta: tier=hero effort=medium boss=no diff=leaves leaves=+noctalia-runtime-keys*,+python3*?,~hm_*noctalia*?,~kit-fish-completions?,~man-paths?
 
 **Goal.** Noctalia telemetry is off through one named runtime key; nothing else in its `settings.toml` changes.
@@ -854,11 +854,11 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=+noctalia-runtime-keys*
 **GM's turn.**
 - `cp -a ~/.local/state/noctalia/settings.toml ~/settings.toml.bak`; `dangonix switch`; restart Noctalia.
 - `telemetry_enabled` is false in the file and in Noctalia's settings UI; `diff ~/settings.toml.bak ~/.local/state/noctalia/settings.toml` shows only that line; the palette looks the same.
-- All good → `## c1q16 — виконано`.
+- All good → `## c1q16 - виконано`.
 
 ---
 
-## c1q17 — Spirit in the iron
+## c1q17 - Spirit in the iron
 meta: tier=hero effort=medium boss=no diff=leaves leaves=+fwupd*,~dangonix*,+unit-fwupd*?,+*?,~*?
 
 **Goal.** Firmware updates exist, but only on request through `dangonix firmware`.
@@ -885,16 +885,16 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=+fwupd*,~dangonix*,+uni
 
 **GM's turn.**
 - `dangonix switch` (sudo); `dangonix firmware` lists the ThinkPad UEFI/EC; a second run within 24 h does not refresh; `systemctl list-timers | grep fwupd` is empty.
-- All good → `## c1q17 — виконано`.
+- All good → `## c1q17 - виконано`.
 
 ---
 
-## c1q18 — Walling up the old gates
+## c1q18 - Walling up the old gates
 meta: tier=hero effort=medium boss=no diff=leaves leaves=-kit-profile*,-foundry*,~dangonix*?,-hm_*?,~hm_*?,~kit-fish-completions?,~man-paths?
 
 **Goal.** `dangonix` is the only entry point.
 
-**Why.** [Current-state: command surface](current-state.md): one action had up to five entry points.
+**Why.** [Pre-historic state: command surface](pre-historic-state.md): one action had up to five entry points.
 
 **Files.** `justfile` (deleted), `home/theme-switcher.nix` (deleted), `scripts/list-packages.py` (deleted), `scripts/check` (deleted), `flake.nix`, `lib/repo-apps.nix`, `home/kit.nix`, `home/foundry.nix`, `home/programs/terminal.nix`, `README.md`, `.github/workflows/ci.yml`, `scripts/quest-verify`, `AGENTS.md`, `docs/progress.md`.
 
@@ -921,16 +921,16 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=-kit-profile*,-foundry*
 **GM's turn.**
 - Delete the pre-dangonix rules from both permission files: in `.claude/settings.json` the allow rules `scripts/check`, `scripts/check *`, `foundry-status` and the ask rules `just switch`, `just home-switch`, `nix run .#switch`, `nix run .#home-switch`, `kit-profile switch *`, `kit-theme switch *`, `foundry`, `foundry-stop`, `foundry-restart`; in `.codex/rules/dangonix.rules` their counterparts. Commit as `chore(c1q18): drop old permission rules`.
 - `dangonix switch`; `command -v kit-profile` fails; the three Foundry launcher entries work.
-- All good → `## c1q18 — виконано`.
+- All good → `## c1q18 - виконано`.
 
 ---
 
-## c1q19 — True name
+## c1q19 - True name
 meta: tier=hero effort=medium boss=no diff=leaves leaves=~dangonix*,-hm_*?,+hm_*?,~hm_*?
 
 **Goal.** Everything is named dangoNix / theme.
 
-**Why.** Naming drift ([current-state](current-state.md)); [design §2 layout](design.md#2-структура-репо).
+**Why.** Naming drift ([pre-historic-state](pre-historic-state.md)); [design §2 layout](design.md#2-структура-репо).
 
 **Files.** every file `rg` finds in step 4, `profiles/` → `themes/` (moved), `docs/progress.md`; not `docs/` otherwise.
 
@@ -953,11 +953,11 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=~dangonix*,-hm_*?,+hm_*
 
 **GM's turn.**
 - `dangonix switch`; `cat ~/.config/dangonix/theme-id`; two competing `dangonix` commands still exclude each other.
-- All good → `## c1q19 — виконано`.
+- All good → `## c1q19 - виконано`.
 
 ---
 
-## c1q20 — Seal of the pact ⚔️
+## c1q20 - Seal of the pact ⚔️
 meta: tier=hero effort=high boss=yes diff=leaves leaves=~dangonix*,+hm_*roles*?,~kit-fish-completions?
 
 **Goal.** The theme contract exists as options, Noctalia declares every role, and `dangonix doctor` checks them live.
@@ -983,11 +983,11 @@ meta: tier=hero effort=high boss=yes diff=leaves leaves=~dangonix*,+hm_*roles*?,
 
 **GM's turn.**
 - `dangonix switch`; `dangonix doctor` passes in Noctalia; `systemctl --user stop noctalia` → doctor fails naming notifications, polkit, idle; start it → passes.
-- All good → `## c1q20 — виконано`.
+- All good → `## c1q20 - виконано`.
 
 ---
 
-## c1q21 — Oath of keys
+## c1q21 - Oath of keys
 meta: tier=hero effort=medium boss=no diff=none
 
 **Goal.** Core binds are one list that calls roles; every bind has a description; `hyprland.lua` is byte-identical.
@@ -1013,11 +1013,11 @@ meta: tier=hero effort=medium boss=no diff=none
 
 **GM's turn.**
 - `dangonix switch`; `dangonix doctor` passes; a few keys behave as before.
-- All good → `## c1q21 — виконано`.
+- All good → `## c1q21 - виконано`.
 
 ---
 
-## c1q22 — Sealing the pact
+## c1q22 - Sealing the pact
 meta: tier=hero effort=medium boss=no diff=none rest=c1r3
 
 **Goal.** Contract checks 3, 4 and 5 run for every theme, and `docs/themes.md` explains the contract.
@@ -1043,4 +1043,4 @@ meta: tier=hero effort=medium boss=no diff=none rest=c1r3
 **GM's turn.**
 - `dangonix switch`; `dangonix doctor` passes.
 - Long rest: read the reviewer's findings, push `redesign`, merge into `main`, sync. The scribe then writes campaign II's quests.
-- All good → `## c1q22 — виконано`.
+- All good → `## c1q22 - виконано`.

@@ -20,7 +20,7 @@ cd "$(git rev-parse --show-toplevel)" || exit 0
 git diff --quiet "$DANGONIX_QUEST_HEAD" HEAD -- docs/progress.md && {
   touch "$state"
   id=$DANGONIX_QUEST
-  jq -n --arg r "Quest $id has no committed journal entry yet, so the campaign cannot see what you did. Before you stop, finish the quest skill: reach \`виконано\` or \`хід майстра\` if you are one step away; otherwise append \`## $id — провалений кидок\` to docs/progress.md (what is done, what is left, what you need from the GM, then the \`agent:\` line), commit only docs/progress.md as \`chore($id): провалений кидок\`, leave the rest of your work uncommitted, and stop." \
+  jq -n --arg r "Quest $id has no committed journal entry yet, so the campaign cannot see what you did. Before you stop, finish the quest skill: reach \`виконано\` or \`хід майстра\` if you are one step away; otherwise append \`## $id - провалений кидок\` to docs/progress.md (what is done, what is left, what you need from the GM, then the \`agent:\` line), commit only docs/progress.md as \`chore($id): провалений кидок\`, leave the rest of your work uncommitted, and stop." \
     '{decision: "block", reason: $r}'
 }
 exit 0

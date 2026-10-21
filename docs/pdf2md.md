@@ -1,4 +1,4 @@
-# pdf2md — PDF → Markdown
+# pdf2md - PDF → Markdown
 
 Команда для перетворення «цифрових» PDF (з текстовим шаром: LaTeX, ONLYOFFICE, Word) на Markdown, придатний для читання й для LLM.
 

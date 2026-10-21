@@ -77,7 +77,7 @@ prompt() {
 
 next_quest() {
   grep -oP '^## \Kc\d+[qs]\d+(?= )' docs/tasks.md | while read -r id; do
-    grep -q "^## $id — виконано" docs/progress.md || {
+    grep -q "^## $id - виконано" docs/progress.md || {
       echo "$id"
       break
     }
@@ -87,7 +87,7 @@ next_quest() {
 # The quest's last journal entry, heading included.
 last_entry() {
   awk -v id="$1" '
-    $0 ~ "^## " id " (—|-) " { buf = $0 "\n"; on = 1; next }
+    $0 ~ "^## " id " - " { buf = $0 "\n"; on = 1; next }
     /^## / { on = 0 }
     on { buf = buf $0 "\n" }
     END { printf "%s", buf }' docs/progress.md
@@ -99,7 +99,7 @@ last_entry() {
 # GM).
 quest_state() {
   last_entry "$1" | awk '
-    NR == 1 { kind = $0; sub(/^## [^ ]+ (—|-) /, "", kind); next }
+    NR == 1 { kind = $0; sub(/^## [^ ]+ - /, "", kind); next }
     /^agent:/ { after = 1; next }
     after && NF { gm = 1 }
     END {
@@ -223,7 +223,7 @@ request() {
     prompt "Чому ні / що натомість (порожньо = стоп):"
     [[ -n $reply ]] || stop "$id: waiting for the GM" 0
     mv "$patch" "$patch.rejected"
-    answer "$id" "рішення GM" "GM (campaign, $(date +%F)): ні — $reply"
+    answer "$id" "рішення GM" "GM (campaign, $(date +%F)): ні - $reply"
     ;;
   esac
 }
@@ -237,7 +237,7 @@ gm_turn() {
   prompt "Пройди чекліст. Усе добре? [y/n]"
   case $reply in
   y | Y | т | Т)
-    printf '\n## %s — виконано\nGM перевірив чекліст у campaign (%s).\n' "$id" "$(date +%F)" >>docs/progress.md
+    printf '\n## %s - виконано\nGM перевірив чекліст у campaign (%s).\n' "$id" "$(date +%F)" >>docs/progress.md
     git commit -q -m "chore($id): виконано" -- docs/progress.md ||
       stop "$id: could not commit the journal (see git status)"
     ;;
@@ -313,7 +313,7 @@ while ((attempt < ${QUEST_ATTEMPTS:-25})); do
     jq -r '.permission_denials[]? | "  denied \(.tool_name): \(.tool_input.command // .tool_input.file_path // "" | gsub("\n"; " ") | .[0:120])"' \
       <<<"$result" | head -n 10
   fi
-  outcome=$(last_entry "$id" | head -n 1 | sed -E 's/^## [^ ]+ (—|-) //')
+  outcome=$(last_entry "$id" | head -n 1 | sed -E 's/^## [^ ]+ - //')
   [[ $(last_entry "$id" | md5sum) != "$journal" ]] || outcome="(no entry)"
   ((idle)) && outcome="(idle) $outcome"
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%sm\t%s\t%s\t%s\n' "$(date +%FT%T)" \
