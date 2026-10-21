@@ -306,3 +306,6 @@ agent: claude claude-sonnet-5-5
 
 ## c1s3 - виконано
 GM перевірив чекліст у campaign (2026-10-21).
+
+## c1s4 - виконано
+Зроблено поза кампанією в PR #12 (`328b187`, `feat(scripts): …`): повні логи спроб, `scripts/trace` з `--story`, `QUEST_IDLE`, Stop hook `scripts/quest-stop`, ліміти контексту за рівнями в `.agents/models.md`. Секцію в `docs/tasks.md` додано заднім числом (2026-10-21).

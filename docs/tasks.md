@@ -707,6 +707,26 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=~dangonix*,~dangonix-co
 
 ---
 
+## c1s4 - Chronicler's quill
+meta: tier=hero effort=medium boss=no diff=none
+
+**Goal.** Every campaign attempt leaves a full event log that a script can condense without a model, a hung or costly attempt is caught, and the next attempt learns from the last one.
+
+**Why.** Until now a Claude run kept only the final result in `.campaign/<id>.<n>.json`; the transcript lived in `~/.claude/projects/` and was deleted after 30 days, and the only hang guard was `QUEST_TIMEOUT`. Done outside the campaign in PR #12 (commit `328b187`); the research is in the project files (`research/agent-profiling.md`). This section records what was built; there is nothing left to run.
+
+**Files.** `scripts/agent`, `scripts/campaign`, `scripts/trace`, `scripts/trace.jq`, `scripts/quest-stop`, `scripts/context-watch`, `.agents/models.md`, `lib/checks.nix` (`checks.trace`), `tests/trace/`, `.claude/settings.json` and `.codex/hooks.json` (Stop hook).
+
+**Done.**
+1. `scripts/agent` logs every event with a `_ts` stamp (Claude `--output-format stream-json --verbose`, Codex `exec --json`), turns off subagents and caps auto-compaction per tier.
+2. `scripts/trace <log>`: one line per tool call with context growth and the TraceProbe-style markers from `scripts/trace.jq` (repeated call, third re-read, search loop of 10+ reads, output over 4k tokens, slow call, long pause), then a summary. `--story` adds a squire's diagnosis (`.campaign/<id>.diagnosis.md`, read by the next attempt) and a lesson line in `.campaign/lessons.md` for the scribe.
+3. `scripts/campaign` stops an attempt whose log stops growing for `QUEST_IDLE` (default `20m`) and runs `trace --story` for failed or costly attempts.
+4. `scripts/quest-stop`: Stop hook (Claude Code and Codex) that once asks a campaign session for its journal entry before it ends.
+5. Context limits per tier (`warn`, `hard`, `compact`) in `.agents/models.md`, read by `scripts/context-watch` for every tier and both CLIs.
+
+**Commit.** `feat(c1s4): campaign traces, idle guard, stop hook and per-tier context limits` (landed as `feat(scripts): …`, `328b187`).
+
+---
+
 ## c1s5 - Detour around the toll
 meta: tier=squire effort=medium boss=no diff=leaves leaves=~dangonix*,~hm_*dangonix*?,~*fish-completions?,~man-paths?,~source?
 
