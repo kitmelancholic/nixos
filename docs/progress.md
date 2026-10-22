@@ -350,3 +350,10 @@ GM перевірив чекліст у campaign (2026-10-22).
 GM: підтверди ці читання (або скажи міняти код транзакцій), потім `retry c1q15` (збірка довга, потрібен запуск без ліміту 10 хв).
 agent: claude claude-sonnet-5-5
 GM (campaign, 2026-10-22): y
+
+## c1q15 - провалений кидок
+Квест готовий (у індексі, не закомічено): `nix build --no-link .#dangonix-vm` проходить усі 5 кейсів у VM, `check --fast` ок, `quest-verify c1q15` ок (`~dangonix`). Кейс 5 тепер запускає `dangonix` через `bash -c` у `victim`: systemd убиває головний процес юніта навіть після переходу в scope, а в житті головний процес - термінал. `recover` перед поверненням home переставляє gcroot `current-home` на зібраний home (без цього кейс 3 лишав `~/.config/dangonix-test`).
+Не зроблено крок 10 (`rest=c1r2`): `scripts/review --range c1r1..HEAD c1q15` з суддею `codex` падає `Error: failed to initialize in-process app-server client: Read-only file system (os error 30)`: sandbox цієї сесії не дає codex писати в `~/.codex`. Патч `.campaign/c1q15.request.patch` додає `~/.codex` до `sandbox.filesystem.allowWrite`; у `.codex/rules` відповідника немає (це не правило Bash).
+Після «так»: retry комітить, запускає рецензента акту, ставить теги `c1r2` і `v0.21.0`.
+запит: permission - суддя-codex із квестової сесії Claude потребує запису в ~/.codex (крок 10, рецензент акту)
+agent: claude claude-opus-5-5
