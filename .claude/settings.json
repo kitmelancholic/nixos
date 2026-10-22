@@ -134,7 +134,8 @@
     "filesystem": {
       "allowWrite": [
         "~/.cache/nix",
-        "~/.cache/treefmt"
+        "~/.cache/treefmt",
+        "~/.codex"
       ],
       "denyRead": [
         "~/.ssh",

@@ -357,3 +357,4 @@ GM (campaign, 2026-10-22): y
 Після «так»: retry комітить, запускає рецензента акту, ставить теги `c1r2` і `v0.21.0`.
 запит: permission - суддя-codex із квестової сесії Claude потребує запису в ~/.codex (крок 10, рецензент акту)
 agent: claude claude-opus-5-5
+GM (campaign, 2026-10-22): так, permission: патч .campaign/c1q15.request.patch.applied; retry: own tier
