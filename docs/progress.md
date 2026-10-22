@@ -349,3 +349,4 @@ GM перевірив чекліст у campaign (2026-10-22).
 Розбіжності *Verify* з кодом (рішення потрібне): кейс 2 з `theme` неможливий (`theme` не збирає хост, `tx_host=0`) - тест використовує `foundry remove main`; `failedStep` у коді `activate-host`/`activate-home`, не `host`/`home`; повідомлення lock - «another dangonix or kit-profile run holds …»; після recovery `nix-env --set` дає нове покоління на старий шлях, тож «generations unchanged» перевіряю за розв'язаним шляхом, не за номером.
 GM: підтверди ці читання (або скажи міняти код транзакцій), потім `retry c1q15` (збірка довга, потрібен запуск без ліміту 10 хв).
 agent: claude claude-sonnet-5-5
+GM (campaign, 2026-10-22): y
