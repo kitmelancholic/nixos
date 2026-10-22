@@ -1,0 +1,11 @@
+{
+  "theme": "alpha",
+  "foundry": {
+    "instances": {
+      "main": {
+        "version": "13.0.0+1",
+        "port": 30000
+      }
+    }
+  }
+}

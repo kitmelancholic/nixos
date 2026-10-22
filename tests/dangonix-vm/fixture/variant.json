@@ -1,0 +1,8 @@
+{
+  "hostEtc": null,
+  "hostFail": false,
+  "homeFile": false,
+  "homeFail": false,
+  "slowBuild": false,
+  "stopVictim": false
+}

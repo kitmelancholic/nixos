@@ -186,6 +186,12 @@
         dangonix = dangonix.package;
         # Not in checks: boots two VMs (`nix build .#greeter-vm`).
         greeter-vm = import ./tests/greeter-vm { inherit pkgs; };
+        # Not in checks: boots a VM and builds a host and a home in it
+        # (`dangonix check --vm`).
+        dangonix-vm = import ./tests/dangonix-vm {
+          inherit pkgs;
+          inherit (inputs) nixpkgs home-manager;
+        };
       };
 
       apps.${settings.system} = repoApps.apps // {

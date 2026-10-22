@@ -489,6 +489,13 @@ recover() {
       manual+=("there was no home generation to go back to: fix the error, then dangonix switch --home")
     else
       log "dangonix: re-activating home $home_before"
+      # Home Manager removes the files of the generation it replaces, which it
+      # reads from this root; the failed activation left it on home_before, so
+      # without this the new generation's links outlive the recovery.
+      if [ -n "$built_home" ] && [ "$built_home" != "$home_before" ]; then
+        nix-store --realise "$built_home" \
+          --add-root "${XDG_STATE_HOME:-$HOME/.local/state}/home-manager/gcroots/current-home" >/dev/null 2>&1 || true
+      fi
       if ! { "$nix_env" --profile "$home_profile" --set "$home_before" &&
         "$home_before/activate" --driver-version 1; } >&2; then
         ok=1
@@ -722,8 +729,7 @@ cmd_check() {
   [ "$#" -le 1 ] || usage "check takes one mode"
   [ "$#" -eq 0 ] || mode=$1
   case $mode in
-  --docs | --fast | --full) ;;
-  --vm) fail 4 "check --vm is not available before c1q15" ;;
+  --docs | --fast | --full | --vm) ;;
   *) usage "unknown mode $mode" ;;
   esac
   need_flake
@@ -770,6 +776,10 @@ cmd_check() {
     ;;
   --full)
     check_step flake nix flake check --no-write-lock-file
+    ;;
+  --vm)
+    # Not in `nix flake check`: it boots a VM (tests/dangonix-vm).
+    check_step vm nix build --no-link --no-write-lock-file ".#dangonix-vm"
     ;;
   esac
   finish "$(jq -cn --arg mode "$mode" '{mode: $mode, steps: $ARGS.positional}' --args "${passed[@]}")" \
