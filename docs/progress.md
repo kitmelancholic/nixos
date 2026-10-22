@@ -358,3 +358,8 @@ GM (campaign, 2026-10-22): y
 запит: permission - суддя-codex із квестової сесії Claude потребує запису в ~/.codex (крок 10, рецензент акту)
 agent: claude claude-opus-5-5
 GM (campaign, 2026-10-22): так, permission: патч .campaign/c1q15.request.patch.applied; retry: own tier
+
+## c1q15 - провалений кидок
+Квест закомічено (`556826d`, `quest-verify c1q15` ок). Крок 10 не завершено: `scripts/review --range c1r1..HEAD c1q15` тепер пише в `~/.codex`, але codex не дістається `chatgpt.com:443` (`workspace routing discovery failed`, мережа sandbox відмовляє), тож рецензент акту не відповідає. Теги `c1r2` і `v0.21.0` не поставлено. Патч `.campaign/c1q15.request.patch` додає `chatgpt.com` і `*.chatgpt.com` до `sandbox.network.allowedDomains`; у `.codex/rules` відповідника немає. Після «так» retry запустить лише рецензента, запише `хід майстра` і поставить теги.
+запит: permission - суддя-codex потребує мережі до chatgpt.com (крок 10, рецензент акту)
+agent: claude claude-sonnet-5-5
