@@ -154,7 +154,9 @@
         "*.github.com",
         "*.githubusercontent.com",
         "cache.nixos.org",
-        "*.cachix.org"
+        "*.cachix.org",
+        "chatgpt.com",
+        "*.chatgpt.com"
       ],
       "allowAllUnixSockets": true
     }
