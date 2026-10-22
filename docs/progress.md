@@ -364,3 +364,14 @@ GM (campaign, 2026-10-22): так, permission: патч .campaign/c1q15.request.
 запит: permission - суддя-codex потребує мережі до chatgpt.com (крок 10, рецензент акту)
 agent: claude claude-sonnet-5-5
 GM (campaign, 2026-10-22): так, permission: патч .campaign/c1q15.request.patch.applied; retry: own tier
+
+## c1q15 - хід майстра
+Кінець акту 1 (`rest=c1r2`), теги `c1r2` і `v0.21.0`. Рецензент акту (`scripts/review --range c1r1..HEAD c1q15`, повний вивід у `.campaign/c1q15.act-review.txt`) знайшов:
+- `lib/dangonix/dangonix.sh:491` - коміт `556826d` змінює recovery (gcroot `current-home` переставляється на зібраний home, щоб кейс 3 не лишав `~/.config/dangonix-test`), а в тілі написано «No transaction code changed» (*Do not*). Переписувати історію заборонено: GM або сам виправляє тіло коміту, або приймає це пояснення.
+- `tests/dangonix-vm/default.nix:164` - снапшот береться лише з останнього рядка `boot.log`; невдала активація може додати boot-записи й повернути default, а перевірка все одно пройде. Потрібно порівнювати весь стан boot-записів і чистити створені транзакцією записи (нове квест-завдання, якщо GM згоден).
+Long rest, GM:
+- `nix build --no-link .#dangonix-vm` і `dangonix check --vm` на ноутбуці.
+- Вирішити, чи `hyprland` йде за release-тегами (`github:hyprwm/Hyprland?ref=v0.x.y`), і сказати скрибу в проєкті.
+- Прочитати знахідки вище, запушити `redesign`, змерджити в `main` merge-комітом, синхронізувати `main`.
+- Усе гаразд → `## c1q15 - виконано`.
+agent: claude claude-sonnet-5-5
