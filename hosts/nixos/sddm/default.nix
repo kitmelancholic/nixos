@@ -75,6 +75,10 @@ in
   # times out, and the lock screen checks typed passwords with login too.
   # A running daemon without a login keyring creates one with whatever
   # password it gets, so only a password unix-early accepted goes on.
-  security.pam.services.login.rules.auth.unix-early.control =
-    lib.mkForce "[success=ignore default=1]";
+  # nixpkgs adds login's unix-early only with the keyring (among others).
+  security.pam.services.login.rules.auth.unix-early =
+    lib.mkIf config.services.gnome.gnome-keyring.enable
+      {
+        control = lib.mkForce "[success=ignore default=1]";
+      };
 }

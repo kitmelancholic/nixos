@@ -332,6 +332,63 @@ in
         HOME=$PWD/home CAMPAIGN_TUI_ROOT=$PWD/repo python3 ${src}/scripts/campaign_tui.py --selftest
         touch $out
       '';
+  # noctalia-runtime-keys changes only the named keys, on fixtures in the sandbox.
+  noctalia-runtime-keys =
+    let
+      runtimeKeys = import ../profiles/noctalia/runtime-keys.nix;
+      script = runtimeKeys.mkScript pkgs runtimeKeys.keys;
+      real = pkgs.writeText "settings-real.toml" ''
+        # saved by Noctalia
+        [shell]
+        font_family = "Inter"  # keep
+        telemetry_enabled = true # ping
+        offline_mode = false
+
+        [accessibility]
+        ui_scale = 1.25
+      '';
+      realExpected = pkgs.writeText "settings-real.expected" ''
+        # saved by Noctalia
+        [shell]
+        font_family = "Inter"  # keep
+        telemetry_enabled = false # ping
+        offline_mode = false
+
+        [accessibility]
+        ui_scale = 1.25
+      '';
+      onlyOther = pkgs.writeText "settings-other.toml" ''
+        [accessibility]
+        ui_scale = 1.25
+      '';
+      onlyOtherExpected = pkgs.writeText "settings-other.expected" ''
+        [accessibility]
+        ui_scale = 1.25
+
+        [shell]
+        telemetry_enabled = false
+      '';
+      created = pkgs.writeText "settings-created.expected" ''
+        [shell]
+        telemetry_enabled = false
+      '';
+    in
+    pkgs.runCommand "noctalia-runtime-keys-check" { nativeBuildInputs = [ script ]; } ''
+      cp ${real} real.toml
+      cp ${onlyOther} other.toml
+      : > empty.toml
+      chmod u+w *.toml
+      for f in real other empty; do noctalia-runtime-keys $f.toml; done
+      noctalia-runtime-keys missing/dir/settings.toml
+      diff -u ${realExpected} real.toml
+      diff -u ${onlyOtherExpected} other.toml
+      diff -u ${created} empty.toml
+      diff -u ${created} missing/dir/settings.toml
+      cp real.toml again.toml
+      noctalia-runtime-keys again.toml
+      cmp real.toml again.toml
+      touch $out
+    '';
   inherit registry commands;
   binds-fixture = bindsFixture;
   host = host.config.system.build.toplevel;

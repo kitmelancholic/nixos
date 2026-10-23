@@ -6,6 +6,11 @@
   ...
 }:
 
+let
+  runtimeKeys = import ./runtime-keys.nix;
+  runtimeKeysScript = runtimeKeys.mkScript pkgs runtimeKeys.keys;
+  settingsToml = "${config.xdg.stateHome}/noctalia/settings.toml";
+in
 {
   imports = [
     inputs.noctalia.homeModules.default
@@ -25,6 +30,14 @@
       };
     };
   };
+
+  # Noctalia rewrites settings.toml from memory on every settings change.
+  systemd.user.services.noctalia.Service.ExecStartPre =
+    "-${lib.getExe runtimeKeysScript} ${settingsToml}";
+
+  home.activation.noctaliaRuntimeKeys = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    run ${lib.getExe runtimeKeysScript} ${lib.escapeShellArg settingsToml}
+  '';
 
   assertions = [
     {

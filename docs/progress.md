@@ -392,3 +392,10 @@ GM (campaign, 2026-10-23): c1q15 1. пропустити 2. нове завда�
 запит: scope - `leaves=` квесту не має `~activation-script,~noctalia.service,~pythoncheck.sh`
 agent: claude claude-opus-5-5
 GM (campaign, 2026-10-23): так, scope: патч .campaign/c1q16.request.patch.applied; retry: own tier
+
+## c1q16 - хід майстра
+Telemetry вимкнено іменованим списком ключів у `profiles/noctalia/` (`noctalia-runtime-keys`), перевірка в `lib/checks.nix`; `quest-verify` зелений.
+- `cp -a ~/.local/state/noctalia/settings.toml ~/settings.toml.bak`; `dangonix switch`; перезапустити Noctalia.
+- `telemetry_enabled` = false у файлі та в UI Noctalia; `diff ~/settings.toml.bak ~/.local/state/noctalia/settings.toml` показує лише цей рядок; палітра така сама.
+- Усе гаразд → `## c1q16 - виконано`.
+agent: claude claude-sonnet-5-5
