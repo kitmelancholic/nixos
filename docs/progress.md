@@ -384,3 +384,10 @@ GM перевірив чекліст у campaign (2026-10-23).
 запит: scope - `tests/greeter-vm` не оцінюється, що блокує повний `scripts/check`
 agent: claude claude-sonnet-5-5
 GM (campaign, 2026-10-23): c1q15 1. пропустити 2. нове завдання 3. запускав vm, все добре. 4. хай просто master 5. змерджив 6. запиши сам що все гаразд c1q16 дозволяю пофіксити
+
+## c1q16 - провалений кидок
+`greeter-vm` виправлено за дозволом GM: `hosts/nixos/sddm/default.nix` перевизначає `login` `unix-early` лише з `gnome-keyring` (без нього nixpkgs правила не додає); хост без змін, `nix build .#greeter-vm` зелений, `scripts/check` ok (--full).
+`quest-verify c1q16` двічі падає лише на `leaves=`: `unexpected change: ~activation-script`, `~noctalia.service`, `~pythoncheck.sh` (агрегати й вхід `noctalia-runtime-keys`: HM-активація, `ExecStartPre`, перевірка `writePython3`). Змінено тільки `home-noctalia`, `home-caelestia` без змін.
+Потрібно: GM розширює `leaves=` (патч `.campaign/c1q16.request.patch`); робота лишена незакоміченою для retry.
+запит: scope - `leaves=` квесту не має `~activation-script,~noctalia.service,~pythoncheck.sh`
+agent: claude claude-opus-5-5
