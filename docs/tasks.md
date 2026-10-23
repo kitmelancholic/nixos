@@ -873,7 +873,7 @@ meta: tier=hero effort=high boss=no diff=leaves leaves=~dangonix*? rest=c1r2
 ---
 
 ## c1q16 - Vow of silence
-meta: tier=hero effort=medium boss=no diff=leaves leaves=+noctalia-runtime-keys*,+python3*?,~hm_*noctalia*?,~kit-fish-completions?,~man-paths?
+meta: tier=hero effort=medium boss=no diff=leaves leaves=+noctalia-runtime-keys*,+python3*?,~hm_*noctalia*?,~kit-fish-completions?,~man-paths?,~activation-script,~noctalia.service,~pythoncheck.sh
 
 **Goal.** Noctalia telemetry is off through one named runtime key; nothing else in its `settings.toml` changes.
 

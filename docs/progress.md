@@ -391,3 +391,4 @@ GM (campaign, 2026-10-23): c1q15 1. пропустити 2. нове завда�
 Потрібно: GM розширює `leaves=` (патч `.campaign/c1q16.request.patch`); робота лишена незакоміченою для retry.
 запит: scope - `leaves=` квесту не має `~activation-script,~noctalia.service,~pythoncheck.sh`
 agent: claude claude-opus-5-5
+GM (campaign, 2026-10-23): так, scope: патч .campaign/c1q16.request.patch.applied; retry: own tier
