@@ -1,5 +1,6 @@
 {
   inputs,
+  options,
   pkgs,
   ...
 }:
@@ -8,6 +9,8 @@ let
   hyprlandPackages = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system};
 in
 {
+  imports = [ ./sddm ];
+
   services = {
     pulseaudio.enable = false;
 
@@ -40,7 +43,17 @@ in
     displayManager = {
       sddm = {
         enable = true;
-        thyx.enable = true;
+        # Password only: a finger cannot unlock gnome-keyring, so the
+        # theme no longer starts a fingerprint login on load.
+        thyx = {
+          enable = true;
+          package = options.services.displayManager.sddm.thyx.package.default.overrideAttrs (old: {
+            postInstall = (old.postInstall or "") + ''
+              sed -i 's/^AutoFingerprintOnLoad=.*/AutoFingerprintOnLoad=false/' \
+                "$out/share/sddm/themes/thyx/theme.conf"
+            '';
+          });
+        };
         wayland.enable = true;
       };
 
@@ -79,8 +92,10 @@ in
     polkit.enable = true;
     pam.services = {
       sudo.fprintAuth = true;
-      login.fprintAuth = true;
-      sddm.fprintAuth = true;
+      # The greeter and TTY take the password, which unlocks gnome-keyring;
+      # the lock screens drive the sensor themselves.
+      login.fprintAuth = false;
+      sddm.fprintAuth = false;
     };
     rtkit.enable = true;
   };

@@ -1,0 +1,2 @@
+# No submodules. This file only has to exist: the Claude Code sandbox puts
+# /dev/null over a missing .gitmodules, and nix (libgit2) cannot read that.

@@ -1,0 +1,236 @@
+[
+  {
+    "action": "hl.dsp.exec_cmd(terminal)",
+    "flags": {},
+    "key": "SUPER + Return"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(explorer)",
+    "flags": {},
+    "key": "SUPER + E"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"claude-desktop\")",
+    "flags": {},
+    "key": "SUPER + A"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"noctalia msg panel-toggle launcher\")",
+    "flags": {},
+    "key": "SUPER + R"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"noctalia msg panel-toggle control-center\")",
+    "flags": {},
+    "key": "SUPER + S"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"noctalia msg settings-toggle\")",
+    "flags": {},
+    "key": "SUPER + comma"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"noctalia msg window-switcher\")",
+    "flags": {},
+    "key": "ALT + Tab"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(browser)",
+    "flags": {},
+    "key": "SUPER + B"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(terminal .. \" -e nvim\")",
+    "flags": {},
+    "key": "SUPER + N"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(terminal .. \" -e btop\")",
+    "flags": {},
+    "key": "SUPER + Z"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(browser)",
+    "flags": {},
+    "key": "CTRL + B"
+  },
+  {
+    "action": "hl.dsp.window.close()",
+    "flags": {},
+    "key": "SUPER + W"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"noctalia msg panel-toggle session\")",
+    "flags": {},
+    "key": "SUPER + Escape"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"noctalia msg panel-toggle session\")",
+    "flags": {},
+    "key": "SUPER + SHIFT + W"
+  },
+  {
+    "action": "hl.dsp.window.fullscreen({ action = \"toggle\" })",
+    "flags": {},
+    "key": "SUPER + F"
+  },
+  {
+    "action": "hl.dsp.window.float({ action = \"toggle\" })",
+    "flags": {},
+    "key": "SUPER + Space"
+  },
+  {
+    "action": "hl.dsp.focus({ direction = \"l\" })",
+    "flags": {},
+    "key": "SUPER + H"
+  },
+  {
+    "action": "hl.dsp.focus({ direction = \"r\" })",
+    "flags": {},
+    "key": "SUPER + L"
+  },
+  {
+    "action": "hl.dsp.focus({ direction = \"u\" })",
+    "flags": {},
+    "key": "SUPER + K"
+  },
+  {
+    "action": "hl.dsp.focus({ direction = \"d\" })",
+    "flags": {},
+    "key": "SUPER + J"
+  },
+  {
+    "action": "hl.dsp.window.move({ direction = \"l\" })",
+    "flags": {},
+    "key": "SUPER + SHIFT + H"
+  },
+  {
+    "action": "hl.dsp.window.move({ direction = \"r\" })",
+    "flags": {},
+    "key": "SUPER + SHIFT + L"
+  },
+  {
+    "action": "hl.dsp.window.move({ direction = \"u\" })",
+    "flags": {},
+    "key": "SUPER + SHIFT + K"
+  },
+  {
+    "action": "hl.dsp.window.move({ direction = \"d\" })",
+    "flags": {},
+    "key": "SUPER + SHIFT + J"
+  },
+  {
+    "action": "hl.dsp.focus({ workspace = 1 })",
+    "flags": {},
+    "key": "SUPER + 1"
+  },
+  {
+    "action": "hl.dsp.window.move({ workspace = 1 })",
+    "flags": {},
+    "key": "SUPER + SHIFT + 1"
+  },
+  {
+    "action": "hl.dsp.focus({ workspace = 2 })",
+    "flags": {},
+    "key": "SUPER + 2"
+  },
+  {
+    "action": "hl.dsp.window.move({ workspace = 2 })",
+    "flags": {},
+    "key": "SUPER + SHIFT + 2"
+  },
+  {
+    "action": "hl.dsp.focus({ workspace = 3 })",
+    "flags": {},
+    "key": "SUPER + 3"
+  },
+  {
+    "action": "hl.dsp.window.move({ workspace = 3 })",
+    "flags": {},
+    "key": "SUPER + SHIFT + 3"
+  },
+  {
+    "action": "hl.dsp.focus({ workspace = 4 })",
+    "flags": {},
+    "key": "SUPER + 4"
+  },
+  {
+    "action": "hl.dsp.window.move({ workspace = 4 })",
+    "flags": {},
+    "key": "SUPER + SHIFT + 4"
+  },
+  {
+    "action": "hl.dsp.focus({ workspace = 5 })",
+    "flags": {},
+    "key": "SUPER + 5"
+  },
+  {
+    "action": "hl.dsp.window.move({ workspace = 5 })",
+    "flags": {},
+    "key": "SUPER + SHIFT + 5"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"noctalia msg volume-up\")",
+    "flags": {},
+    "key": "XF86AudioRaiseVolume"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"noctalia msg volume-down\")",
+    "flags": {},
+    "key": "XF86AudioLowerVolume"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"noctalia msg volume-mute\")",
+    "flags": {},
+    "key": "XF86AudioMute"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"noctalia msg mic-mute\")",
+    "flags": {},
+    "key": "XF86AudioMicMute"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"noctalia msg brightness-up\")",
+    "flags": {},
+    "key": "XF86MonBrightnessUp"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"noctalia msg brightness-down\")",
+    "flags": {},
+    "key": "XF86MonBrightnessDown"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"noctalia msg keyboard-backlight-up\")",
+    "flags": {},
+    "key": "XF86KbdBrightnessUp"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"noctalia msg keyboard-backlight-down\")",
+    "flags": {},
+    "key": "XF86KbdBrightnessDown"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"noctalia msg screenshot-region\")",
+    "flags": {},
+    "key": "Print"
+  },
+  {
+    "action": "hl.dsp.exec_cmd(\"noctalia msg screenshot-fullscreen all\")",
+    "flags": {},
+    "key": "SHIFT + Print"
+  },
+  {
+    "action": "hl.dsp.window.drag()",
+    "flags": {
+      "mouse": true
+    },
+    "key": "SUPER + mouse:272"
+  },
+  {
+    "action": "hl.dsp.window.resize()",
+    "flags": {
+      "mouse": true
+    },
+    "key": "SUPER + mouse:273"
+  }
+]

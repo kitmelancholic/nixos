@@ -1,4 +1,5 @@
 {
+  config,
   pkgs,
   pkgsUnstable,
   lib,
@@ -6,6 +7,8 @@
 }:
 
 let
+  look = config.dangonix.look;
+
   miriamLibre = pkgs.runCommand "miriam-libre-fonts" { } ''
     mkdir -p $out/share/fonts/truetype
     cp ${
@@ -41,10 +44,7 @@ in
   ];
 
   xdg.dataFile = {
-    "zed/extensions/installed/manuscript-theme".source = pkgs.fetchzip {
-      url = "https://github.com/JoyAndEnjoy/zed-manuscript-theme/archive/19ae93a80e163191ab216d0c4a4bfa5206b6874c.tar.gz";
-      hash = "sha256-htbnA3Iw1MgAGXHJbowhE6MlJJBsGOXT/DC+lVEJmZM=";
-    };
+    "zed/extensions/installed/manuscript-theme".source = import ./manuscript.nix { inherit pkgs; };
     "zed/extensions/installed/charmed-icons".source = pkgs.fetchzip {
       url = "https://github.com/jmesrje/zed-charmed-icons/archive/883209edf9caba528fa13aa44713e425418a5e19.tar.gz";
       hash = "sha256-covjzm1XxCoI6dVU2RxesX5K3sAFeXmN8WUkqt9DO38=";
@@ -92,10 +92,10 @@ in
         dock = "right";
       };
 
-      ui_font_family = "Miriam Libre";
+      ui_font_family = look.fonts.ui;
       ui_font_fallbacks = [ "Maple Mono" ];
       ui_font_size = 18.0;
-      agent_ui_font_family = "Miriam Libre";
+      agent_ui_font_family = look.fonts.ui;
       agent_ui_font_fallbacks = [ "Maple Mono" ];
       agent_ui_font_size = 18;
       agent_buffer_font_family = "Maple Mono";
@@ -104,13 +104,16 @@ in
         font_family = "Libron";
         code_font_family = "Maple Mono";
       };
-      buffer_font_family = "Rec Mono Casual";
-      buffer_font_fallbacks = [ "Maple Mono" ];
+      buffer_font_family = lib.head look.fonts.mono;
+      buffer_font_fallbacks = lib.tail look.fonts.mono;
       buffer_font_weight = 500;
       buffer_font_size = 18.75;
       semantic_tokens = "combined";
 
-      theme = "Manuscript Dark";
+      theme = {
+        mode = "system";
+        inherit (look.editor) dark light;
+      };
       theme_overrides."Manuscript Dark".syntax = {
         type.color = "#C7B793";
         "type.builtin".color = "#CDB999";

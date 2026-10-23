@@ -27,6 +27,18 @@ let
     };
   };
 
+  # `pi install npm:…` runs npm (into ~/.pi/agent/npm). Suffix, not prefix:
+  # the agent's bash tool inherits this PATH, so a project's node still wins.
+  piWithNpm = pkgs.symlinkJoin {
+    inherit (pkgsUnstable.pi-coding-agent) name meta;
+    paths = [ pkgsUnstable.pi-coding-agent ];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      wrapProgram $out/bin/pi --suffix PATH : ${pkgs.lib.makeBinPath [ pkgsUnstable.nodejs ]} \
+        --set-default NPM_CONFIG_UPDATE_NOTIFIER false
+    '';
+  };
+
   kccWithKindlegen = pkgs.kcc.overrideAttrs (old: {
     makeWrapperArgs = old.makeWrapperArgs ++ [
       "--prefix PATH : ${pkgs.lib.makeBinPath [ kindlegen ]}"
@@ -34,50 +46,61 @@ let
   });
 in
 {
-  home.packages = with pkgs; [
-    # Desktop shell
-    kitty # fallback terminal
+  home = {
+    file.".local/share/jdks/25".source = pkgs.jdk25;
+    file.".local/share/jdks/21".source = pkgs.jdk21;
 
-    # Wayland utilities
-    grim
-    slurp
-    swappy
-    wl-clipboard
-    pavucontrol
+    packages = with pkgs; [
+      # Desktop shell
+      kitty # fallback terminal
 
-    # System tools
-    fastfetch
-    btop
-    xclip
-    xsel
+      # Wayland utilities
+      grim
+      slurp
+      swappy
+      wl-clipboard
+      pavucontrol
 
-    # Files and documents
-    nautilus
-    file-roller
-    evince
-    calibre
-    loupe
+      # System tools
+      fastfetch
+      btop
+      xclip
+      xsel
 
-    # Internet and communication
-    inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.zen-browser
-    vivaldi # browser
-    vivaldi-ffmpeg-codecs # Extra media codecs for Vivaldi
-    qbittorrent
-    anki
-    telegram-desktop
-    inputs.claude-desktop-extra.packages.${pkgs.stdenv.hostPlatform.system}.claude-desktop-extra
+      # Files and documents
+      nautilus
+      file-roller
+      evince
+      calibre
+      loupe
 
-    # Development adjacent
-    unityhub
-    mono # Unity/legacy .NET compatibility
-    goose-cli
-    pkgsUnstable.claude-code # unstable: tracks upstream releases closely; wrapper sets DISABLE_AUTOUPDATER=1
-    pkgsUnstable.codex # unstable, no self-update (check_for_update_on_startup = false)
-    mcp-nixos # NixOS/Home Manager option and package lookup for both agents
-    kccWithKindlegen
-    kindlegen # enables KCC MOBI conversion
+      # Internet and communication
+      inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.zen-browser
+      qbittorrent
+      anki
+      telegram-desktop
+      inputs.claude-desktop-extra.packages.${pkgs.stdenv.hostPlatform.system}.claude-desktop-extra
 
-    # Games
-    prismlauncher
-  ];
+      # Development adjacent
+      unityhub
+      mono # Unity/legacy .NET compatibility
+      piWithNpm # pi-coding-agent from unstable (26.05 lags far behind); sets PI_SKIP_VERSION_CHECK=1, PI_TELEMETRY=0
+      pkgsUnstable.claude-code # unstable: tracks upstream releases closely; wrapper sets DISABLE_AUTOUPDATER=1
+      pkgsUnstable.codex # unstable, no self-update (check_for_update_on_startup = false)
+      mcp-nixos # NixOS/Home Manager option and package lookup for both agents
+      bubblewrap # Claude Code sandbox (.claude/settings.json `sandbox`)
+      socat # Claude Code sandbox network proxy
+      kccWithKindlegen
+      kindlegen # enables KCC MOBI conversion
+
+      # Games
+      (prismlauncher.override {
+        jdks = [
+          jdk25
+          jdk21
+          jdk8
+        ]; # 17 GTNH не потрібна; 8 для старих паків
+      })
+    ];
+  };
 }

@@ -1,6 +1,4 @@
 {
-  default = "noctalia";
-
   profiles = {
     noctalia = {
       name = "Noctalia";

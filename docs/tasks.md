@@ -10,7 +10,7 @@ This file links to the design and never restates it.
 ## Section format
 
 ```
-## <id> — <quest name>
+## <id> - <quest name>
 meta: tier=squire|hero|cleric effort=… boss=yes|no diff=<mode> [removed=<ids>] [leaves=<globs>] [rest=<tag>]
 Goal           one sentence: the end state.
 Why            enough context to resolve ambiguity in the steps.
@@ -27,9 +27,9 @@ GM's turn      checklist for the GM with exact commands (omitted if none).
 ```
 
 **`diff` modes** (enforced by `scripts/quest-verify <id>`):
-- `baseline` / `source-only` — no oracle yet (before c1q03); only `scripts/check`.
-- `none` — `scripts/closure-diff --assert-same HEAD` (compares derivation paths, evaluation only), plus `--removed` for each id in `removed=`.
-- `leaves` — `scripts/closure-diff --names HEAD`: every changed leaf derivation must match a glob in `leaves=` (prefix `+` added, `-` removed, `~` changed); a glob ending in `?` is optional, every other glob must match at least once. Wrapper derivations (`home-manager-files`, `home-manager-path`, `home-manager-generation`, `etc`, `system-path`, `system-units`, `nixos-system-*`) are never listed.
+- `baseline` / `source-only` - no oracle yet (before c1q03); only `scripts/check`.
+- `none` - `scripts/closure-diff --assert-same HEAD` (compares derivation paths, evaluation only), plus `--removed` for each id in `removed=`.
+- `leaves` - `scripts/closure-diff --names HEAD`: every changed leaf derivation must match a glob in `leaves=` (prefix `+` added, `-` removed, `~` changed); a glob ending in `?` is optional, every other glob must match at least once. Wrapper derivations (`home-manager-files`, `home-manager-path`, `home-manager-generation`, `etc`, `system-path`, `system-units`, `nixos-system-*`) are never listed.
 
 **Commits** follow [Conventional Commits](https://www.conventionalcommits.org): `<type>(<quest id>)[!]: <subject>`, with the type and `!` given in each section's *Commit*. `!` marks a change the GM notices as a removal or an incompatible change; the body then has a `BREAKING CHANGE:` line saying what. Journal-only commits are `chore(<quest id>): <state>`; commits outside quests use a normal scope (`docs: …`, `fix(scripts): …`).
 
@@ -37,13 +37,13 @@ GM's turn      checklist for the GM with exact commands (omitted if none).
 
 **Checks.** `scripts/check --fast` while editing (doc and commit lint, shellcheck, flake evaluation without building); `scripts/check` is the full one (`nix flake check`), and `scripts/quest-verify` runs it. From c1q13 `dangonix check` is the same thing. CI on GitHub runs `scripts/check --fast` on every push and, once `scripts/closure-diff` exists, the oracle for every quest commit; the hero never pushes, so CI is the signal for the GM and the scribe.
 
-**Models.** `tier=` names a row of the model table in `AGENTS.md` (`squire` for short mechanical quests with a strict oracle (`diff=none`, few steps, nothing to judge): c1q06, c1q07, c1q08, c1q09; `hero` by default; `cleric` for retries and for the quests whose code the rest depends on: c1q03, c1q13, c1q14; the judge behind `scripts/review` is `judge`), with a full model id per agent, so a campaign never changes model halfway. Claude Code's `scripts/context-watch` hook warns at 80k context tokens (stop exploring) and 95k (finish or hand the quest back with `провалений кидок`); the retry by the cleric keeps the uncommitted work. `scripts/campaign [--agent claude|codex] [--judge claude|codex]` picks the CLI; the journal records which agent and model ran each entry.
+**Models.** `tier=` names a row of the table in `.agents/models.md` (`squire` for short mechanical quests with a strict oracle (`diff=none`, few steps, nothing to judge): c1q06, c1q07, c1q08, c1q09; `hero` by default; `cleric` for retries and for the quests whose code the rest depends on: c1q03, c1q13, c1q14; the judge behind `scripts/review` is `judge`), with a full model id per agent, so a campaign never changes model halfway, and the tier's context limits: the `scripts/context-watch` hook warns at `warn` tokens (stop exploring) and `hard` (finish or hand the quest back with `провалений кидок`; the retry keeps the uncommitted work), and the CLI compacts no later than `compact`. Agents never start subagents (`scripts/agent` turns them off). `scripts/campaign [--agent claude|codex] [--judge claude|codex]` picks the CLI; the journal records which agent and model ran each entry. Every attempt's full event log is in `.campaign/`; `scripts/trace <log>` condenses it, and a failed or costly attempt gets a squire's diagnosis that the next attempt reads (`.campaign/<id>.diagnosis.md`).
 
 **Shared rules.**
 - *Temporary worktree.* Tests that change `state.json`, `flake.lock` or Nix code on purpose run in a worktree inside the checkout (`.campaign/` is gitignored, and agents may edit only inside the checkout): `git stash create` prints a commit, or nothing on a clean tree; then `git worktree add --detach .campaign/wt-<id> <that commit or HEAD>`. Edit files under `.campaign/wt-<id>/` and evaluate `./.campaign/wt-<id>#…`. Finish with `git worktree remove --force .campaign/wt-<id>`; `git status` in the checkout must be unchanged afterwards.
 - *Lock only drops.* After removing a flake input, `nix flake lock`, then `git show HEAD:flake.lock | jq --slurpfile new flake.lock '[$new[0].nodes[] | .locked.rev // empty] - [.nodes[] | .locked.rev // empty]'` must print `[]` (no revision appears that was not locked before; renumbered node names such as `nixpkgs_4` are fine).
 - *Never touched by agents:* `hosts/nixos/hardware-configuration.nix`, `.claude/settings.json`, `.mcp.json`, `.codex/**`, `.git/**`, `scripts/hooks/**` (Claude Code or Codex's sandbox refuses them). A quest that needs one changed puts the exact change in the *GM's turn*.
-- *Commands.* Run only what `.claude/settings.json` allows (headless runs deny the rest, and a denial the run cannot work around stops the campaign). Anything that activates, rebuilds, uses `sudo` or runs a `dangonix` `state`/`host` command without `--dry` belongs in the *GM's turn*.
+- *Commands.* Run only what `.claude/settings.json` allows (headless runs deny the rest). A denial the run cannot work around, or a scope that is too narrow, ends the run with a `запит:` and a patch (the quest skill's *Ask, don't describe*), not with a description for the GM. Anything that activates, rebuilds, uses `sudo` or runs a `dangonix` `state`/`host` command without `--dry` belongs in the *GM's turn*.
 
 **Writing a quest** (rules for the scribe, who maintains this file):
 1. Check every fact against the branch the quest will run on: paths exist, quoted text is there, options and attribute names evaluate. A precondition that is already true or already false when the quest is written is a bug.
@@ -55,7 +55,7 @@ GM's turn      checklist for the GM with exact commands (omitted if none).
 
 ---
 
-## c1q00 — Roll call of heroes
+## c1q00 - Roll call of heroes
 meta: tier=hero effort=medium boss=no diff=baseline rest=c1r0
 
 **Goal.** The uncommitted work that predates the remake is committed as the baseline, after the GM blesses it.
@@ -84,11 +84,11 @@ meta: tier=hero effort=medium boss=no diff=baseline rest=c1r0
 **GM's turn.**
 - Read the summary.
 - `just switch`, then `just home-switch`; use the desktop for a while.
-- All good → append `## c1q00 — благословення`, run `/quest retry c1q00`.
+- All good → append `## c1q00 - благословення`, run `/quest retry c1q00`.
 
 ---
 
-## c1q01 — Reading the map
+## c1q01 - Reading the map
 meta: tier=hero effort=medium boss=no diff=source-only
 
 **Goal.** Confirm the docs and the pre-campaign tooling are in the branch and consistent, so later quests can rely on them.
@@ -98,7 +98,7 @@ meta: tier=hero effort=medium boss=no diff=source-only
 **Read first.** `docs/` listing, `README.md`.
 
 **Steps.**
-1. Check that `docs/vision.md`, `docs/design.md`, `docs/current-state.md`, `docs/remake.md`, `docs/tasks.md`, `AGENTS.md`, `CLAUDE.md` (only `@AGENTS.md`), `.agents/skills/quest/SKILL.md`, `.claude/skills/quest` (a symlink to it), `.claude/settings.json`, `.codex/config.toml`, `.codex/hooks.json`, `.codex/rules/dangonix.rules`, `.github/workflows/ci.yml`, `scripts/check`, `scripts/lint-docs`, `scripts/lint-commits`, `scripts/quest-verify`, `scripts/campaign`, `scripts/agent`, `scripts/review`, `scripts/hooks/` exist and `docs/redesign-plan.md`, `.claude/commands/` and `.claude/hooks/` do not.
+1. Check that `docs/vision.md`, `docs/design.md`, `docs/pre-historic-state.md`, `docs/remake.md`, `docs/tasks.md`, `AGENTS.md`, `CLAUDE.md` (only `@AGENTS.md`), `.agents/skills/quest/SKILL.md`, `.claude/skills/quest` (a symlink to it), `.claude/settings.json`, `.codex/config.toml`, `.codex/hooks.json`, `.codex/rules/dangonix.rules`, `.github/workflows/ci.yml`, `scripts/check`, `scripts/lint-docs`, `scripts/lint-commits`, `scripts/quest-verify`, `scripts/campaign`, `scripts/agent`, `scripts/review`, `scripts/hooks/` exist and `docs/redesign-plan.md`, `.claude/commands/` and `.claude/hooks/` do not.
 2. `scripts/check --fast` passes (its `lint-docs` step checks links, quest headings, meta lines and commit subjects).
 3. The git hooks installed in c1q00 (`commit-msg`, `reference-transaction`, `pre-push`) exist in `.git/hooks/` and match `scripts/hooks/`.
 4. Anything wrong → `провалений кидок` naming it (do not fix docs yourself).
@@ -113,12 +113,12 @@ meta: tier=hero effort=medium boss=no diff=source-only
 
 ---
 
-## c1q02 — The mirror twin
+## c1q02 - The mirror twin
 meta: tier=hero effort=medium boss=no diff=source-only
 
 **Goal.** The repo is no longer copied into the home closure, and `kit-profile` switches from the checkout.
 
-**Why.** Today every commit (even a README typo) makes a new home generation, so "nothing changed" cannot be proven by out paths ([current-state](current-state.md)). The oracle in c1q03 needs this gone.
+**Why.** Today every commit (even a README typo) makes a new home generation, so "nothing changed" cannot be proven by out paths ([pre-historic-state](pre-historic-state.md)). The oracle in c1q03 needs this gone.
 
 **Read first.** `flake.nix` (around line 139, `profileFlakeSource`), `lib/mk-home.nix` (lines 9, 34), `home/theme-switcher.nix`.
 
@@ -140,11 +140,11 @@ meta: tier=hero effort=medium boss=no diff=source-only
 
 **GM's turn.**
 - `kit-profile switch noctalia`; the desktop comes back as before.
-- All good → `## c1q02 — виконано`.
+- All good → `## c1q02 - виконано`.
 
 ---
 
-## c1q03 — Eye of the oracle ⚔️
+## c1q03 - Eye of the oracle ⚔️
 meta: tier=cleric effort=high boss=yes diff=none
 
 **Goal.** `scripts/closure-diff` proves "the system would not change" or names exactly what changes, by evaluation alone.
@@ -175,7 +175,7 @@ meta: tier=cleric effort=high boss=yes diff=none
 
 ---
 
-## c1q04 — Banishing the graphomaniac
+## c1q04 - Banishing the graphomaniac
 meta: tier=hero effort=medium boss=no diff=leaves leaves=-graphify-*,-graphify-codex-skill*,-graphifyy*,-networkx*,-numpy*,-rapidfuzz*,-tree*sitter*,-ncurses-abi5-compat*,-python3*?,~*?
 
 **Goal.** Graphify is gone; Codex keeps its repo files (`.codex/`), and Zed's `codex-acp` stays.
@@ -200,7 +200,7 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=-graphify-*,-graphify-c
 
 ---
 
-## c1q05 — Guild charter
+## c1q05 - Guild charter
 meta: tier=hero effort=medium boss=no diff=leaves leaves=+mcp-nixos*,+bash-guard,+codex*,~claude-code*?,+*?,~*?
 
 **Goal.** `AGENTS.md`, permissions for both CLIs, a fail-closed Bash guard, `mcp-nixos` and `scripts/opt` give Claude Code and Codex the same safe, short guidance.
@@ -211,7 +211,7 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=+mcp-nixos*,+bash-guard
 
 **Steps.**
 1. `AGENTS.md` (English, ≤ 60 lines) describes only what exists now: what the repo is (two sentences, one machine); invariants (never edit `hardware-configuration.nix`; a theme never changes the host; every theme passes the checks; never remove or rebind an existing key); the loop `edit → nix fmt → scripts/check --fast → scripts/quest-verify <id>`; quests via `/quest` or `$quest` and the model table (keep it as is); stage files explicitly, never `git commit -a`; temporary worktrees for state-changing tests; the mcp-nixos line (look up names when unsure, 26.05 channel, it does not know flake-input options; for those use `scripts/opt`); one-line permission reminders; one line per top-level directory. `CLAUDE.md` stays the single line `@AGENTS.md`.
-2. CLIs from nixpkgs-unstable without self-update: Claude Code — confirm the wrapper sets `DISABLE_AUTOUPDATER=1`, else wrap it; Codex — add `pkgsUnstable.codex` to home packages and turn its update check off (`check_for_update_on_startup = false` in `~/.codex/config.toml` via HM, if the key exists in that version). Note in the GM's turn any `~/.local/bin/claude`, `~/.npm-global` or other non-Nix `codex` install to remove.
+2. CLIs from nixpkgs-unstable without self-update: Claude Code - confirm the wrapper sets `DISABLE_AUTOUPDATER=1`, else wrap it; Codex - add `pkgsUnstable.codex` to home packages and turn its update check off (`check_for_update_on_startup = false` in `~/.codex/config.toml` via HM, if the key exists in that version). Note in the GM's turn any `~/.local/bin/claude`, `~/.npm-global` or other non-Nix `codex` install to remove.
 3. `pkgs.mcp-nixos` in home packages; committed `.mcp.json` `{"mcpServers":{"nixos":{"command":"mcp-nixos"}}}` and `enabledMcpjsonServers: ["nixos"]` for Claude Code; `[mcp_servers.nixos] command = "mcp-nixos"` in `.codex/config.toml` for Codex.
 4. Plugin `claude-md-management` only, via `extraKnownMarketplaces` (`claude-plugins-official`) and `enabledPlugins` in `.claude/settings.json`; marketplace auto-update off if the key exists. Codex gets no plugins.
 5. Guard: a `writeShellApplication` `bash-guard` (deps in Nix, any internal error exits 2) that blocks any shell command whose text mentions `hardware-configuration.nix`, installed by HM at `~/.config/dangonix/hooks/bash-guard` (`xdg.configFile`, executable). Hook command `"$HOME/.config/dangonix/hooks/bash-guard" || exit 2` in both `.claude/settings.json` and `.codex/hooks.json`, next to `git-guard`. Claude Code: deny Edit/Write of `hosts/nixos/hardware-configuration.nix`, `.git/**`, `scripts/hooks/**`. Codex: if its hooks also see file edits (`apply_patch`), guard the same paths there; otherwise write in the GM's turn that Codex relies on its sandbox and the GM's review for them.
@@ -232,11 +232,11 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=+mcp-nixos*,+bash-guard
 - In a new `claude` session: `claude mcp list` shows `nixos` connected; `/plugin` lists only `claude-md-management`; editing `hardware-configuration.nix` is refused; `cat hosts/nixos/hardware-configuration.nix` is blocked; `nix flake check` runs without a prompt; `sudo true` asks.
 - In a new `codex` session in `~/nixos` (trust the project when asked): `/mcp` shows `nixos`; `$quest` is offered; `cat hosts/nixos/hardware-configuration.nix` is blocked; `git push` is refused; `nix flake check` runs without a prompt; `sudo true` asks.
 - Negative: rename `~/.config/dangonix/hooks/bash-guard` away → every Bash command is blocked; `just home-switch` restores it.
-- All good → `## c1q05 — виконано`.
+- All good → `## c1q05 - виконано`.
 
 ---
 
-## c1q06 — Under one banner
+## c1q06 - Under one banner
 meta: tier=squire effort=medium boss=no diff=none
 
 **Goal.** The registry default (what `.#kit` and a fresh install build) is `noctalia`, and the classic-only override canary is gone.
@@ -276,7 +276,7 @@ meta: tier=squire effort=medium boss=no diff=none
 
 ---
 
-## c1q07 — Fall of the Dark Master
+## c1q07 - Fall of the Dark Master
 meta: tier=squire effort=medium boss=no diff=none removed=dms
 
 **Goal.** The `dms` theme (Dank Material Shell) no longer exists in the repo.
@@ -315,7 +315,7 @@ meta: tier=squire effort=medium boss=no diff=none removed=dms
 
 ---
 
-## c1q08 — Twilight of the classics
+## c1q08 - Twilight of the classics
 meta: tier=squire effort=medium boss=no diff=none removed=catppuccin,tokyo-night,gruvbox,kit-dark
 
 **Goal.** The classic family is gone; only Noctalia and Caelestia remain.
@@ -357,7 +357,7 @@ meta: tier=squire effort=medium boss=no diff=none removed=catppuccin,tokyo-night
 
 ---
 
-## c1q09 — Dispelling Stylix
+## c1q09 - Dispelling Stylix
 meta: tier=squire effort=medium boss=no diff=none
 
 **Goal.** Stylix is gone.
@@ -387,7 +387,7 @@ meta: tier=squire effort=medium boss=no diff=none
 
 ---
 
-## c1q10 — Cleaning the castle ⚔️
+## c1q10 - Cleaning the castle ⚔️
 meta: tier=hero effort=medium boss=yes diff=leaves leaves=-blueman*,-network-manager-applet*,-hyprpolkitagent*?,-hyprlock*?,-*?,~dbus*?,~unit-*?,~*pam*?,~man-paths?,~source?,~system-generators?,~system-shutdown?,~system_fish-completions?,~user-generators?,~user-units? rest=c1r1
 
 **Goal.** The host keeps only what the remaining lock screens need, and the tray no longer duplicates the shells' own Wi-Fi and Bluetooth.
@@ -425,16 +425,16 @@ meta: tier=hero effort=medium boss=yes diff=leaves leaves=-blueman*,-network-man
 - `just switch` (sudo).
 - In Noctalia and Caelestia: lock, unlock with password, unlock with fingerprint (only if `fprintd-list kit` shows an enrolled finger), suspend and resume; the tray shows no blueman or nm-applet icon, and the shell's own Wi-Fi and Bluetooth panels still connect.
 - Long rest: read the reviewer's findings, push `redesign`, merge the PR into `main` as a merge commit, `git switch main && git pull --ff-only && git switch redesign`.
-- All good → `## c1q10 — виконано`.
+- All good → `## c1q10 - виконано`.
 
 ---
 
-## c1q11 — Warding runes ⚔️
+## c1q11 - Warding runes ⚔️
 meta: tier=hero effort=high boss=yes diff=none
 
 **Goal.** All checks live in `lib/checks.nix`, generic over the registry, plus a host build check and a frozen bind fixture.
 
-**Why.** Today some checks grep source files or hard-code theme names, and none builds the host, so a host-only error passes ([current-state](current-state.md)). Design: [§3 checks](design.md#перевірки-static-libchecksnix-на-кожну-тему), [binds as data](design.md#бінди--це-дані).
+**Why.** Today some checks grep source files or hard-code theme names, and none builds the host, so a host-only error passes ([pre-historic-state](pre-historic-state.md)). Design: [§3 checks](design.md#перевірки-static-libchecksnix-на-кожну-тему), [binds as data](design.md#бінди--це-дані).
 
 **Files.** `lib/checks.nix` (new), `flake.nix`, `lib/repo-apps.nix`, `profiles/noctalia/default.nix`, `profiles/caelestia/default.nix`, `home/hyprland/lua-helpers.nix`, `tests/binds/` (new), `AGENTS.md`, `docs/progress.md`.
 
@@ -462,7 +462,7 @@ meta: tier=hero effort=high boss=yes diff=none
 
 ---
 
-## c1q12 — Book of choices
+## c1q12 - Book of choices
 meta: tier=hero effort=medium boss=no diff=none
 
 **Goal.** A tracked `state.json` holds every choice a command can make: the theme and the Foundry instances.
@@ -473,13 +473,13 @@ meta: tier=hero effort=medium boss=no diff=none
 
 **Read first.** `lib/settings.nix`, `hosts/nixos/foundryvtt.nix`, `home/foundry.nix`, `lib/repo-apps.nix` (`foundryCheckScript`), `profiles/default.nix`.
 
-**Preconditions.** `nix eval --raw .#nixosConfigurations.nixos._module.specialArgs.inputs.foundryvtt.outPath` gives the nix-foundryvtt source; find its version table (`rg -n '14\.361|sha256' <path>`) and confirm it carries, per version, the payload filename and hash its package uses. Not so, or reading the path is refused → stop.
+**Preconditions.** `nix eval --raw .#nixosConfigurations.nixos._module.specialArgs.inputs.foundryvtt.outPath` gives the nix-foundryvtt source; find its version table (`pkgs/foundryvtt/versions.json`) and confirm it carries, per version key (e.g. `"14.361"`), the `hash`. The table has no filename: the package builds it as `FoundryVTT-${platform}-${shortVersion}.zip` (`platform` = the entry's `.platform`, else `Linux`), so derive `filename` from the key by that formula. No `hash` for the key, or reading the path is refused → stop.
 
 **Steps.**
 1. Add `state.json`: `{ "theme": "noctalia", "foundry": { "instances": { "main": { "version": "14.0.0+361", "port": 30000 } } } }` and nothing else (the values are today's `settings.foundry.version` and `port`); `git add state.json`.
 2. `flake.nix` reads it once (`state = lib.importJSON ./state.json;`). `homeConfigurations.kit` builds `state.theme`; delete `default` from `profiles/default.nix`. The flake output `lib.themes` stays the registry plus `default = state.theme;`, so `kit-profile` keeps working until c1q18.
 3. The host gets only `state.foundry` (via `specialArgs`), never `state.theme`. `lib/settings.nix` derives `foundry.version` and `foundry.port` from `state.foundry.instances.main` and keeps `service` and `url`; an assertion fails evaluation with "several Foundry instances arrive in campaign II" if there is more than one instance, and empty `instances` disables Foundry (`services.foundryvtt.enable = false`, no firewall port, no sudo rules).
-4. Delete `shortVersion`, `filename`, `hash` from `lib/settings.nix`; `foundryCheckScript` derives filename and hash from the nix-foundryvtt table.
+4. Delete `shortVersion`, `filename`, `hash` from `lib/settings.nix`; `foundryCheckScript` takes `hash` from the nix-foundryvtt table and derives `filename` as `FoundryVTT-<platform or Linux>-<key>.zip` from the table key.
 5. Check `registry` gains "`state.json`'s theme exists in the registry".
 
 **Do not.** Change the Foundry unit name, data dir or port.
@@ -492,7 +492,7 @@ meta: tier=hero effort=medium boss=no diff=none
 
 ---
 
-## c1q13 — Forging dangonix ⚔️
+## c1q13 - Forging dangonix ⚔️
 meta: tier=cleric effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_*dangonix*?,~kit-fish-completions?,~man-paths?
 
 **Goal.** `dangonix` v1 exists next to the old commands: every subcommand, the grammar, `--json` and `--dry`; the read commands and `check` work for real, and every `state`/`host` command so far only plans (`--dry`).
@@ -508,6 +508,7 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_*dangon
 2. Subcommands: `switch`, `check [--fast|--vm]` (absorbs `scripts/check`: the same steps and modes, plus `host`; `scripts/check` becomes `exec nix run "$(git rev-parse --show-toplevel)" -- check "$@"` so CI and `quest-verify` keep working), `update` (held list, reports held), `theme`, `commands`, `status`, `help`, `version`, `history` (reads the transaction journal), and `foundry` limited to one instance: `list`, `status|logs|start|stop|restart|open [main]`, where `status` and `foundry status` show only what exists by now (power, net, shield, Funnel and backup arrive with their features in campaign II and III), `import <zip>`, `upgrade main <zip>`, `add main <zip>`, `remove main`. Every command has `--json`. `--dry` is accepted by every command: a non-`read` command only plans, a `read` command runs as usual. Grammar, global flags (`--yes`, `--metered-ok` included), the JSON envelope and exit codes follow [design §5 grammar](design.md#граматика).
 3. In this quest every `state`/`host` command only plans: without `--dry` it refuses with exit 4 ("not available before c1q14") and changes nothing; `check --vm` refuses the same way until c1q15.
 4. Fish completions for `dangonix` generated from the command table.
+5. `lib/dangonix/ui.sh` with the output style of [design §5 output](design.md#вивід): role colours, Unicode icons, right-aligned step verbs, the `DRY` badge, error layout, colour and fancy detection per fd. Every command prints only through it; no other file in `lib/dangonix/` contains `\e[` or `\033`. `ui_build` falls back to `nix build -L … | tail -n 40` here; nix-output-monitor arrives with the builds in c1q14.
 
 **Do not.** Remove or change any old command. Implement any `state`/`host` effect (that is c1q14). Edit `.claude/settings.json` or `.codex/rules/` (the GM already allowed `nix run . -- --dry …`, `nix run . -- check …`, `dangonix --dry …` and `dangonix check …`).
 
@@ -516,6 +517,8 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_*dangon
 - `nix run . -- --dry --json theme` marks noctalia.
 - `nix run . -- --dry --json commands | jq -r '.data[].name'` lists every command; each runs as `nix run . -- --dry --json <name> …` without a prompt and its output passes `jq -e .`.
 - `nix eval .#homeConfigurations.kit.config.xdg.configFile --apply 'f: builtins.hasAttr "fish/completions/dangonix.fish" f'` prints `true` (or the same for `home.file`, wherever step 4 put it).
+- No escape bytes outside a TTY: for `status`, `help`, `theme`, `version`, `--dry switch` and `check --fast`, `nix run . -- <args> | grep -c $'\e'`, the same with `CLAUDECODE=1`, and the same with `--json` all print `0`; `script -qc 'nix run . -- --dry switch' /dev/null | grep -c $'\e'` is not `0` and its first line contains `DRY`.
+- `grep -rlE '\\e\[|\\033' lib/dangonix/ | grep -v ui.sh` prints nothing.
 
 **AGENTS.md.** Loop becomes `edit → nix fmt → dangonix check --fast → dangonix check → scripts/closure-diff`; discovery `dangonix --dry --json commands`.
 
@@ -523,12 +526,12 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=+dangonix*,+hm_*dangon
 
 **GM's turn.**
 - `just home-switch`; `dangonix status`, `dangonix help`, `dangonix --dry switch` look right to you.
-- All good → `## c1q13 — виконано`.
+- All good → `## c1q13 - виконано`.
 
 ---
 
-## c1q14 — Tempering the blade ⚔️
-meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangonix*?
+## c1q14 - Tempering the blade ⚔️
+meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangonix*?,+nvd*,+nix-output-monitor*,~source?
 
 **Goal.** Every `state`/`host` command of `dangonix` runs as a transaction, and the agents' permission rules for `dangonix` are fixed by its grammar.
 
@@ -539,7 +542,7 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangon
 **Read first.** Design §5 (transactions) and §6 in full; `lib/dangonix/`; `home/theme-switcher.nix` (lock, activation).
 
 **Steps.**
-1. Every `state`/`host` command is the transaction from design §5: one lock (reuse `kit-home-activation.lock`) around snapshot, preflight, `state.json` edit, build, nvd diff, host activation, home activation, recovery, and the journal line in `~/.local/state/dangonix/journal.jsonl`.
+1. Every `state`/`host` command is the transaction from design §5: one lock (reuse `kit-home-activation.lock`) around snapshot, preflight, `state.json` edit, build, nvd diff, host activation, home activation, recovery, and the journal line in `~/.local/state/dangonix/journal.jsonl`. Output follows [design §5 output](design.md#вивід): `ui_build` pipes the build through nix-output-monitor (`--log-format internal-json -v |& nom --json`) only when fancy output is on, the nvd diff uses the role colours, and the result is the summary box with generations and `dangonix rollback`.
 2. Design check 7 in `lib/checks.nix` as check `commands`: every row of the command table has `effect` and `agent`; `agent = "allow"` only for `read` rows (and `check`); every non-`read` row implements `--dry`; the only rules in `.claude/settings.json` that start with `dangonix` are the allow rules `Bash(dangonix --dry *)`, `Bash(dangonix check)`, `Bash(dangonix check *)`, and `.codex/rules/dangonix.rules` has their counterparts and no other `dangonix` rule (the GM added them before c1q13; the check only reads the files).
 
 **Do not.** Remove or change any old command. Test failures in the checkout. Edit `.claude/settings.json` or `.codex/rules/`.
@@ -558,11 +561,281 @@ meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangon
 - `dangonix switch` (sudo); `dangonix theme caelestia` and `dangonix theme noctalia`; after both `git -C ~/nixos diff state.json` is empty.
 - `sudo -u nobody dangonix switch` refuses.
 - Foundry round-trip: `dangonix foundry remove main`, then `dangonix foundry add main <zip>`; `git -C ~/nixos diff state.json` is empty afterwards.
-- All good → `## c1q14 — виконано`.
+- All good → `## c1q14 - виконано`.
 
 ---
 
-## c1q15 — Trial by fire
+## c1s1 - Unbroken thread ⚔️
+meta: tier=cleric effort=high boss=yes diff=leaves leaves=~dangonix*,~hm_*dangonix*?,~dangonix-config.json?,~caelestia.service
+
+**Goal.** A `dangonix` transaction runs to its end (done or recovered) even when the terminal it was started from, or the user unit that terminal lives in, dies halfway; and the Caelestia shell no longer takes the apps it launched down with it.
+
+**Why.** Incident on 2026-10-19 18:11 (journal entry `theme noctalia`, `exit 3`, `failedStep: null`, `recovered: false`): the GM ran `dangonix theme noctalia` in a ghostty opened from the Caelestia launcher. Caelestia starts apps with `Quickshell.execDetached` / `entry.execute()` (`modules/launcher/services/Apps.qml` in the caelestia source), so they live in the cgroup of `caelestia.service`. Home activation stopped `caelestia.service`; systemd killed its whole cgroup (`KillMode=control-group`): the terminal, `dangonix` mid-activation and the running campaign. The INT/TERM trap started recovery; `nix-env --set` back to the old generation worked, `activate` did not. Result: home profile = Caelestia (gen 47), files in `~` = Noctalia (gen 46), no shell running, black screen with only the pointer until a hard reset. Noctalia already guards against this (`launch_apps_as_systemd_services`, asserted in `profiles/noctalia/default.nix`); Caelestia has no such option, so its unit has to let the launched apps go. [Design §5, transactions](design.md#транзакції): the lock, recovery and journal must not depend on who started the command.
+
+**Files.** `lib/dangonix/`, `profiles/caelestia/default.nix`, `docs/design.md`, `docs/progress.md`.
+
+**Read first.** Design §5 (transactions); `lib/dangonix/dangonix.sh` (`execute`, `tx_begin`, `fail`, `recover`, the `trap` lines before `noun=`); `profiles/caelestia/default.nix`; `profiles/noctalia/default.nix` (the assertion to mirror).
+
+**Preconditions.** `systemd-run --user --scope --quiet --collect -- true` exits 0 in the run's shell. Refused or no user bus → stop.
+
+**Steps.**
+1. Keep the original arguments at the top of `dangonix.sh` (before any parsing) for a re-exec.
+2. In `execute`, before `tx_begin`: unless `DANGONIX_SCOPE` is set, re-exec the same command line as `DANGONIX_SCOPE=1 systemd-run --user --scope --quiet --collect --unit=dangonix-<pid> -- "$0" <original args>`, so the transaction leaves the caller's cgroup (a scope keeps the TTY for `sudo`). When `systemd-run --user` itself fails (no user manager, e.g. a bare TTY on first install) run in place with a warning; never in `--dry` (it plans only).
+3. From `tx_begin` on, ignore SIGHUP (`trap '' HUP`, inherited by `activate` and `switch-to-configuration`); INT and TERM keep their meaning (cancel → recover).
+4. From `tx_begin` on, copy stderr to `~/.local/state/dangonix/last.log` (truncated per transaction) through `tee --output-error=warn`, so a closed terminal neither stops the transaction nor loses its log; the error text names that file.
+5. `profiles/caelestia/default.nix`: `systemd.user.services.caelestia.Service.KillMode = "process";` with an assertion next to the existing ones (message `Caelestia profile: caelestia.service must keep KillMode=process (apps launched from the shell live in its cgroup)`).
+6. `docs/design.md`, «Кроки транзакції», step 2: add that the transaction runs in its own user scope `dangonix-<pid>`, ignores SIGHUP and logs to `~/.local/state/dangonix/last.log`.
+
+**Do not.** Use `nohup`, `setsid` or `disown` instead of the scope (the process would stay in the caller's cgroup). Wrap `--dry` or `read` commands. Change Noctalia. Activate anything (GM's turn).
+
+**Verify.**
+1. `nix eval --raw .#homeConfigurations.kit-caelestia.config.systemd.user.services.caelestia.Service.KillMode` → `process`.
+2. `nix run . -- --dry --json theme noctalia` → same steps as before this quest; `git diff state.json` unchanged.
+3. `scripts/check --fast` passes (shellcheck included).
+
+**Stop if.** A re-exec changes what `--json` prints on stdout (one envelope, nothing else).
+
+**AGENTS.md.** No change.
+
+**Commit.** `fix(c1s1): dangonix transactions outlive their caller`
+
+**GM's turn.**
+- From a terminal opened with `Super+Return` (Hyprland's, not the shell's): `dangonix switch`. It puts home back in line with `state.json` and the host back on generation 36 (the laptop booted generation 34 after the incident).
+- Kill test: `systemd-run --user --unit=dangonix-victim --pty dangonix theme noctalia`; while it activates, from another terminal `systemctl --user stop dangonix-victim`. `dangonix history` → the line ends `ok`; `systemctl --user list-units 'dangonix-*'` is empty afterwards.
+- Real case: switch to Caelestia, open ghostty from the Caelestia launcher, run `dangonix theme noctalia` in it: the desktop comes up in Noctalia and that ghostty is still open.
+- All good → `## c1s1 - виконано`.
+
+---
+
+## c1s2 - Gatekeeper's lantern ⚔️
+meta: tier=cleric effort=high boss=yes diff=leaves leaves=~weston-*,~sddm-unwrapped*?,~sddm-wrapped*?,~sddm.conf?,~sddm.pam?,+bibata-cursors*?,~man-paths?,~system_fish-completions?,~unit-display-manager.service?,~*pam*?,~source?
+
+**Goal.** At the SDDM greeter the pointer is visible and clicks work, and password and fingerprint are accepted at the same time: a typed password logs in at once even while the greeter waits for a finger.
+
+**Why.** Seen on 2026-10-19 after the reboot (`journalctl -t sddm`): the `thyx` theme has `AutoFingerprintOnLoad=true`, so on load it calls `sddm.login(user, "")`; `/etc/pam.d/sddm` is only `auth substack login`, and in `login` `pam_fprintd` (sufficient, order 11400) runs before `pam_unix`, so that call waits for a finger. Every password login meanwhile is dropped by SDDM 0.21's `Display::startAuth` (`"Existing authentication ongoing, aborting"`: 16 and 24 times in the two boots after the incident), so the password "did not work" while the fingerprint did. A real parallel needs both halves: SDDM must cancel a pending empty-password (fingerprint) authentication when a login with a password arrives, and for a non-empty password the sddm stack must try `pam_unix` before `pam_fprintd`. A plain `Auth::stop()` is not enough: `slotHelperFinished` then calls `Display::stop()` and restarts the greeter. The pointer: the greeter runs `weston --shell=kiosk`; `services.displayManager.sddm.settings` is `{}`, nixpkgs sets `Theme.CursorTheme` only for `breeze`, and the system profile has no cursor theme (`/run/current-system/sw/share/icons` holds only `hicolor`), so weston and the greeter get no cursor images. The cursor every theme uses is `Bibata-Modern-Ice` (`home/desktop/cursor.nix`). Design §6: login is SDDM + `thyx`, shared by every theme, so this is host-only.
+
+**Files.** `hosts/nixos/desktop.nix`, `hosts/nixos/sddm/` (new: the patch and its Nix), `tests/greeter-vm/` (new), `flake.nix`, `flake.lock`, `docs/progress.md`.
+
+**Read first.** Design §6; `hosts/nixos/desktop.nix` (`displayManager`, `security.pam.services`); nixpkgs `nixos/modules/services/display-managers/sddm.nix` (PAM rules, `Theme`, weston) and `pkgs/applications/display-managers/sddm/default.nix` (the wrapper, its `sddm-unwrapped` argument); SDDM source (`nix build --no-link --print-out-paths .#nixosConfigurations.nixos.pkgs.kdePackages.sddm.unwrapped.src`): `src/daemon/Display.cpp` `startAuth`, `slotHelperFinished`, `slotAuthenticationFinished`; `src/auth/Auth.cpp` `stop`; thyx `src/components/buttons/LoginButton.qml` (`fingerprintAutoStart`).
+
+**Preconditions.** Reading the SDDM and thyx sources in `/nix/store` is refused → stop.
+
+**Steps.**
+1. Cursor: add `pkgs.bibata-cursors` to the host's `environment.systemPackages` and `services.displayManager.sddm.settings.Theme = { CursorTheme = "Bibata-Modern-Ice"; CursorSize = 24; };`.
+2. SDDM patch `hosts/nixos/sddm/cancel-fingerprint-auth.patch` against the locked SDDM: in `Display::startAuth`, when an authentication is active, it was started with an empty password and the new one has a non-empty password, stop the pending one without the `Display::stop()` from `slotHelperFinished` and without a `loginFailed` to the greeter for it, then start the new one; any other overlap still aborts as now.
+3. Use it: `services.displayManager.sddm.package = pkgs.kdePackages.sddm.override { sddm-unwrapped = pkgs.kdePackages.sddm.unwrapped.overrideAttrs (old: { patches = (old.patches or [ ]) ++ [ ./sddm/cancel-fingerprint-auth.patch ]; }); };`.
+4. PAM: the `sddm` service gets its own auth rules ahead of the `login` substack: `unix-early` (optional, `likeauth nullok`), `gnome_keyring` (optional), `unix` (sufficient, `likeauth try_first_pass nodelay`), then the substack. A typed password succeeds at `unix` and unlocks the keyring; the empty one from the theme fails fast and reaches `pam_fprintd` in `login`. `login`, `sudo` and `hyprlock` stay as they are.
+5. VM test `packages.x86_64-linux.greeter-vm` (`pkgs.testers.runNixOSTest`, not in `checks`), after nixpkgs' `nixos/tests/sddm.nix`: the patched SDDM, the PAM rules of step 4 and a stand-in for `pam_fprintd` (`pam_exec` with `expose_authtok`: blocks 60 s when the token is empty, then fails). Enter on an empty password, then type the password and Enter: the user session starts within 10 s. Without the patch (a second node or a variant) the same sequence does not start a session within 10 s.
+6. Greeter review: `inputs.thyx.inputs.nixpkgs.follows = "nixpkgs"` in `flake.nix` (thyx's module already builds with the host's `pkgs`; *Lock only drops* applies).
+
+**Do not.** Turn off fingerprint at the greeter, set `AutoFingerprintOnLoad=false`, or shorten `pam_fprintd`'s timeout instead of the patch. Touch `login`, `sudo` or `hyprlock` PAM. Change any theme's home configuration.
+
+**Verify.**
+1. `nix eval --raw '.#nixosConfigurations.nixos.config.security.pam.services.sddm.text' | grep '^auth'` → `pam_unix.so` with `nodelay` before `substack login`.
+2. `nix eval --json .#nixosConfigurations.nixos.config.services.displayManager.sddm.settings.Theme` → contains `"CursorTheme":"Bibata-Modern-Ice"`.
+3. `nix build --no-link .#greeter-vm` passes.
+
+**Stop if.** The VM cannot drive the greeter: write what blocks it; the GM tests the cases live instead. The patch needs more than `src/daemon/Display.*`: write why and stop.
+
+**AGENTS.md.** One line: `nix build .#greeter-vm` tests the greeter (patched SDDM, password next to fingerprint); run it when SDDM, PAM or `thyx` changes.
+
+**Commit.** `fix(c1s2): greeter pointer and password next to fingerprint`
+
+**GM's turn.**
+- Before the switch, make sure a TTY login works (`Ctrl+Alt+F2`; its PAM does not change); if the greeter breaks, boot the previous generation.
+- `dangonix switch` (sudo), reboot.
+- The pointer is visible and clicks on the session menu work.
+- Type the password while the greeter shows the fingerprint prompt: logs in at once; the keyring is unlocked (no keyring password prompt after login).
+- Reboot, put a finger without typing: logs in.
+- All good → `## c1s2 - виконано`.
+
+---
+
+## c1s3 - Ink and parchment
+meta: tier=hero effort=medium boss=no diff=leaves leaves=~dangonix*,~dangonix-config.json?,+hm_*?,~hm_*?,+*ghostty*?,~*ghostty*?,~*starship*?,~*zed*?,+*dconf*?,~*dconf*?,+*look.json?,+*manuscript*?,~activation-script?
+
+**Goal.** The selected theme decides the look of the core apps through one attrset `dangonix.look`: dark or light (and who switches it), the terminal and editor palettes, the fonts. Ghostty looks like Zed: Manuscript Dark in dark mode, Manuscript Light (paper) in light mode, Zed's code font.
+
+**Why.** [Design §3 «Вигляд»](design.md#вигляд), approved by the GM on 2026-10-21 after mockups. Today Ghostty has no theme or font (`home/programs/terminal.nix`), Zed is pinned to `Manuscript Dark`, and nothing in the repo sets the system `color-scheme`. Noctalia already writes `org.gnome.desktop.interface color-scheme` from its dark/light/auto mode (`theme.sync_color_scheme`, default true: noctalia `src/app/application_services.cpp`, `syncGSettingsColorScheme`); Caelestia does not, so it gets a fixed `dark` that Home Manager writes. Ghostty, Zed and GTK4 apps follow that one value live through the host's existing `xdg-desktop-portal-gtk`; the host does not change. The Manuscript extension (already pinned in `home/zed.nix`) ships both palettes in `themes/manuscript-{dark,light}.json` (keys `themes[0].style."terminal.background"`, `"terminal.foreground"`, `"terminal.ansi.<colour>"`, `"terminal.ansi.bright_<colour>"`, `players[0].cursor`), so Ghostty reads its colours from the same files and the two apps never drift.
+
+**Files.** `home/look.nix` (new), `home/manuscript.nix` (new), `home/kit.nix`, `home/zed.nix`, `home/programs/terminal.nix`, `profiles/noctalia/default.nix`, `profiles/caelestia/default.nix`, `lib/dangonix/dangonix.sh`, `lib/dangonix/default.nix`, `lib/dangonix/commands.nix`, `AGENTS.md`, `docs/progress.md`.
+
+**Read first.** Design §3 «Вигляд»; `home/zed.nix`, `home/programs/terminal.nix`, `home/options.nix` (option style), `home/desktop/icons.nix`; `lib/dangonix/dangonix.sh` (`cmd_status`, `active_theme`).
+
+**Steps.**
+1. `home/manuscript.nix` (new): a function `{ pkgs }:` returning the `pkgs.fetchzip { … }` of `zed-manuscript-theme` now in `home/zed.nix` (same `url` and `hash`, moved, not changed). In `home/zed.nix` the `"zed/extensions/installed/manuscript-theme".source` becomes `import ./manuscript.nix { inherit pkgs; }`.
+2. `home/look.nix` (new), imported from `home/kit.nix`: options under `dangonix.look`:
+   - `appearance`: `types.enum [ "shell" "dark" "light" ]`, **no default** (every theme must choose);
+   - `terminal.dark`, `terminal.light` (str, defaults `"manuscript-dark"`, `"manuscript-light"`): Ghostty theme names;
+   - `editor.dark`, `editor.light` (str, defaults `"Manuscript Dark"`, `"Manuscript Light"`): Zed theme names;
+   - `fonts.mono` (list of str, default `[ "Rec Mono Casual" "Maple Mono" ]`), `fonts.monoSize` (int, default `14`, points), `fonts.ui` (str, default `"Miriam Libre"`).
+   In its `config`: when `appearance != "shell"`, `dconf.settings."org/gnome/desktop/interface".color-scheme = "prefer-${appearance}"`; always `xdg.configFile."dangonix/look.json".text = builtins.toJSON { inherit appearance; theme = config.kit.profile.id; }`.
+3. `profiles/noctalia/default.nix`: `dangonix.look.appearance = "shell";`. `profiles/caelestia/default.nix`: `dangonix.look.appearance = "dark";` with the comment `# Caelestia does not write color-scheme; switch to "shell" once it does.`
+4. `home/programs/terminal.nix`, `programs.ghostty`:
+   - `themes.manuscript-dark` and `themes.manuscript-light`, built by a local `fromZed = file: …` over `lib.importJSON "${import ../manuscript.nix { inherit pkgs; }}/themes/${file}.json"`: `background`, `foreground` from `terminal.background`/`terminal.foreground`; `palette` = 16 strings `"<i>=<hex>"` in the order black red green yellow blue magenta cyan white, then the same with `bright_`; `cursor-color` from `players[0].cursor`; `selection-background` from a literal `{ manuscript-dark = "#433D38"; manuscript-light = "#E0D9C8"; }` (Zed's `players[0].selection` has alpha; these are it mixed over the background).
+   - in `settings` add `theme = "light:${look.terminal.light},dark:${look.terminal.dark}"`, `font-family = look.fonts.mono`, `font-size = look.fonts.monoSize`, `minimum-contrast = 3`. Keep the three existing keys.
+   - in `starship.settings.git_status`, `style = "orange";` → `style = "yellow";` (`orange` is not a starship colour name).
+5. `home/zed.nix`, `userSettings`:
+   - `theme = "Manuscript Dark";` → `theme = { mode = "system"; inherit (config.dangonix.look.editor) dark light; };`. Leave `theme_overrides."Manuscript Dark"` as is (it applies to the dark theme only).
+   - `buffer_font_family` = `head look.fonts.mono`, `buffer_font_fallbacks` = `tail look.fonts.mono`, `ui_font_family` and `agent_ui_font_family` = `look.fonts.ui`; the values stay exactly what they are now. Add `config` to the module arguments.
+6. `lib/dangonix/default.nix`: add `dconf` to `runtimeInputs`.
+7. `lib/dangonix/dangonix.sh`, `cmd_status`: add `look` to the data: `appearance` from `~/.config/dangonix/look.json` (null when missing), `mode` from `dconf read /org/gnome/desktop/interface/color-scheme` (`'prefer-dark'` → `"dark"`, anything else or empty → `"light"`, null when `dconf` fails). Add a text line after the `theme` line, in the same style: `look      <mode> (set by <theme>)` for `shell`, `look      <mode> (fixed by <theme>)` otherwise, `look      unknown` without `look.json`.
+8. `lib/dangonix/commands.nix`, row `status`: summary `"theme, Foundry, and whether the system is built from state.json"` → `"theme, look, Foundry, and whether the system is built from state.json"`.
+
+**Do not.** Touch the host (the portal is already there). Change the Manuscript hash or Zed's `theme_overrides`. Hard-code the 16 colours (read the JSON). Enable Noctalia's Ghostty template or write Noctalia's `settings.toml`. Change the icon theme.
+
+**Verify.**
+1. `nix eval --raw .#homeConfigurations.kit-noctalia.config.programs.ghostty.settings.theme` → `light:manuscript-light,dark:manuscript-dark`.
+2. `nix eval --json .#homeConfigurations.kit-noctalia.config.programs.ghostty.themes.manuscript-light.palette --apply 'p: [ (builtins.length p) (builtins.head p) (builtins.elemAt p 6) ]'` → `[16,"0=#1C1714","6=#4A8580"]`.
+3. `nix eval --json .#homeConfigurations.kit-caelestia.config.dconf.settings --apply 's: s."org/gnome/desktop/interface".color-scheme or null'` → `"prefer-dark"`; the same for `kit-noctalia` → `null`.
+4. `nix eval --json .#homeConfigurations.kit-noctalia.config.programs.zed-editor.userSettings --apply 's: [ s.theme s.buffer_font_family s.buffer_font_fallbacks ]'` → `[{"dark":"Manuscript Dark","light":"Manuscript Light","mode":"system"},"Rec Mono Casual",["Maple Mono"]]`.
+5. `nix eval .#homeConfigurations.kit-noctalia.config.xdg.configFile --apply 'f: builtins.hasAttr "dangonix/look.json" f'` → `true`.
+6. `nix run . -- --json status | jq -e '.data | has("look")'` → `true`.
+7. `scripts/check --fast` passes.
+
+**Stop if.** A theme evaluates without setting `dangonix.look.appearance` (the missing default must stay an error).
+
+**AGENTS.md.** Under *Invariants* add: `- Apps take dark/light, palettes and fonts from \`dangonix.look\` (\`home/look.nix\`); every theme sets \`dangonix.look.appearance\`.`
+
+**Commit.** `feat(c1s3): the theme decides dark or light, Ghostty looks like Zed`
+
+**GM's turn.**
+- `dangonix switch` (Noctalia). Ghostty: dark Manuscript, Rec Mono Casual, fish autosuggestions readable; `dangonix status` has the `look` line.
+- In Noctalia's settings, Appearance: «Sync App Color Scheme» is on and no Ghostty template is enabled. Switch Noctalia to light: Ghostty (open windows), Zed and Nautilus turn light; note whether Claude and Zen follow. Back to dark.
+- `dangonix theme caelestia`: everything is dark, `dangonix status` says `fixed by caelestia`; `dangonix theme noctalia` back.
+- All good → `## c1s3 - виконано`.
+
+---
+
+## c1s4 - Chronicler's quill
+meta: tier=hero effort=medium boss=no diff=none
+
+**Goal.** Every campaign attempt leaves a full event log that a script can condense without a model, a hung or costly attempt is caught, and the next attempt learns from the last one.
+
+**Why.** Until now a Claude run kept only the final result in `.campaign/<id>.<n>.json`; the transcript lived in `~/.claude/projects/` and was deleted after 30 days, and the only hang guard was `QUEST_TIMEOUT`. Done outside the campaign in PR #12 (commit `328b187`); the research is in the project files (`research/agent-profiling.md`). This section records what was built; there is nothing left to run.
+
+**Files.** `scripts/agent`, `scripts/campaign`, `scripts/trace`, `scripts/trace.jq`, `scripts/quest-stop`, `scripts/context-watch`, `.agents/models.md`, `lib/checks.nix` (`checks.trace`), `tests/trace/`, `.claude/settings.json` and `.codex/hooks.json` (Stop hook).
+
+**Done.**
+1. `scripts/agent` logs every event with a `_ts` stamp (Claude `--output-format stream-json --verbose`, Codex `exec --json`), turns off subagents and caps auto-compaction per tier.
+2. `scripts/trace <log>`: one line per tool call with context growth and the TraceProbe-style markers from `scripts/trace.jq` (repeated call, third re-read, search loop of 10+ reads, output over 4k tokens, slow call, long pause), then a summary. `--story` adds a squire's diagnosis (`.campaign/<id>.diagnosis.md`, read by the next attempt) and a lesson line in `.campaign/lessons.md` for the scribe.
+3. `scripts/campaign` stops an attempt whose log stops growing for `QUEST_IDLE` (default `20m`) and runs `trace --story` for failed or costly attempts.
+4. `scripts/quest-stop`: Stop hook (Claude Code and Codex) that once asks a campaign session for its journal entry before it ends.
+5. Context limits per tier (`warn`, `hard`, `compact`) in `.agents/models.md`, read by `scripts/context-watch` for every tier and both CLIs.
+
+**Commit.** `feat(c1s4): campaign traces, idle guard, stop hook and per-tier context limits` (landed as `feat(scripts): …`, `328b187`).
+
+---
+
+## c1s5 - Detour around the toll
+meta: tier=squire effort=medium boss=no diff=leaves leaves=~dangonix*,~hm_*dangonix*?,~*fish-completions?,~man-paths?,~source?
+
+**Goal.** `dangonix update -zen-browser` updates every flake input except the held ones and the ones named with a leading `-`; mixing names with `-<input>` and an unknown input are usage errors (exit 2); fish completes `-<input>`.
+
+**Why.** The GM approved this syntax on 2026-10-21 (design §5 `update` row, §6 held list): a one-off "update everything but X" without editing the held list. Today `cmd_update` in `lib/dangonix/dangonix.sh` takes only names (update exactly those) or nothing (all but held). Global flags are parsed before the command and `-h`/`--help` anywhere becomes `help …`, so any other word after `update` that starts with `-` reaches `cmd_update` and is free for this. `nix flake update` with no inputs updates every input, so an empty update list must never reach it.
+
+**Files.** `lib/dangonix/dangonix.sh`, `lib/dangonix/commands.nix`, `lib/dangonix/completions.nix`, `docs/progress.md`.
+
+**Read first.** Design §5 (`update` row, grammar) and §6 (held list); `cmd_update` and `json_list` in `lib/dangonix/dangonix.sh`; the `update` row in `lib/dangonix/commands.nix`; `values` and `rowLines` in `lib/dangonix/completions.nix`.
+
+**Preconditions.** `grep -c '^cmd_update() {' lib/dangonix/dangonix.sh` prints `1` and the function still begins with `need_flake` and `inputs=$(jq -c '.nodes.root.inputs | keys' "$lock_file")`; otherwise stop.
+
+**Steps.**
+1. In `lib/dangonix/dangonix.sh`, replace the start of `cmd_update`, from `  local inputs named held update` through the line `  [ "$held" = '[]' ] || warn "held, name them to update: $(jq -r 'join(" ")' <<<"$held")"`, with:
+   ```bash
+     local inputs named excluded held update arg
+     local -a names=() skips=()
+     inputs=$(jq -c '.nodes.root.inputs | keys' "$lock_file")
+     for arg; do
+       case $arg in
+       -?*) skips+=("${arg#-}") ;;
+       *) names+=("$arg") ;;
+       esac
+     done
+     [ "${#names[@]}" -eq 0 ] || [ "${#skips[@]}" -eq 0 ] ||
+       usage "name inputs to update or -<input> to skip them, not both"
+     named=$(json_list "${names[@]}")
+     excluded=$(json_list "${skips[@]}")
+     local unknown
+     unknown=$(jq -rn --argjson inputs "$inputs" --argjson named "$named" --argjson excluded "$excluded" \
+       '($named + $excluded) - $inputs | join(" ")')
+     [ -z "$unknown" ] || usage "unknown inputs: $unknown"
+     if [ "${#names[@]}" -gt 0 ]; then
+       update=$named held='[]'
+     else
+       held=$(cfg -c --argjson inputs "$inputs" --argjson excluded "$excluded" \
+         '[.held[] | select(IN($inputs[])) | select(IN($excluded[]) | not)]')
+       update=$(jq -cn --argjson inputs "$inputs" --argjson held "$held" --argjson excluded "$excluded" \
+         '$inputs - $held - $excluded')
+     fi
+     [ "$update" != '[]' ] || usage "nothing left to update"
+     [ "$held" = '[]' ] || warn "held, name them to update: $(jq -r 'join(" ")' <<<"$held")"
+   ```
+   The old `inputs=$(…)` and `named=$(jq -cn '$ARGS.positional' --args "$@")` lines are part of the replaced block; `need_flake` stays the first line.
+2. In the same function, replace every `--argjson update "$update" --argjson held "$held"` (two places: the `planned` call and the `finish` call) with `--argjson update "$update" --argjson held "$held" --argjson excluded "$excluded"`; replace `'{update: $update, held: $held}'` with `'{update: $update, held: $held, excluded: $excluded}'` and `'{update: $update, held: $held, changed: $changed}'` with `'{update: $update, held: $held, excluded: $excluded, changed: $changed}'`.
+3. In the `finish` text of `cmd_update`, after the line `     (if .held == [] then empty else "held: \(.held | join(" "))" end)'`, keep the closing quote at the end and insert before it: change that line to
+   ```
+        (if .held == [] then empty else "held: \(.held | join(" "))" end),
+        (if .excluded == [] then empty else "excluded: \(.excluded | join(" "))" end)'
+   ```
+4. In `lib/dangonix/commands.nix`, `update` row: `args = "[<input>...]";` → `args = "[<input>... | -<input>...]";`, `complete = [ "inputs" ];` → `complete = [ "inputs" "excludes" ];`, summary → `"update every input but the held ones (or only the named ones, or all but -<input>), then check; never switches or commits"`.
+5. In `lib/dangonix/completions.nix`, `values`: after the `inputs = …;` line add
+   `excludes = "-a ${quote "(${jq} -r '.nodes.root.inputs | keys[] | \"-\" + .' ${repo}/flake.lock 2>/dev/null)"}";`
+6. `nix fmt`, then `dangonix check --fast` passes.
+
+**Do not.** Add a flag such as `--except`, change the held list, or make `-<input>` persistent. Touch `flake.lock` in the checkout. Let an empty list reach `nix flake update`.
+
+**Verify.** All with `--dry`, which changes nothing:
+1. `nix run . -- --dry --json update -zen-browser | jq -c '.data | {excluded, held, z: (.update | index("zen-browser")), h: (.update | index("hyprland"))}'` → `{"excluded":["zen-browser"],"held":["hyprland","noctalia","caelestia"],"z":null,"h":null}` (held lists the held inputs that exist in `flake.lock`).
+2. `nix run . -- --dry --json update -zen-browser -nixpkgs-unstable | jq -c '.data.excluded'` → `["zen-browser","nixpkgs-unstable"]`.
+3. `nix run . -- --dry update nixpkgs -zen-browser; echo $status` → message `name inputs to update or -<input> to skip them, not both` and `2`.
+4. `nix run . -- --dry update -no-such-input; echo $status` → `unknown inputs: no-such-input` and `2`.
+5. `nix run . -- --dry --json update nixpkgs | jq -c '.data | {update, excluded}'` → `{"update":["nixpkgs"],"excluded":[]}`.
+6. `nix run . -- --dry --json update | jq -c '.data.excluded'` → `[]`.
+7. `git status --porcelain flake.lock` prints nothing.
+
+**Stop if.** `--dry` runs need something outside `.claude/settings.json` (a `запит: permission`). Any Verify output differs after one fix attempt.
+
+**AGENTS.md.** no change.
+
+**Commit.** `feat(c1s5): dangonix update -<input> skips inputs`
+
+**GM's turn.**
+- `dangonix switch` (the new `dangonix` and its completions), then `dangonix update -zen-browser`: `zen-browser` and the held inputs keep their `flake.lock` revisions (`git diff flake.lock`), the summary shows `excluded: zen-browser`.
+- In fish, `dangonix update -` + Tab offers `-zen-browser` and the other inputs.
+- All good → commit `flake.lock` yourself, then `## c1s5 - виконано`.
+
+---
+
+## c1s6 - Scrying glass
+meta: tier=hero effort=low boss=no diff=none
+
+**Goal.** The GM runs the campaign from one screen: a live diagram of the autopilot loop shows where it is, the dialogs answer its questions, and the running attempt, the Claude quota and what the agent says, thinks and runs are one key away.
+
+**Why.** `scripts/campaign` prints one line per attempt and asks on its own terminal, so between notifications the GM sees nothing; the logs, `runs.tsv` and diagnoses already hold everything (c1s4). Done outside the campaign (the GM asked for it in the project on 2026-10-21); this section records what was built. The campaign itself is unchanged: the TUI runs it in a pseudo-terminal and types the GM's answers into it.
+
+**Files.** `scripts/campaign-tui`, `scripts/campaign_tui.py`, `scripts/claude-statusline`, `lib/repo-apps.nix` (app `campaign-tui`), `lib/checks.nix` (`checks.campaign-tui`).
+
+**Done.**
+1. `scripts/campaign-tui` runs `nix run .#campaign-tui`: Python with Textual from the flake's nixpkgs over the checkout's `scripts/campaign_tui.py`. It reads `docs/tasks.md`, `docs/progress.md`, `.agents/models.md`, `.campaign/` and `/proc`; it writes nothing.
+2. `s` starts `scripts/campaign` (hero and judge CLI) in a pseudo-terminal; its `[y/n]` and one-line questions open a dialog (`a` reopens one closed with Esc); `x` stops it with Ctrl+C; quitting asks first. A campaign started in another terminal is only watched.
+3. The diagram (the autopilot loop of the agentic-workflow map): start, next quest, journal, the agent with the quest procedure's steps 1-7, outcome, squire's diagnosis, the GM's three kinds of answer, written/rerun/timeout. The current box spins and is lit, the steps already passed are green; the agent's step comes from its log (edits → steps, `quest-verify`, `scripts/review`, `git commit`, tags).
+4. Around it: the quest map from the journal; the attempt's quest, tier, CLI, model, effort, attempt, run time, silence against `QUEST_IDLE`, context against the tier's `hard`, steps, output tokens, cost and `scripts/trace` markers; the total spent; the Claude 5-hour and weekly quota. Tabs: `1` steps, `2` thoughts, `3` the campaign's output, `4` `runs.tsv`, `5` diagnosis and lessons; `[` `]` older and newer attempts, `0` live.
+5. Quota: `scripts/claude-statusline`, a Claude Code status line, keeps the newest `rate_limits` (percent used, reset time) in `~/.cache/dangonix/claude-usage.json`; a campaign log's `rate_limit_event` adds its status and reset time.
+6. Look: the terminal's own 16 colours (Textual `ansi-dark`/`ansi-light`, picked from the desktop's `color-scheme` every 30 s, so it follows `dangonix.look`); panels with titled rounded borders, accent while the agent works and yellow while the GM is asked; breadcrumbs (campaign › act › quest › attempt › step); a sparkline of the context; a toast for every attempt that ends; a dot running along the arrows into the active box (and round the loop after an answer or a commit); a banner with the quest id in big letters when an attempt starts; today's attempts on a timeline; `Ctrl+P` commands (trace, diagnosis, raw log, quest section, lessons in `less`; copy the agent's last command). Research: project files `research/tui-design.md`.
+7. `checks.campaign-tui` renders it headless on `tests/trace/` (`campaign_tui.py --selftest`).
+
+**Commit.** `feat(c1s6): campaign-tui runs the campaign with a live diagram`
+
+**GM's turn.**
+- In `~/.claude/settings.json`: `"statusLine": {"type": "command", "command": "/home/kit/nixos/scripts/claude-statusline"}`; after one reply in an interactive Claude Code session `~/.cache/dangonix/claude-usage.json` exists.
+- `scripts/campaign-tui`, `s`, `▶ у бій`: the diagram follows the attempt (agent box, its step), `2` shows its thoughts; the campaign's next question opens a dialog and the answer reaches it (`3`).
+- The quota shows percentages for the session and the week.
+- All good → `## c1s6 - виконано`.
+
+---
+
+## c1q15 - Trial by fire
 meta: tier=hero effort=high boss=no diff=leaves leaves=~dangonix*? rest=c1r2
 
 **Goal.** The transaction cases that break activation on purpose are tested in a VM by `dangonix check --vm`.
@@ -583,6 +856,7 @@ meta: tier=hero effort=high boss=no diff=leaves leaves=~dangonix*? rest=c1r2
 2. `system.activationScripts.dangonixFail = "exit 1";`, `theme <other fixture theme>`: `failedStep: "host"`, `recovered: true`; system, home generation, boot entries and `state.json` unchanged.
 3. Host change + `xdg.configFile."dangonix-test".text = "1";` + a `home.activation` step after `linkGeneration` that exits 1: `failedStep: "home"`, `recovered: true`; `~/.config/dangonix-test` gone; generations unchanged.
 4. While a `theme` switch builds, a second `theme` and `foundry remove main` fail at once with "another … is running".
+5. `theme <other fixture theme>` started inside a transient user unit (`systemd-run --user --unit=victim …`) that is stopped during home activation (c1s1): the journal line is `ok`, the new home is active, no `dangonix-*` unit is left.
 
 **Stop if.** The VM cannot rebuild offline: write what blocks it; the GM decides whether cases 1-4 run live instead.
 
@@ -594,11 +868,11 @@ meta: tier=hero effort=high boss=no diff=leaves leaves=~dangonix*? rest=c1r2
 - `dangonix check --vm` passes on the laptop too.
 - Decide whether `hyprland` tracks release tags (`github:hyprwm/Hyprland?ref=v0.x.y`) instead of git master; tell the scribe in the project.
 - Long rest: read the reviewer's findings, push `redesign`, merge into `main` as a merge commit, sync `main`.
-- All good → `## c1q15 — виконано`.
+- All good → `## c1q15 - виконано`.
 
 ---
 
-## c1q16 — Vow of silence
+## c1q16 - Vow of silence
 meta: tier=hero effort=medium boss=no diff=leaves leaves=+noctalia-runtime-keys*,+python3*?,~hm_*noctalia*?,~kit-fish-completions?,~man-paths?
 
 **Goal.** Noctalia telemetry is off through one named runtime key; nothing else in its `settings.toml` changes.
@@ -628,11 +902,11 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=+noctalia-runtime-keys*
 **GM's turn.**
 - `cp -a ~/.local/state/noctalia/settings.toml ~/settings.toml.bak`; `dangonix switch`; restart Noctalia.
 - `telemetry_enabled` is false in the file and in Noctalia's settings UI; `diff ~/settings.toml.bak ~/.local/state/noctalia/settings.toml` shows only that line; the palette looks the same.
-- All good → `## c1q16 — виконано`.
+- All good → `## c1q16 - виконано`.
 
 ---
 
-## c1q17 — Spirit in the iron
+## c1q17 - Spirit in the iron
 meta: tier=hero effort=medium boss=no diff=leaves leaves=+fwupd*,~dangonix*,+unit-fwupd*?,+*?,~*?
 
 **Goal.** Firmware updates exist, but only on request through `dangonix firmware`.
@@ -659,16 +933,16 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=+fwupd*,~dangonix*,+uni
 
 **GM's turn.**
 - `dangonix switch` (sudo); `dangonix firmware` lists the ThinkPad UEFI/EC; a second run within 24 h does not refresh; `systemctl list-timers | grep fwupd` is empty.
-- All good → `## c1q17 — виконано`.
+- All good → `## c1q17 - виконано`.
 
 ---
 
-## c1q18 — Walling up the old gates
+## c1q18 - Walling up the old gates
 meta: tier=hero effort=medium boss=no diff=leaves leaves=-kit-profile*,-foundry*,~dangonix*?,-hm_*?,~hm_*?,~kit-fish-completions?,~man-paths?
 
 **Goal.** `dangonix` is the only entry point.
 
-**Why.** [Current-state: command surface](current-state.md): one action had up to five entry points.
+**Why.** [Pre-historic state: command surface](pre-historic-state.md): one action had up to five entry points.
 
 **Files.** `justfile` (deleted), `home/theme-switcher.nix` (deleted), `scripts/list-packages.py` (deleted), `scripts/check` (deleted), `flake.nix`, `lib/repo-apps.nix`, `home/kit.nix`, `home/foundry.nix`, `home/programs/terminal.nix`, `README.md`, `.github/workflows/ci.yml`, `scripts/quest-verify`, `AGENTS.md`, `docs/progress.md`.
 
@@ -695,16 +969,16 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=-kit-profile*,-foundry*
 **GM's turn.**
 - Delete the pre-dangonix rules from both permission files: in `.claude/settings.json` the allow rules `scripts/check`, `scripts/check *`, `foundry-status` and the ask rules `just switch`, `just home-switch`, `nix run .#switch`, `nix run .#home-switch`, `kit-profile switch *`, `kit-theme switch *`, `foundry`, `foundry-stop`, `foundry-restart`; in `.codex/rules/dangonix.rules` their counterparts. Commit as `chore(c1q18): drop old permission rules`.
 - `dangonix switch`; `command -v kit-profile` fails; the three Foundry launcher entries work.
-- All good → `## c1q18 — виконано`.
+- All good → `## c1q18 - виконано`.
 
 ---
 
-## c1q19 — True name
+## c1q19 - True name
 meta: tier=hero effort=medium boss=no diff=leaves leaves=~dangonix*,-hm_*?,+hm_*?,~hm_*?
 
 **Goal.** Everything is named dangoNix / theme.
 
-**Why.** Naming drift ([current-state](current-state.md)); [design §2 layout](design.md#2-структура-репо).
+**Why.** Naming drift ([pre-historic-state](pre-historic-state.md)); [design §2 layout](design.md#2-структура-репо).
 
 **Files.** every file `rg` finds in step 4, `profiles/` → `themes/` (moved), `docs/progress.md`; not `docs/` otherwise.
 
@@ -727,11 +1001,11 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=~dangonix*,-hm_*?,+hm_*
 
 **GM's turn.**
 - `dangonix switch`; `cat ~/.config/dangonix/theme-id`; two competing `dangonix` commands still exclude each other.
-- All good → `## c1q19 — виконано`.
+- All good → `## c1q19 - виконано`.
 
 ---
 
-## c1q20 — Seal of the pact ⚔️
+## c1q20 - Seal of the pact ⚔️
 meta: tier=hero effort=high boss=yes diff=leaves leaves=~dangonix*,+hm_*roles*?,~kit-fish-completions?
 
 **Goal.** The theme contract exists as options, Noctalia declares every role, and `dangonix doctor` checks them live.
@@ -743,7 +1017,7 @@ meta: tier=hero effort=high boss=yes diff=leaves leaves=~dangonix*,+hm_*roles*?,
 **Read first.** Design §3 in full; `themes/noctalia/binds.nix`, `themes/caelestia/`.
 
 **Steps.**
-1. `themes/contract.nix`: manifest fields (`status`; Caelestia `experimental`) and the four role kinds incl. "frontend with default"; provider roles name their user unit. `keybindings`, `clipboard`, `search` are registered in campaign II.
+1. `themes/contract.nix`: manifest fields (`status`; Caelestia `experimental`) and the four role kinds incl. "frontend with default"; provider roles name their user unit. `keybindings`, `clipboard`, `search` are registered in campaign II. The declaration `appearance` is `dangonix.look.appearance` (c1s3, design §3 «Вигляд»), not a second option.
 2. Noctalia declares every role, values from `themes/noctalia/binds.nix`.
 3. Warning mode: missing roles in an experimental theme are warnings.
 4. `home/dangonix.nix` writes the active theme's roles to `~/.config/dangonix/roles.json`.
@@ -757,11 +1031,11 @@ meta: tier=hero effort=high boss=yes diff=leaves leaves=~dangonix*,+hm_*roles*?,
 
 **GM's turn.**
 - `dangonix switch`; `dangonix doctor` passes in Noctalia; `systemctl --user stop noctalia` → doctor fails naming notifications, polkit, idle; start it → passes.
-- All good → `## c1q20 — виконано`.
+- All good → `## c1q20 - виконано`.
 
 ---
 
-## c1q21 — Oath of keys
+## c1q21 - Oath of keys
 meta: tier=hero effort=medium boss=no diff=none
 
 **Goal.** Core binds are one list that calls roles; every bind has a description; `hyprland.lua` is byte-identical.
@@ -775,7 +1049,7 @@ meta: tier=hero effort=medium boss=no diff=none
 **Steps.**
 1. Recreate `home/hyprland/binds.nix` as the core bind list calling roles; delete `themes/noctalia/binds.nix`.
 2. Every bind is a record with a human `description` (kept in Nix, not emitted into `hyprland.lua`); every existing bind keeps its full resolved entry.
-3. Caelestia sets `dangonix.hyprland.coreBinds = false` (it has no binds today and must keep none).
+3. Caelestia sets `dangonix.hyprland.coreBinds = false` and keeps its own list `themes/caelestia/binds.nix` (Noctalia's keys calling Caelestia's IPC) until it meets the role contract in campaign II; its `tests/binds/caelestia.json` does not change.
 
 **Do not.** Reorder binds unless the generator would be contorted otherwise; then the sorted lists of full resolved entries must be equal, the fixture must pass, and stop: the GM switches this quest to `diff=leaves` with `~hm_*hyprland.lua*` as the only expected change.
 
@@ -787,11 +1061,11 @@ meta: tier=hero effort=medium boss=no diff=none
 
 **GM's turn.**
 - `dangonix switch`; `dangonix doctor` passes; a few keys behave as before.
-- All good → `## c1q21 — виконано`.
+- All good → `## c1q21 - виконано`.
 
 ---
 
-## c1q22 — Sealing the pact
+## c1q22 - Sealing the pact
 meta: tier=hero effort=medium boss=no diff=none rest=c1r3
 
 **Goal.** Contract checks 3, 4 and 5 run for every theme, and `docs/themes.md` explains the contract.
@@ -817,4 +1091,4 @@ meta: tier=hero effort=medium boss=no diff=none rest=c1r3
 **GM's turn.**
 - `dangonix switch`; `dangonix doctor` passes.
 - Long rest: read the reviewer's findings, push `redesign`, merge into `main`, sync. The scribe then writes campaign II's quests.
-- All good → `## c1q22 — виконано`.
+- All good → `## c1q22 - виконано`.

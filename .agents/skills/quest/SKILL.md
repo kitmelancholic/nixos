@@ -1,6 +1,7 @@
 ---
 name: quest
 description: Run one quest from docs/tasks.md (`quest next`, `quest c1q07`, `quest retry c1q07`)
+disable-model-invocation: true
 ---
 Run exactly one quest, then stop. Argument: $ARGUMENTS (if this still reads
 as a placeholder, the argument is the text after the skill name in the
@@ -11,6 +12,25 @@ End every journal entry with the line `agent: <claude|codex> <model id>`:
 the values of `$DANGONIX_AGENT` and `$DANGONIX_MODEL` when they are set
 (`scripts/agent` sets them), else the model you run as, in full. The GM
 answers an entry below that line; `scripts/campaign` then runs `retry`.
+
+**Ask, don't describe.** When the only thing between you and `виконано` is
+the quest itself (a path missing from *Files*, a guessed `leaves=` or other
+`meta:` value, a precondition with one obvious fix, a file outside the
+quest that fails a check) or a permission (a command or path the steps need
+that is denied), and you know the exact change: write it as a patch and ask.
+- Make the patch without changing the file: `cp <path> .campaign/<id>.new`,
+  edit the copy, then `diff -u --label a/<path> --label b/<path> <path>
+  .campaign/<id>.new >> .campaign/<id>.request.patch` (one file at a time,
+  then delete the copy). `git apply --check --recount
+  .campaign/<id>.request.patch` must pass. If those commands are denied,
+  write the unified diff with the Write tool, three lines of context. A permission changes
+  `.claude/settings.json` and `.codex/rules/dangonix.rules` together.
+- In the `провалений кидок` entry, put `запит: scope - <why>` or
+  `запит: permission - <why>` (one line) right above the `agent:` line.
+- Keep the quest's own work uncommitted, as for any failure. The judge and
+  the GM see the patch in `scripts/campaign`; on yes the campaign applies and
+  commits it, and the `retry` runs on the quest's own tier.
+Never use a request to skip or weaken a step, a *Do not* or a check.
 
 1. Read `AGENTS.md` and the last 20 lines of `docs/progress.md`.
    - If the last entry is `хід майстра` or `провалений кидок` and the
@@ -29,9 +49,12 @@ answers an entry below that line; `scripts/campaign` then runs `retry`.
    lists under *Read first*.
    Do not read other quests or explore beyond what the section names.
    For `retry`, also read the quest's last `провалений кидок` entry and the
-   decision the GM appended under it.
+   decision the GM appended under it. If `.campaign/<id>.diagnosis.md`
+   exists, read it too: the squire's summary of the quest's previous attempt
+   (its first wrong step, what it wasted). Do not repeat that; the section
+   and the journal still decide.
 4. Check *Preconditions*. If one fails or its outcome is not covered by the
-   section, append `## <id> — провалений кидок` (max 5 lines: what, why,
+   section, append `## <id> - провалений кидок` (max 5 lines: what, why,
    what you need from the GM, plus the `agent:` line), commit only
    `docs/progress.md` as `chore(<id>): провалений кидок`, stop.
 5. Do *Steps*. Loop: edit → `nix fmt` → `scripts/check --fast` → fix. Respect *Do not*.
@@ -56,9 +79,9 @@ answers an entry below that line; `scripts/campaign` then runs `retry`.
    body, plus a `BREAKING CHANGE:` line if the subject has `!`. Append to
    `docs/progress.md` in the same commit, each entry ending with the
    `agent:` line:
-   - `## <id> — хід майстра` + the section's *GM's turn* checklist with exact
+   - `## <id> - хід майстра` + the section's *GM's turn* checklist with exact
      commands, if it has one;
-   - otherwise `## <id> — виконано` (max 5 lines).
+   - otherwise `## <id> - виконано` (max 5 lines).
 10. If the quest ends an act (`rest=<tag>` in the meta line): run
     `scripts/review --range <previous rest tag>..HEAD <id>` (skip for `c1r0`,
     which has no previous tag), put its findings and the long-rest steps in a
@@ -66,6 +89,9 @@ answers an entry below that line; `scripts/campaign` then runs `retry`.
     from `scripts/next-version` (`c1r3`: `v1.0.0`), stop.
 
 Never print full build logs (tail -n 40 or grep errors). Never push.
+Never start subagents (Claude's Agent tool, Codex's spawned agents): each
+one rebuilds a whole context and multiplies the cost; read and search
+yourself.
 Never edit `docs/tasks.md`, except the quest's own `meta:` line when the
 GM's decision under the last entry says so. Never edit the files the
 section's shared rules list as never touched by agents; if a step needs

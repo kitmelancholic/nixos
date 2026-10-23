@@ -11,6 +11,13 @@
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
 
+    # Home Manager module (home/hermes.nix). Keeps its own nixpkgs: with
+    # nixpkgs-unstable, npm segfaults while building hermes-tui.
+    hermes-agent = {
+      url = "github:NousResearch/hermes-agent";
+      inputs.home-manager.follows = "home-manager"; # only its checks use it
+    };
+
     zen-browser = {
       url = "github:youwen5/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -56,7 +63,10 @@
       };
     };
 
-    thyx.url = "github:rccyx/thyx";
+    thyx = {
+      url = "github:rccyx/thyx";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     noctalia.url = "github:noctalia-dev/noctalia";
     caelestia.url = "github:caelestia-dots/shell";
@@ -73,7 +83,9 @@
       inherit (nixpkgs) lib;
       system = "x86_64-linux";
       username = "kit";
-      settings = import ./lib/settings.nix { inherit system username; };
+      state = lib.importJSON ./state.json;
+      settings = import ./lib/settings.nix { inherit system username state; };
+      foundryTable = lib.importJSON "${inputs.foundryvtt}/pkgs/foundryvtt/versions.json";
       pkgs = nixpkgs.legacyPackages.${settings.system};
       homePkgs = import nixpkgs {
         inherit (settings) system;
@@ -90,9 +102,20 @@
           lib
           settings
           pkgs
+          foundryTable
           homeManagerPackage
           profileRegistry
           ;
+      };
+      dangonix = import ./lib/dangonix {
+        inherit
+          lib
+          pkgs
+          settings
+          foundryTable
+          ;
+        themes = profileIds;
+        repo = "${settings.homeDirectory}/nixos";
       };
       nixosConfiguration = nixpkgs.lib.nixosSystem {
         inherit system;
@@ -108,7 +131,9 @@
           inputs.thyx.nixosModules.default
         ];
       };
-      profileRegistry = import ./profiles;
+      profileRegistry = import ./profiles // {
+        default = state.theme;
+      };
       profileIds = builtins.sort builtins.lessThan (builtins.attrNames profileRegistry.profiles);
       defaultProfile = profileRegistry.default;
       profileName = profileId: "${settings.username}-${profileId}";
@@ -129,63 +154,18 @@
         ${settings.username} = profileHomes.${defaultProfile};
       }
       // lib.mapAttrs' (profileId: home: lib.nameValuePair (profileName profileId) home) profileHomes;
-      homeChecks = lib.genAttrs profileIds (profileId: profileHomes.${profileId}.activationPackage);
-      hyprlandCheck =
-        themeId: home:
-        let
-          hyprlandLua = home.config.xdg.configFile."hypr/hyprland.lua".text;
-        in
-        pkgs.runCommand "hyprland-check-${themeId}"
-          {
-            nativeBuildInputs = [
-              pkgs.lua5_4
-              hyprlandPkg
-            ];
-          }
-          ''
-            export XDG_RUNTIME_DIR="$TMPDIR/runtime"
-            mkdir -p "$XDG_RUNTIME_DIR"
-            config="$TMPDIR/hyprland.lua"
-              cat ${pkgs.writeText "hyprland.lua" hyprlandLua} > "$config"
-              luac -p "$config"
-              Hyprland --verify-config --config "$config"
-              touch "$out"
-          '';
-      hyprlandChecks = lib.genAttrs profileIds (
-        profileId: hyprlandCheck profileId profileHomes.${profileId}
-      );
-      profileCheck =
-        assert builtins.elem defaultProfile profileIds;
-        assert builtins.all (
-          profileId: builtins.pathExists profileRegistry.profiles.${profileId}.module
-        ) profileIds;
-        assert lib.length (lib.unique (map profileName profileIds)) == lib.length profileIds;
-        assert builtins.all (
-          profileId: profileHomes.${profileId}.config.kit.profile.id == profileId
-        ) profileIds;
-        pkgs.runCommand "profile-check" {
-          buildInputs = (builtins.attrValues homeChecks) ++ (builtins.attrValues hyprlandChecks);
-        } "touch $out";
-      selectorSource = builtins.readFile ./home/theme-switcher.nix;
-      selectorArchitectureCheck =
-        assert builtins.all (needle: !(lib.hasInfix needle selectorSource)) [
-          "waybar.service"
-          "dunst.service"
-          "swayosd.service"
-          "wallpaper-apply"
-          "noctalia.service"
-          "caelestia.service"
-        ];
-        pkgs.runCommand "profile-selector-check" { } "touch $out";
-      profileOwnershipCheck =
-        assert profileHomes.noctalia.config.programs.noctalia.enable;
-        assert profileHomes.noctalia.config.programs.noctalia.systemd.enable;
-        assert
-          profileHomes.noctalia.config.programs.noctalia.settings.shell.launch_apps_as_systemd_services;
-        assert profileHomes.caelestia.config.programs.caelestia.enable;
-        assert profileHomes.caelestia.config.programs.caelestia.systemd.enable;
-        assert profileHomes.caelestia.config.programs.caelestia.cli.enable;
-        pkgs.runCommand "profile-ownership-check" { } "touch $out";
+      checks = import ./lib/checks.nix {
+        inherit
+          lib
+          pkgs
+          hyprlandPkg
+          profileRegistry
+          profileHomes
+          ;
+        src = self;
+        inherit (repoApps) staticCheckCommand;
+        host = nixosConfiguration;
+      };
     in
     {
       nixosConfigurations.${settings.hostname} = nixosConfiguration;
@@ -207,36 +187,26 @@
         ];
       };
 
-      checks.${settings.system} = {
-        static =
-          pkgs.runCommand "static-checks"
-            {
-              nativeBuildInputs = with pkgs; [
-                deadnix
-                nixfmt-tree
-                statix
-              ];
-            }
-            ''
-              cp -r --no-preserve=mode ${self} repo
-              cd repo
-              ${repoApps.staticCheckCommand}
-              touch $out
-            '';
-        profile = profileCheck;
-        profile-selector = selectorArchitectureCheck;
-        profile-ownership = profileOwnershipCheck;
-        theme = profileCheck;
-        hyprland = hyprlandChecks.${defaultProfile};
-        home = homeConfigurations.${settings.username}.activationPackage;
-      }
-      // lib.mergeAttrsList (
-        map (profileId: {
-          "home-${profileId}" = homeChecks.${profileId};
-          "hyprland-${profileId}" = hyprlandChecks.${profileId};
-        }) profileIds
-      );
+      checks.${settings.system} = checks;
 
-      apps.${settings.system} = repoApps.apps;
+      packages.${settings.system} = {
+        dangonix = dangonix.package;
+        # Not in checks: boots two VMs (`nix build .#greeter-vm`).
+        greeter-vm = import ./tests/greeter-vm { inherit pkgs; };
+        # Not in checks: boots a VM and builds a host and a home in it
+        # (`dangonix check --vm`).
+        dangonix-vm = import ./tests/dangonix-vm {
+          inherit pkgs;
+          inherit (inputs) nixpkgs home-manager;
+        };
+      };
+
+      apps.${settings.system} = repoApps.apps // {
+        default = {
+          type = "app";
+          program = "${dangonix.package}/bin/dangonix";
+          meta.description = "dangonix, the one CLI of dangoNix";
+        };
+      };
     };
 }

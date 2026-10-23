@@ -1,6 +1,9 @@
 # Shell command rules for Codex, mirroring the Bash rules of .claude/settings.json
 # (allow = run without asking, prompt = ask, forbidden = never). Keep both
-# in sync; from c1q13 both are generated from the dangonix command table.
+# in sync. Claude allows every command but its ask and deny rules; Codex runs
+# any command inside its sandbox, so here the prompt and forbidden rules are
+# the limits and an allow rule lets a command run outside the sandbox. The
+# dangonix rules are checked against lib/dangonix/commands.nix (checks.commands).
 prefix_rule(pattern=["scripts/check"], decision="allow")
 prefix_rule(pattern=["scripts/quest-verify"], decision="allow")
 prefix_rule(pattern=["scripts/closure-diff"], decision="allow")
@@ -65,3 +68,37 @@ prefix_rule(pattern=["nix", "run", ".", "--", "--flake", "./.campaign/wt-c1q14",
 prefix_rule(pattern=["nix", "run", ".", "--", "--flake", "./.campaign/wt-c1q22", "check"], decision="allow")
 prefix_rule(pattern=["dangonix", "--dry"], decision="allow")
 prefix_rule(pattern=["dangonix", "check"], decision="allow")
+# Changes that git cannot undo (Claude: the deny rules).
+prefix_rule(pattern=["git", "checkout", "--", "."], decision="forbidden")
+prefix_rule(pattern=["git", "restore", "."], decision="forbidden")
+prefix_rule(pattern=["git", "restore", "--", "."], decision="forbidden")
+prefix_rule(pattern=["git", "commit", "--amend"], decision="forbidden")
+prefix_rule(pattern=["git", "rebase"], decision="forbidden")
+prefix_rule(pattern=["git", "filter-branch"], decision="forbidden")
+prefix_rule(pattern=["git", "branch", "-D"], decision="forbidden")
+prefix_rule(pattern=["git", "tag", "-d"], decision="forbidden")
+prefix_rule(pattern=["git", "stash", "drop"], decision="forbidden")
+prefix_rule(pattern=["git", "stash", "clear"], decision="forbidden")
+# Every dangonix command that is not read-only asks (Claude: the ask rules).
+prefix_rule(pattern=["dangonix", "switch"], decision="prompt")
+prefix_rule(pattern=["nix", "run", ".", "--", "switch"], decision="prompt")
+prefix_rule(pattern=["dangonix", "update"], decision="prompt")
+prefix_rule(pattern=["nix", "run", ".", "--", "update"], decision="prompt")
+prefix_rule(pattern=["dangonix", "theme"], decision="prompt")
+prefix_rule(pattern=["nix", "run", ".", "--", "theme"], decision="prompt")
+prefix_rule(pattern=["dangonix", "foundry", "start"], decision="prompt")
+prefix_rule(pattern=["nix", "run", ".", "--", "foundry", "start"], decision="prompt")
+prefix_rule(pattern=["dangonix", "foundry", "stop"], decision="prompt")
+prefix_rule(pattern=["nix", "run", ".", "--", "foundry", "stop"], decision="prompt")
+prefix_rule(pattern=["dangonix", "foundry", "restart"], decision="prompt")
+prefix_rule(pattern=["nix", "run", ".", "--", "foundry", "restart"], decision="prompt")
+prefix_rule(pattern=["dangonix", "foundry", "open"], decision="prompt")
+prefix_rule(pattern=["nix", "run", ".", "--", "foundry", "open"], decision="prompt")
+prefix_rule(pattern=["dangonix", "foundry", "import"], decision="prompt")
+prefix_rule(pattern=["nix", "run", ".", "--", "foundry", "import"], decision="prompt")
+prefix_rule(pattern=["dangonix", "foundry", "upgrade"], decision="prompt")
+prefix_rule(pattern=["nix", "run", ".", "--", "foundry", "upgrade"], decision="prompt")
+prefix_rule(pattern=["dangonix", "foundry", "add"], decision="prompt")
+prefix_rule(pattern=["nix", "run", ".", "--", "foundry", "add"], decision="prompt")
+prefix_rule(pattern=["dangonix", "foundry", "remove"], decision="prompt")
+prefix_rule(pattern=["nix", "run", ".", "--", "foundry", "remove"], decision="prompt")

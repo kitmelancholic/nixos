@@ -1,17 +1,33 @@
 #!/usr/bin/env bash
 # Autopilot: run quests from docs/tasks.md one fresh agent session at a time,
-# with the tier and effort from each quest's meta line, until a journal entry
-# is anything but `виконано`. A quest whose last entry the GM has answered
-# (see quest_state) is retried by the cleric; one still waiting for the GM
-# stops the run before any agent starts.
-#   campaign [--agent claude|codex] [--judge claude|codex]
+# with the tier and effort from each quest's meta line. Whenever a quest waits
+# for the GM, the GM answers here instead of in the journal:
+# - `запит: scope|permission` (the agent knows the exact change, in
+#   .campaign/<id>.request.patch): the judge gives a recommendation, the GM
+#   answers y/n; on y this script applies and commits the patch and retries
+#   on the quest's own tier;
+# - `хід майстра`: the checklist is shown; on y this script records
+#   `виконано` and carries on;
+# - any other `провалений кидок`: the GM types a one-line decision, the
+#   cleric retries.
+# An agent that exits without a journal entry is retried once on its own
+# tier. Without a terminal (or with --no-ask) every such case stops the run.
+#   campaign [--agent claude|codex] [--judge claude|codex] [--no-ask]
 # --agent  the hero's CLI (default claude); --judge  the CLI behind
-# scripts/review (default: the hero's). Models per tier: AGENTS.md. Each
-# run's log goes to .campaign/<id>.json (gitignored).
+# scripts/review (default: the hero's). Models per tier: .agents/models.md.
+# Each attempt's log (every event of the session, see scripts/agent) goes to
+# .campaign/<id>.<n>.json, one line per attempt to .campaign/runs.tsv (all of
+# .campaign/ is gitignored); `scripts/trace <log>` shows what it did. A log
+# that stops growing for $QUEST_IDLE (20m) is a hung attempt: it is stopped
+# and counts as an exit without a journal entry. An attempt that did not end
+# in `виконано` or `хід майстра`, hit a permission denial or cost more than
+# $QUEST_STORY_COST (2 USD) gets a diagnosis by the squire
+# (`scripts/trace --story`), which the next attempt of the quest reads.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 agent=claude
 judge=
+ask=1
 while [[ ${1:-} == --* ]]; do
   case $1 in
   --agent | --judge)
@@ -22,6 +38,10 @@ while [[ ${1:-} == --* ]]; do
     declare "${1#--}=$2"
     shift 2
     ;;
+  --no-ask)
+    ask=0
+    shift
+    ;;
   *)
     echo "campaign: unknown flag $1" >&2
     exit 2
@@ -31,32 +51,55 @@ done
 export DANGONIX_JUDGE=${judge:-$agent}
 mkdir -p .campaign
 limit=${QUEST_TIMEOUT:-3h}
+idle_limit=${QUEST_IDLE:-20m}
+{ : </dev/tty; } 2>/dev/null || ask=0
 
-stop() {
+notify() {
   if command -v notify-send >/dev/null 2>&1; then
     notify-send "dangoNix" "$1" 2>/dev/null || true
   fi
+}
+
+stop() {
+  notify "$1"
   echo "$1"
   exit "${2:-1}"
 }
 
+# Ask the GM on the terminal; the answer goes to $reply. Without a terminal
+# the run stops with the question as its message.
+prompt() {
+  ((ask)) || stop "$1" 0
+  notify "$1"
+  reply=
+  read -r -p "$1 " reply </dev/tty || stop "$1" 0
+}
+
 next_quest() {
-  grep -oP '^## \Kc\d+q\d+(?= )' docs/tasks.md | while read -r id; do
-    grep -q "^## $id — виконано" docs/progress.md || {
+  grep -oP '^## \Kc\d+[qs]\d+(?= )' docs/tasks.md | while read -r id; do
+    grep -q "^## $id - виконано" docs/progress.md || {
       echo "$id"
       break
     }
   done
 }
 
-# The quest's state from its last journal entry: `new` (none yet), `retry`
-# (the GM answered it: a `благословення` entry, or any text the GM wrote
-# below the entry's closing `agent:` line), or `gm` (it waits for the GM).
-quest_state() {
+# The quest's last journal entry, heading included.
+last_entry() {
   awk -v id="$1" '
-    $0 ~ "^## " id " — " { kind = $0; sub(/^## [^ ]+ — /, "", kind); gm = after = stop = 0; next }
-    /^## / { if (kind != "") stop = 1 }
-    stop || kind == "" { next }
+    $0 ~ "^## " id " - " { buf = $0 "\n"; on = 1; next }
+    /^## / { on = 0 }
+    on { buf = buf $0 "\n" }
+    END { printf "%s", buf }' docs/progress.md
+}
+
+# The quest's state from its last journal entry: `new` (none yet), `done`,
+# `retry` (the GM answered it: a `благословення` entry, or any text the GM
+# wrote below the entry's closing `agent:` line), or `gm` (it waits for the
+# GM).
+quest_state() {
+  last_entry "$1" | awk '
+    NR == 1 { kind = $0; sub(/^## [^ ]+ - /, "", kind); next }
     /^agent:/ { after = 1; next }
     after && NF { gm = 1 }
     END {
@@ -64,7 +107,49 @@ quest_state() {
       else if (kind == "виконано") print "done"
       else if (kind == "благословення" || gm) print "retry"
       else print "gm"
-    }' docs/progress.md
+    }'
+}
+
+# 90, 20m, 3h → seconds.
+seconds() {
+  case $1 in
+  *h) echo $((${1%h} * 3600)) ;;
+  *m) echo $((${1%m} * 60)) ;;
+  *s) echo "${1%s}" ;;
+  *) echo "$1" ;;
+  esac
+}
+
+# Run the agent in the background and watch its log: scripts/agent writes
+# every event as it happens, so a log that stops growing is a hang. timeout
+# without --foreground signals the agent's whole process group, also on a
+# hang and on Ctrl+C here. Sets run_rc and idle.
+run_agent() {
+  local id=$1 log=$2 prompt=$3 size=-1 now last pid wait_max
+  wait_max=$(seconds "$idle_limit")
+  idle=0
+  last=$(date +%s)
+  DANGONIX_QUEST=$id DANGONIX_QUEST_HEAD=$(git rev-parse HEAD) \
+    timeout "$limit" scripts/agent run "$agent" "$tier" "$effort" "$log" "$prompt" &
+  pid=$!
+  # shellcheck disable=SC2064  # expand now: pid is local
+  trap "kill -TERM $pid 2>/dev/null; wait $pid; exit 130" INT TERM
+  while kill -0 "$pid" 2>/dev/null; do
+    sleep 5
+    now=$(date +%s)
+    if [[ $(stat -c %s "$log" 2>/dev/null || echo 0) != "$size" ]]; then
+      size=$(stat -c %s "$log" 2>/dev/null || echo 0)
+      last=$now
+    elif ((now - last >= wait_max)); then
+      idle=1
+      echo "$id: no output for $idle_limit, stopping the attempt"
+      kill -TERM "$pid" 2>/dev/null
+      break
+    fi
+  done
+  wait "$pid"
+  run_rc=$?
+  trap - INT TERM
 }
 
 # Each CLI has its own skill syntax; both load .agents/skills/quest.
@@ -75,7 +160,108 @@ invoke() {
   esac
 }
 
-for _ in $(seq 25); do
+# Append the GM's answer below the quest's last entry (the end of the
+# journal: the quest runs last) and commit only the journal and the given
+# paths.
+answer() {
+  local id=$1 subject=$2 text=$3
+  shift 3
+  printf '%s\n' "$text" >>docs/progress.md
+  if ! git add -- docs/progress.md "$@" ||
+    ! git commit -q -m "chore($id): $subject" -- docs/progress.md "$@"; then
+    stop "$id: could not commit the GM's answer (see git status)"
+  fi
+}
+
+# `запит: scope|permission`: judge, then the GM. On y the patch is applied
+# and committed by this script, so protected files (.claude/settings.json)
+# change only with the GM's y, never by the agent.
+request() {
+  local id=$1 kind=$2 patch=.campaign/$1.request.patch verdict p
+  local -a clean=() dirty=()
+  echo
+  echo "== $id просить розширити: $kind"
+  last_entry "$id" | sed -n '2,$p' | grep -v '^agent:'
+  [[ -s $patch ]] || {
+    prompt "$id: немає $patch. Рішення одним рядком (порожньо = стоп):"
+    [[ -n $reply ]] || stop "$id: waiting for the GM" 0
+    answer "$id" "рішення GM" "GM (campaign, $(date +%F)): $reply"
+    return
+  }
+  echo "-- $patch"
+  cat "$patch"
+  git apply --check --recount "$patch" 2>/dev/null || {
+    echo "-- патч не накладається на робоче дерево"
+    prompt "$id: рішення одним рядком (порожньо = стоп):"
+    [[ -n $reply ]] || stop "$id: waiting for the GM" 0
+    answer "$id" "рішення GM" "GM (campaign, $(date +%F)): $reply"
+    return
+  }
+  echo "-- суддя ($DANGONIX_JUDGE)"
+  verdict=$(scripts/review --request "$id") || verdict="(суддя не відповів, див. .campaign/$id.request.review.json)"
+  echo "$verdict"
+  prompt "Розширити скоуп $id? [y/n]"
+  case $reply in
+  y | Y | т | Т)
+    # A path that already holds uncommitted work is patched but left
+    # uncommitted, so the GM's commit never carries the quest's work.
+    while read -r p; do
+      if [[ -z $(git status --porcelain -- "$p") ]]; then
+        clean+=("$p")
+      else
+        dirty+=("$p")
+      fi
+    done < <(git apply --numstat --recount "$patch" | cut -f3)
+    git apply --recount "$patch" || stop "$id: git apply failed"
+    ((${#dirty[@]} == 0)) || echo "$id: не закомічено (там уже є робота квесту): ${dirty[*]}"
+    mv "$patch" "$patch.applied"
+    answer "$id" "розширено скоуп" \
+      "GM (campaign, $(date +%F)): так, $kind: патч $patch.applied; retry: own tier" \
+      "${clean[@]}"
+    ;;
+  *)
+    prompt "Чому ні / що натомість (порожньо = стоп):"
+    [[ -n $reply ]] || stop "$id: waiting for the GM" 0
+    mv "$patch" "$patch.rejected"
+    answer "$id" "рішення GM" "GM (campaign, $(date +%F)): ні - $reply"
+    ;;
+  esac
+}
+
+# `хід майстра`: the GM works through the checklist, then answers.
+gm_turn() {
+  local id=$1
+  echo
+  echo "== $id: хід майстра"
+  last_entry "$id" | sed -n '2,$p' | grep -v '^agent:'
+  prompt "Пройди чекліст. Усе добре? [y/n]"
+  case $reply in
+  y | Y | т | Т)
+    printf '\n## %s - виконано\nGM перевірив чекліст у campaign (%s).\n' "$id" "$(date +%F)" >>docs/progress.md
+    git commit -q -m "chore($id): виконано" -- docs/progress.md ||
+      stop "$id: could not commit the journal (see git status)"
+    ;;
+  *)
+    prompt "Що не так (одним рядком, порожньо = стоп):"
+    [[ -n $reply ]] || stop "$id: waiting for the GM" 0
+    answer "$id" "рішення GM" "GM (campaign, $(date +%F)): $reply"
+    ;;
+  esac
+}
+
+# Any other entry that waits for the GM: a one-line decision.
+gm_decision() {
+  local id=$1
+  echo
+  last_entry "$id"
+  prompt "Рішення для $id одним рядком (порожньо = стоп):"
+  [[ -n $reply ]] || stop "$id: waiting for the GM" 0
+  answer "$id" "рішення GM" "GM (campaign, $(date +%F)): $reply"
+}
+
+attempt=0
+declare -A crashed=()
+while ((attempt < ${QUEST_ATTEMPTS:-25})); do
   id=$(next_quest)
   [[ -n $id ]] || stop "Campaign complete" 0
   meta=$(awk -v id="$id" '$0 ~ "^## " id " " {f=1; next} f && /^meta:/ {print; exit}' docs/tasks.md)
@@ -83,40 +269,80 @@ for _ in $(seq 25); do
   effort=$(grep -oP 'effort=\K\S+' <<<"$meta")
   arg=$id
   state=$(quest_state "$id")
-  # A new quest on a dirty tree fails on someone else's changes; a retry keeps
-  # the failed run's uncommitted work on purpose.
-  [[ $state != new || -z $(git status --porcelain --untracked-files=no) ]] ||
-    stop "Uncommitted changes: commit or stash them first"
-  case $state in
-  gm) stop "$(grep -E "^## $id — " docs/progress.md | tail -n 1): waiting for the GM" 0 ;;
-  retry) arg="retry $id" tier=cleric ;;
-  esac
-  before=$(git rev-parse HEAD)
-  log=.campaign/$id.json
-  echo "== $id ($agent $(scripts/agent model "$agent" "$tier"), $effort) → $log"
-  timeout --foreground "$limit" scripts/agent run "$agent" "$tier" "$effort" \
-    "$log" "$(invoke "$arg")"
-  rc=$?
-  ((rc == 124)) && stop "$id: timed out after $limit"
-  ((rc == 0)) || stop "$id: $agent exited $rc (see $log)"
-  denied=0
-  if [[ $agent == claude ]]; then
-    denied=$(jq '.permission_denials | length' "$log" 2>/dev/null || echo "?")
-  fi
-  [[ $(git rev-parse HEAD) != "$before" ]] ||
-    stop "$id: no new commit ($denied permission denials, see $log)"
-  last=$(grep -E '^## c[0-9]+q[0-9]+ — ' docs/progress.md | tail -n 1)
-  # A denial the agent worked around (quest-verify passed, `виконано`) is
-  # noted, not fatal; on any other outcome it is the likely cause.
-  case $last in
-  *"— виконано"*)
-    [[ $denied == 0 ]] || echo "$id: $denied permission denials (see $log)"
+  if [[ $state == gm ]]; then
+    entry=$(last_entry "$id")
+    kind=$(grep -oP '^запит:\s*\K(scope|permission)' <<<"$entry" | tail -n 1)
+    if [[ -n $kind ]]; then
+      request "$id" "$kind"
+    elif [[ $(head -n 1 <<<"$entry") == *"хід майстра"* ]]; then
+      gm_turn "$id"
+    else
+      gm_decision "$id"
+    fi
     continue
+  fi
+  # A new quest on a dirty tree fails on someone else's changes; a retry (or
+  # the rerun after a crash) keeps the failed run's uncommitted work on purpose.
+  [[ $state != new || -n ${crashed[$id]:-} || -z $(git status --porcelain --untracked-files=no) ]] ||
+    stop "Uncommitted changes: commit or stash them first"
+  if [[ $state == retry ]]; then
+    arg="retry $id"
+    # A widened scope or permission was the quest's fault, not the hero's:
+    # the retry stays on the quest's tier. Any other answer goes to the cleric.
+    last_entry "$id" | grep -q 'retry: own tier$' || tier=cleric
+  fi
+  attempt=$((attempt + 1))
+  n=1
+  while [[ -e .campaign/$id.$n.json ]]; do n=$((n + 1)); done
+  log=.campaign/$id.$n.json
+  model=$(scripts/agent model "$agent" "$tier")
+  before=$(git rev-parse HEAD)
+  journal=$(last_entry "$id" | md5sum)
+  echo "== $id ($agent $model, $effort) → $log"
+  start=$(date +%s)
+  run_agent "$id" "$log" "$(invoke "$arg")"
+  rc=$run_rc
+  denied=0 cost=
+  # A finished Claude session ends with its result event.
+  result=$(jq -c 'select(.type == "result")' "$log" 2>/dev/null | tail -n 1)
+  if [[ -n $result ]]; then
+    denied=$(jq '.permission_denials // [] | length' <<<"$result")
+    cost=$(jq -r '.total_cost_usd // empty' <<<"$result")
+    # The denials themselves: a new one is a gap to close with
+    # `запит: permission`, not a reason to babysit.
+    jq -r '.permission_denials[]? | "  denied \(.tool_name): \(.tool_input.command // .tool_input.file_path // "" | gsub("\n"; " ") | .[0:120])"' \
+      <<<"$result" | head -n 10
+  fi
+  outcome=$(last_entry "$id" | head -n 1 | sed -E 's/^## [^ ]+ - //')
+  [[ $(last_entry "$id" | md5sum) != "$journal" ]] || outcome="(no entry)"
+  ((idle)) && outcome="(idle) $outcome"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%sm\t%s\t%s\t%s\n' "$(date +%FT%T)" \
+    "$id" "$n" "$agent" "$model" "$tier" "$rc" "$((($(date +%s) - start) / 60))" \
+    "${cost:--}" "$denied" "$outcome" >>.campaign/runs.tsv
+  # A diagnosis by the squire for anything worth a look; the next attempt
+  # reads .campaign/<id>.diagnosis.md. It never stops the campaign.
+  if [[ ${QUEST_STORY:-1} != 0 ]] && {
+    [[ $outcome != виконано && $outcome != "хід майстра" ]] || [[ $denied != 0 ]] ||
+      awk -v c="${cost:-0}" -v m="${QUEST_STORY_COST:-2}" 'BEGIN { exit !(c > m) }'
+  }; then
+    echo "== $id: diagnosis by the squire"
+    scripts/trace --story "$log" "$outcome" || echo "$id: no diagnosis (see ${log%.json}.story.json)"
+  fi
+  ((rc == 124)) && stop "$id: timed out after $limit"
+  # No journal entry: the agent crashed, ran out of turns or context. Rerun
+  # once on the same tier; a second time it is the GM's.
+  if [[ $outcome == "(no entry)" || $(git rev-parse HEAD) == "$before" ]]; then
+    [[ -z ${crashed[$id]:-} ]] ||
+      stop "$id: $agent exited $rc with no new commit twice ($denied permission denials, see $log)"
+    crashed[$id]=1
+    echo "$id: $agent exited $rc with no new commit; one rerun on $tier"
+    continue
+  fi
+  case $outcome in
+  виконано)
+    [[ $denied == 0 ]] || echo "$id: $denied permission denials (see $log)"
     ;;
-  *)
-    [[ $denied == 0 ]] || last="$last; $denied permission denials (see $log)"
-    stop "$last" 0
-    ;;
+  *) echo "$id: $outcome" ;;
   esac
 done
-stop "Stopped after 25 quests" 0
+stop "Stopped after ${QUEST_ATTEMPTS:-25} agent runs" 0

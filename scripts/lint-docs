@@ -23,7 +23,7 @@ done
 
 # 2. Quest headings: c1q00..c1qNN contiguous, each exactly once.
 tasks=docs/tasks.md
-mapfile -t ids < <(grep -oP '^## \Kc\d+q\d+(?= — )' "$tasks")
+mapfile -t ids < <(grep -oP '^## \Kc\d+q\d+(?= - )' "$tasks")
 ((${#ids[@]})) || err "$tasks: no quest headings"
 dups=$(printf '%s\n' "${ids[@]}" | sort | uniq -d)
 [[ -z $dups ]] || err "$tasks: duplicate quest ids: $dups"
@@ -57,7 +57,7 @@ for id in "${ids[@]}"; do
   esac
   tier=$(grep -oP '\btier=\K\S+' <<<"$meta" || true)
   [[ $tier =~ ^(squire|hero|cleric)$ ]] || err "$id: tier must be squire, hero or cleric, got '$tier'"
-  grep -qP '\bmodel=' <<<"$meta" && err "$id: models live in AGENTS.md, not in meta"
+  grep -qP '\bmodel=' <<<"$meta" && err "$id: models live in .agents/models.md, not in meta"
   # shellcheck disable=SC2016  # literal backticks
   subject=$(grep -oP '^\*\*Commit\.\*\* `\K[^`]+' <<<"$section" || true)
   if [[ -z $subject ]]; then

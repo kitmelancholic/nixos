@@ -9,31 +9,37 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
 - A theme never changes the host: themes live in the home configuration only.
 - Every theme passes the checks (`scripts/check`).
 - Never remove or rebind an existing key binding.
+- Apps take dark/light, palettes and fonts from `dangonix.look` (`home/look.nix`); every theme sets `dangonix.look.appearance`.
 
 ## Loop
 
-`edit → nix fmt → scripts/check --fast → scripts/quest-verify <id>`
+`edit → nix fmt → dangonix check --fast → dangonix check → scripts/closure-diff`
 
+- `dangonix` is the one CLI (`lib/dangonix/`; `nix run . -- …` before it is
+  installed); discover it with `dangonix --dry --json commands`. `--dry`
+  plans any command, `scripts/check` is `dangonix check`.
 - `git add` new files before any check (flakes ignore untracked files);
   stage paths explicitly, never `git commit -a`.
 - State-changing tests run in a worktree under `.campaign/` (tasks.md rules).
 - Never print full build logs (`tail -n 40`); full check via `quest-verify`.
-- Unsure of an option or package name: ask the `nixos` MCP server (mcp-nixos,
-  26.05 channel). It does not know flake-input options (Noctalia, Caelestia,
-  Home Manager): run `scripts/opt [--home [<theme id>]] <option path>`.
+- `dangonix check --vm` runs the VM transaction tests (slow; run it when
+  transaction code changes).
+- `nix build .#greeter-vm` tests the greeter; run it when SDDM, PAM or `thyx` change.
+- Unsure of a name: ask the `nixos` MCP server (mcp-nixos, 26.05); options
+  of flake inputs (Noctalia, Caelestia, HM): `scripts/opt [--home [<id>]] <path>`.
+- Never start subagents. Compaction keeps the quest id, changed files, last `quest-verify`.
+- A sandbox error from `nix` itself (`Operation not permitted`, `Permission
+  denied` on a repo file) does not go away on retry: after the first one,
+  write `провалений кидок` with the error line and `запит: permission`, as
+  the quest skill says; never retry or work around it.
+- Add to `docs/progress.md` with Edit, never Write.
 
 ## Quests
 
 - `/quest next|<id>|retry <id>` (Claude Code) or `$quest …` (Codex) runs
-  `.agents/skills/quest/SKILL.md`; state is only `docs/` and git.
-- Models per tier (`meta:` names tier and effort; `scripts/agent` reads it):
-
-  | tier   | claude            | codex          |
-  |--------|-------------------|----------------|
-  | squire | claude-haiku-5-5  | gpt-5.6-luna   |
-  | hero   | claude-sonnet-5-5 | gpt-5.6-terra  |
-  | cleric | claude-opus-5-5   | gpt-5.6-sol    |
-  | judge  | claude-opus-5-5   | gpt-5.6-sol    |
+  `.agents/skills/quest/SKILL.md`; state is only `docs/` and git. Model and
+  context limits per tier (`meta:` names it): `.agents/models.md`. What an
+  attempt did: `scripts/trace .campaign/<id>.<n>.json`.
 
 ## Git
 
@@ -44,16 +50,18 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
 ## Permissions
 
 - Same Bash rules in `.claude/settings.json` and `.codex/rules/dangonix.rules`;
-  change both together. Headless runs refuse anything not allowed.
-- Both run `git-guard` and the fail-closed `bash-guard` (no hook = no Bash).
-  Claude also runs `scripts/context-watch`: obey its 80k/95k-token warnings.
-- Edit/Write deny rules exist only in Claude Code; Codex has no file-edit
-  hook, so its sandbox and the GM's review guard those paths.
+  change both together. Denied: push, `reset --hard`, `clean`, history
+  rewrites; ask (refused headless): sudo, rebuilds, real `dangonix` changes.
+  A refusal the quest needs lifted is a `запит: permission`.
+- Both run `git-guard` and the fail-closed `bash-guard` (no hook = no Bash),
+  and `scripts/context-watch`: obey its context warnings.
 
 ## Layout
 
 - `hosts/` the one NixOS host; `home/` Home Manager modules for every theme.
 - `profiles/` theme registry (default `noctalia`) and shell themes.
-- `lib/` flake helpers; `scripts/` checks, quest tooling, git hooks, `opt`.
-- `docs/` vision, design, plan, journal.
-- `.agents/skills/` shared skills; `.claude/`, `.codex/` per-CLI config.
+- `lib/` flake helpers, `lib/dangonix/` (command table `commands.nix`), checks
+  in `lib/checks.nix`; `scripts/` quest tooling, git hooks, `opt`.
+- `state.json` holds the GM's choices; change it only when asked. The bind
+  fixture `tests/binds/` changes only with a declared behavior change.
+- `docs/` vision, design, plan, journal; `.agents/` shared skills and models.

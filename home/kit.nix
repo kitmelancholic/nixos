@@ -11,14 +11,17 @@ in
   imports = [
     ./options.nix
     ./agents.nix
+    ./dangonix.nix
     ./desktop.nix
     ./foundry.nix
+    ./look.nix
     ./programs.nix
     ./packages.nix
     ./theme-switcher.nix
     ./hyprland
     ./zed.nix
     ./claude-desktop.nix
+    ./hermes.nix
     ./openmpi.nix
     ./pdf2md.nix
   ];

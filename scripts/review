@@ -2,10 +2,35 @@
 # The judge: a separate agent session reviews a quest's change against its
 # section in docs/tasks.md and prints concrete defects, or `no defects`.
 #   review [--range <a>..<b>] <id>      default: the staged diff
+#   review --request <id>   scripts/campaign: should the GM grant the quest's
+#                           `запит:` (.campaign/<id>.request.patch)? Prints
+#                           a recommendation in a few lines.
 # The judge's CLI is $DANGONIX_JUDGE, else $DANGONIX_AGENT, else claude.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 range=
+if [[ ${1:-} == --request ]]; then
+  id=${2:?usage: review --request <quest id>}
+  agent=${DANGONIX_JUDGE:-${DANGONIX_AGENT:-claude}}
+  # Everything the judge needs is in the prompt, so the call stays short.
+  section=$(awk -v id="$id" '$0 ~ "^## " id " " { f = 1 } f && /^## / && $0 !~ "^## " id " " { exit } f' docs/tasks.md)
+  entry=$(awk -v id="$id" '$0 ~ "^## " id " - " { b = ""; on = 1 } /^## / && $0 !~ "^## " id " " { on = 0 } on { b = b $0 "\n" } END { printf "%s", b }' docs/progress.md)
+  mkdir -p .campaign
+  exec scripts/agent ask "$agent" judge medium ".campaign/$id.request.review.json" "You are the judge for quest $id of this repo. The agent stopped and asks the GM to widen the quest's scope or permissions with a patch. Decide whether the GM should say yes. Yes only if the patch is the smallest change that removes a real defect of the quest (wrong scope, guessed leaves=, a file outside Files that the steps need, a missing permission for a command the steps name) and does not let the agent skip or weaken what the quest demands. Everything you need is below; read a file only if the patch cannot be judged without it, and change nothing.
+
+Quest section:
+$section
+
+Journal entry:
+$entry
+
+Patch (.campaign/$id.request.patch):
+$(cat ".campaign/$id.request.patch")
+
+$(git diff --stat HEAD)
+
+Answer in Ukrainian, at most 4 lines: the first line is exactly РЕКОМЕНДУЮ or НЕ РЕКОМЕНДУЮ, then why, and what to do instead if not."
+fi
 if [[ ${1:-} == --range ]]; then
   range=${2:?--range needs <a>..<b>}
   shift 2
