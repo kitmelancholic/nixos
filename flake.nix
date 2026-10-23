@@ -11,6 +11,13 @@
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
 
+    # Home Manager module (home/hermes.nix). Keeps its own nixpkgs: with
+    # nixpkgs-unstable, npm segfaults while building hermes-tui.
+    hermes-agent = {
+      url = "github:NousResearch/hermes-agent";
+      inputs.home-manager.follows = "home-manager"; # only its checks use it
+    };
+
     zen-browser = {
       url = "github:youwen5/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";

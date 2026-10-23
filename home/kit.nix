@@ -21,6 +21,7 @@ in
     ./hyprland
     ./zed.nix
     ./claude-desktop.nix
+    ./hermes.nix
     ./openmpi.nix
     ./pdf2md.nix
   ];
