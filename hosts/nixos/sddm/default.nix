@@ -70,4 +70,11 @@ in
       };
     };
   };
+
+  # The same empty password reaches the login substack once the finger
+  # times out, and the lock screen checks typed passwords with login too.
+  # A running daemon without a login keyring creates one with whatever
+  # password it gets, so only a password unix-early accepted goes on.
+  security.pam.services.login.rules.auth.unix-early.control =
+    lib.mkForce "[success=ignore default=1]";
 }
