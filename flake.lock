@@ -86,11 +86,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1792774191,
-        "narHash": "sha256-Q7lLCYZthX5dvRw55VOyx4IHbqM5Vo6cayR9lHXAssU=",
+        "lastModified": 1792781814,
+        "narHash": "sha256-YV1rJ/+Cl8+H8oX0VmXXn8LFtEBG5odgxKzaQ+y0WNk=",
         "owner": "patrickjaja",
         "repo": "claude-desktop-extra",
-        "rev": "9a65e5cadba1a5fd11af5b91e2bf82508d88a54f",
+        "rev": "2fe612cd62b69c5d24ca3dc681e00cc7f865bed9",
         "type": "github"
       },
       "original": {
@@ -187,11 +187,11 @@
         "uv2nix": "uv2nix"
       },
       "locked": {
-        "lastModified": 1792777802,
-        "narHash": "sha256-ympL0HZOrUYX2XT1POjPwWO5d8t1723zYV7/tJ8/I44=",
+        "lastModified": 1792781692,
+        "narHash": "sha256-jpy6avr8KKE7055eQJmaRHeFwb1riuhT2N0aoZU5g2E=",
         "owner": "NousResearch",
         "repo": "hermes-agent",
-        "rev": "3324ed330ed0a23b4bf12a50ddb5d144631dd583",
+        "rev": "290080e19e8e143d35f67427e89aed662161faf8",
         "type": "github"
       },
       "original": {
