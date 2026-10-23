@@ -27,6 +27,18 @@ let
     };
   };
 
+  # `pi install npm:…` runs npm (into ~/.pi/agent/npm). Suffix, not prefix:
+  # the agent's bash tool inherits this PATH, so a project's node still wins.
+  piWithNpm = pkgs.symlinkJoin {
+    inherit (pkgsUnstable.pi-coding-agent) name meta;
+    paths = [ pkgsUnstable.pi-coding-agent ];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      wrapProgram $out/bin/pi --suffix PATH : ${pkgs.lib.makeBinPath [ pkgsUnstable.nodejs ]} \
+        --set-default NPM_CONFIG_UPDATE_NOTIFIER false
+    '';
+  };
+
   kccWithKindlegen = pkgs.kcc.overrideAttrs (old: {
     makeWrapperArgs = old.makeWrapperArgs ++ [
       "--prefix PATH : ${pkgs.lib.makeBinPath [ kindlegen ]}"
@@ -64,8 +76,6 @@ in
 
       # Internet and communication
       inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.zen-browser
-      vivaldi # browser
-      vivaldi-ffmpeg-codecs # Extra media codecs for Vivaldi
       qbittorrent
       anki
       telegram-desktop
@@ -74,7 +84,7 @@ in
       # Development adjacent
       unityhub
       mono # Unity/legacy .NET compatibility
-      goose-cli
+      piWithNpm # pi-coding-agent from unstable (26.05 lags far behind); sets PI_SKIP_VERSION_CHECK=1, PI_TELEMETRY=0
       pkgsUnstable.claude-code # unstable: tracks upstream releases closely; wrapper sets DISABLE_AUTOUPDATER=1
       pkgsUnstable.codex # unstable, no self-update (check_for_update_on_startup = false)
       mcp-nixos # NixOS/Home Manager option and package lookup for both agents
