@@ -378,3 +378,8 @@ agent: claude claude-sonnet-5-5
 
 ## c1q15 - виконано
 GM перевірив чекліст у campaign (2026-10-23).
+
+## c1q16 - провалений кидок
+Роботу зроблено (`profiles/noctalia/{default,runtime-keys}.nix`, `lib/checks.nix`, `AGENTS.md`), перевірка `noctalia-runtime-keys` і `scripts/check --fast` зелені, але `quest-verify c1q16` двічі падає в `nix flake check` на `packages.x86_64-linux.greeter-vm`: `option nodes.stockWeston.security.pam.services.login.rules.auth.unix-early.order was accessed but has no value defined`, і sandbox відмовляє `channels.nixos.org:443`. Це поза файлами квесту (`tests/greeter-vm`, ймовірно `<nixpkgs>` з NIX_PATH). Потрібно: GM виправляє `greeter-vm` або дозволяє мережу; робота лишена незакоміченою для retry.
+запит: scope - `tests/greeter-vm` не оцінюється, що блокує повний `scripts/check`
+agent: claude claude-sonnet-5-5
