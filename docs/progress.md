@@ -446,3 +446,11 @@ agent: claude claude-sonnet-5-5
 
 ## c1q19 - виконано
 GM перевірив чекліст у campaign (2026-10-24).
+
+## c1q20 - хід майстра
+`themes/contract.nix` (опції `dangonix.roles.*`, `status` у маніфесті, відсутня обов'язкова роль: помилка в stable, одне warning в experimental), `themes/noctalia/roles.nix` (усі ролі), `~/.config/dangonix/roles.json` (з `home/dangonix.nix`), `dangonix doctor` (read), `dangonix check` виводить warnings Caelestia. `quest-verify` зелений; змінені: `dangonix`, `dangonix-config.json`, `dangonix.fish`, `hm_dangonixroles.json`. Живі проби `doctor` (D-Bus, systemd, journal) у пісочниці агента недоступні: вони перевірені лише на відсутність сесії.
+- Суддя: `hyprpolkitagent.service` у Noctalia незалежний від `noctalia.service` (`themes/common/hyprpolkitagent.nix` поза *Files*), тож `systemctl --user stop noctalia` не зламає polkit, на відміну від чекліста. Проба polkit: рядок `Registered Authentication Agent` у журналі `polkit.service` (чистий від `Unregistered`), інакше `Adding new listener` в журналі агента. Якщо polkit має падати разом із Noctalia, потрібне окреме рішення (`PartOf=noctalia.service`).
+- `dangonix switch`; `dangonix doctor` проходить у Noctalia (в `state.json` зараз `caelestia`: спершу `dangonix theme noctalia`; Caelestia дає лише warning про ролі).
+- `systemctl --user stop noctalia` → `doctor` падає на notifications та idle (polkit лишається зеленим, див. вище); `start noctalia` → знову проходить.
+- Усе гаразд → `## c1q20 - виконано`.
+agent: claude claude-sonnet-5-5

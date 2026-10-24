@@ -666,6 +666,116 @@ cmd_status() {
   finish "$data" "$text"
 }
 
+# cmd_doctor: the running session against the roles of the active theme
+# (~/.config/dangonix/roles.json, written by home/dangonix.nix): the declared
+# provider owns org.freedesktop.Notifications, a polkit agent is registered,
+# an idle provider runs, at most one clipboard writer. Roles an experimental
+# theme leaves out are warnings.
+cmd_doctor() {
+  no_args "$@"
+  local roles_file="${XDG_CONFIG_HOME:-$HOME/.config}/dangonix/roles.json"
+  [ -f "$roles_file" ] || fail 1 "doctor: no $roles_file (dangonix switch writes it)"
+  local findings='[]' theme status unit missing level owners owner_unit since line writers
+  finding() {
+    findings=$(jq -c --arg name "$1" --arg status "$2" --arg detail "$3" \
+      '. + [{name: $name, status: $status, detail: $detail}]' <<<"$findings")
+  }
+  role_unit() { jq -r --arg role "$1" '.roles[$role].unit // empty' "$roles_file"; }
+  theme=$(jq -r .theme "$roles_file")
+  status=$(jq -r .status "$roles_file")
+
+  missing=$(jq -r '.missing | join(" ")' "$roles_file")
+  if [ -n "$missing" ]; then
+    level=fail
+    [ "$status" = stable ] || level=warn
+    finding roles "$level" "no provider for: $missing"
+  fi
+
+  # Notifications: one claimant on the bus, and it is the declared unit.
+  unit=$(role_unit notifications)
+  if [ -n "$unit" ]; then
+    if owners=$(busctl --user --json=short call org.freedesktop.DBus /org/freedesktop/DBus \
+      org.freedesktop.DBus ListQueuedOwners s org.freedesktop.Notifications 2>/dev/null |
+      jq -c '.data[0]') && [ "$(jq length <<<"$owners")" -gt 0 ]; then
+      if [ "$(jq length <<<"$owners")" -gt 1 ]; then
+        finding notifications fail "several claim org.freedesktop.Notifications: $(jq -r 'join(" ")' <<<"$owners")"
+      else
+        owner_unit=$(busctl --user status "$(jq -r '.[0]' <<<"$owners")" 2>/dev/null |
+          sed -n 's/^UserUnit=//p')
+        if [ "$owner_unit" = "$unit" ]; then
+          finding notifications ok "$unit owns org.freedesktop.Notifications"
+        else
+          finding notifications fail "org.freedesktop.Notifications is owned by ${owner_unit:-a process outside a unit}, the theme declares $unit"
+        fi
+      fi
+    else
+      finding notifications fail "nobody owns org.freedesktop.Notifications (declared: $unit)"
+    fi
+  fi
+
+  # Polkit: the Authority interface cannot list agents. polkitd logs every
+  # registration, so its journal since the agent started is the proof (net of
+  # unregistrations); when that journal is unreadable, the agent's unit is
+  # active and its own registration line (`registered`, required) is in its
+  # journal.
+  unit=$(role_unit polkit)
+  if [ -n "$unit" ]; then
+    if ! systemctl --user is-active --quiet "$unit"; then
+      finding polkit fail "$unit is not active"
+    else
+      line=$(jq -r '.roles.polkit.registered // empty' "$roles_file")
+      since=$(systemctl --user show -p ActiveEnterTimestamp --value "$unit")
+      polkitd=$(journalctl -u polkit.service --since "$since" -o cat --no-pager 2>/dev/null || true)
+      if [ -n "$polkitd" ]; then
+        if [ "$(grep -c 'Registered Authentication Agent' <<<"$polkitd" || true)" -gt \
+          "$(grep -c 'Unregistered Authentication Agent' <<<"$polkitd" || true)" ]; then
+          finding polkit ok "$unit is active and polkitd has an agent registered"
+        else
+          finding polkit fail "$unit is active but polkitd has no agent registered since it started"
+        fi
+      elif [ -z "$line" ]; then
+        finding polkit fail "$unit is active; polkitd's journal is unreadable and the theme declares no registration line"
+      elif [ "$(journalctl --user -u "$unit" --since "$since" -o cat --no-pager 2>/dev/null |
+        grep -cF -- "$line")" -gt 0 ]; then
+        finding polkit ok "$unit is active and logged \"$line\""
+      else
+        finding polkit fail "$unit is active but its journal has no \"$line\""
+      fi
+    fi
+  fi
+
+  unit=$(role_unit idle)
+  if [ -n "$unit" ]; then
+    if systemctl --user is-active --quiet "$unit"; then
+      finding idle ok "$unit is running"
+    else
+      finding idle fail "$unit is not active"
+    fi
+  fi
+
+  writers=$(pgrep -fc 'wl-paste .*--watch|cliphist store|wl-clip-persist' || true)
+  if [ "$writers" -le 1 ]; then
+    finding clipboard ok "$writers clipboard history writer(s)"
+  else
+    finding clipboard fail "$writers clipboard history writers (at most one)"
+  fi
+
+  local data text failures
+  data=$(jq -cn --arg theme "$theme" --arg status "$status" --argjson findings "$findings" \
+    '{theme: $theme, status: $status, findings: $findings}')
+  text='.findings[] | "\(.status | (. + "    ")[0:5]) \(.name | (. + "             ")[0:14]) \(.detail)"'
+  if ((json)); then
+    while IFS= read -r line; do warn "$line"; done < <(jq -r '.findings[] | select(.status == "warn") | "\(.name): \(.detail)"' <<<"$data")
+  fi
+  failures=$(jq '[.findings[] | select(.status == "fail")] | length' <<<"$data")
+  if [ "$failures" -gt 0 ]; then
+    if ((json)); then envelope 1 "$data"; else jq -r "$text" <<<"$data"; fi
+    log "dangonix: doctor: $failures problem(s) in theme $theme"
+    exit 1
+  fi
+  finish "$data" "$text"
+}
+
 # rows_text: the jq filter that lists command rows as text.
 rows_text='
   def pad(n): . + ([range(0; n - length)] | map(" ") | add // "");
@@ -747,15 +857,19 @@ cmd_check() {
   # shellcheck disable=SC2064  # expand now: check_log is local
   trap "rm -f '$check_log'" EXIT
 
-  # check_step <name> <command...>: logs to a temp file, its tail on failure.
+  # check_step <name> <command...>: logs to a temp file, its tail on failure;
+  # a theme's contract warnings (themes/contract.nix) are passed on.
   check_step() {
-    local name=$1
+    local name=$1 line
     shift
     say "== $name"
     if ! "$@" >"$check_log" 2>&1; then
       tail -n 40 "$check_log" >&2
       fail 1 "check: $name failed"
     fi
+    while IFS= read -r line; do
+      warn "${line#trace: warning: }"
+    done < <(grep -h '^trace: warning: theme ' "$check_log" | sort -u)
     passed+=("$name")
   }
 
@@ -1256,7 +1370,7 @@ case $noun in
   use status
   cmd_status "$@"
   ;;
-status | help | commands | version | history | check | switch | update)
+status | doctor | help | commands | version | history | check | switch | update)
   use "$noun"
   "cmd_$noun" "$@"
   ;;

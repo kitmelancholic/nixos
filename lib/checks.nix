@@ -42,8 +42,15 @@ let
           "description"
           "module"
           "name"
+          "status"
         ]
-      ) "${id}: manifest fields must be exactly name, description, module"
+      ) "${id}: manifest fields must be exactly name, description, module, status"
+      ++ lib.optional (
+        !builtins.elem (entry.status or null) [
+          "stable"
+          "experimental"
+        ]
+      ) "${id}: status must be stable or experimental"
       ++ lib.optional (!isText (entry.name or null)) "${id}: name must be a non-empty string"
       ++ lib.optional (
         !isText (entry.description or null)

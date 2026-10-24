@@ -31,6 +31,12 @@ map row [
     summary = "theme, look, Foundry, and whether the system is built from state.json";
   }
   {
+    id = "doctor";
+    name = "doctor";
+    effect = "read";
+    summary = "the running session against the theme's roles: notifications owner, polkit agent, idle provider, clipboard writers";
+  }
+  {
     id = "help";
     name = "help";
     args = "[<command>]";

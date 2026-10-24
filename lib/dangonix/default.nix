@@ -86,6 +86,7 @@ let
       jq
       nix
       nvd
+      procps
       systemd
       util-linux
       xdg-utils

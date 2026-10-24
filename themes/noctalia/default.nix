@@ -15,6 +15,7 @@ in
   imports = [
     inputs.noctalia.homeModules.default
     ../common/hyprpolkitagent.nix
+    ./roles.nix
   ];
 
   dangonix.look.appearance = "shell";
