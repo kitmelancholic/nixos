@@ -17,7 +17,6 @@ in
     ./look.nix
     ./programs.nix
     ./packages.nix
-    ./theme-switcher.nix
     ./hyprland
     ./zed.nix
     ./claude-desktop.nix

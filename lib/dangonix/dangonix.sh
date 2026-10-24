@@ -389,7 +389,7 @@ execute() {
 }
 
 # tx_begin: refuse (exit 4) unless the user is right and the lock is free.
-# The lock is kit-profile's, so the two never activate home at once.
+# One lock per user, so two runs never activate home at once.
 tx_begin() {
   local user lock
   user=$(id -un)
@@ -402,7 +402,7 @@ tx_begin() {
     lock=$state_dir/kit/home-activation.lock
   fi
   exec 9>"$lock"
-  flock -n 9 || fail 4 "another dangonix or kit-profile run holds $lock"
+  flock -n 9 || fail 4 "another dangonix run holds $lock"
   tx_running=1
   # A closed terminal must neither stop the transaction (SIGHUP is inherited
   # by activate and switch-to-configuration) nor lose its log.

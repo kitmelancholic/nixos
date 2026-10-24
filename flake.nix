@@ -97,16 +97,7 @@
         config.allowUnfree = true;
       };
       hyprlandPkg = inputs.hyprland.packages.${settings.system}.hyprland;
-      repoApps = import ./lib/repo-apps.nix {
-        inherit
-          lib
-          settings
-          pkgs
-          foundryTable
-          homeManagerPackage
-          profileRegistry
-          ;
-      };
+      repoApps = import ./lib/repo-apps.nix { inherit pkgs; };
       dangonix = import ./lib/dangonix {
         inherit
           lib
@@ -136,7 +127,6 @@
       };
       profileIds = builtins.sort builtins.lessThan (builtins.attrNames profileRegistry.profiles);
       defaultProfile = profileRegistry.default;
-      profileName = profileId: "${settings.username}-${profileId}";
       mkHomeConfiguration = import ./lib/mk-home.nix {
         inherit
           home-manager
@@ -150,10 +140,7 @@
           ;
       };
       profileHomes = lib.genAttrs profileIds mkHomeConfiguration;
-      homeConfigurations = {
-        ${settings.username} = profileHomes.${defaultProfile};
-      }
-      // lib.mapAttrs' (profileId: home: lib.nameValuePair (profileName profileId) home) profileHomes;
+      homeConfigurations.${settings.username} = profileHomes.${defaultProfile};
       checks = import ./lib/checks.nix {
         inherit
           lib
@@ -178,7 +165,6 @@
         packages = with pkgs; [
           deadnix
           git
-          just
           nil
           nixd
           nixfmt
@@ -191,6 +177,7 @@
 
       packages.${settings.system} = {
         dangonix = dangonix.package;
+        campaign-tui = repoApps.scripts.campaignTui;
         # Not in checks: boots two VMs (`nix build .#greeter-vm`).
         greeter-vm = import ./tests/greeter-vm { inherit pkgs; };
         # Not in checks: boots a VM and builds a host and a home in it
@@ -201,7 +188,7 @@
         };
       };
 
-      apps.${settings.system} = repoApps.apps // {
+      apps.${settings.system} = {
         default = {
           type = "app";
           program = "${dangonix.package}/bin/dangonix";

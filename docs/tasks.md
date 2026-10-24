@@ -938,7 +938,7 @@ meta: tier=hero effort=medium boss=no diff=leaves leaves=+fwupd*,~dangonix*,+uni
 ---
 
 ## c1q18 - Walling up the old gates
-meta: tier=hero effort=medium boss=no diff=leaves leaves=-kit-profile*,-foundry*,~dangonix*?,-hm_*?,~hm_*?,~kit-fish-completions?,~man-paths?
+meta: tier=hero effort=medium boss=no diff=leaves leaves=-kit-profile*,-foundry*,~dangonix*?,-hm_*?,~hm_*?,~kit-fish-completions?,~man-paths?,~config.fish
 
 **Goal.** `dangonix` is the only entry point.
 

@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-# `dangonix check` (lib/dangonix/dangonix.sh) is the check; this stays for CI
-# and scripts/quest-verify.
-#   check --docs   docs, commit messages since origin/main, shellcheck
-#   check --fast   --docs + every check and host derivation, evaluated only
-#   check          --docs + full `nix flake check` (builds every theme)
-set -euo pipefail
-exec nix run "$(git rev-parse --show-toplevel)" -- check "$@"

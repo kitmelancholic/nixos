@@ -42,14 +42,9 @@ in
     fish = {
       enable = true;
       shellAbbrs = {
-        jc = "just check";
-        jf = "just fmt";
-        jp = "just packages";
-        js = "just flake-show";
         gst = "git status";
         gsw = "git switch";
         nd = "nix develop";
-        nfu = "nix flake update";
       };
       interactiveShellInit = ''
         set fish_greeting

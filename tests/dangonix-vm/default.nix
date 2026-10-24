@@ -242,7 +242,7 @@ pkgs.testers.runNixOSTest {
         for args in ["theme alpha", "foundry remove main"]:
             code, envelope, log = run(args)
             assert code == 4, (args, code, log)
-            assert "another dangonix or kit-profile run holds" in envelope["data"]["error"], envelope
+            assert "another dangonix run holds" in envelope["data"]["error"], envelope
         machine.wait_until_succeeds("test -e /tmp/first.status", timeout=600)
         assert machine.succeed("cat /tmp/first.status").strip() == "0", machine.succeed("cat /tmp/first.err")
         assert json.loads(machine.succeed("cat /tmp/first.json"))["ok"] is True

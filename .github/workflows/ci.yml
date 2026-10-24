@@ -22,8 +22,8 @@ jobs:
       - uses: cachix/install-nix-action@v31
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
-      - name: scripts/check --fast
-        run: scripts/check --fast
+      - name: dangonix check --fast
+        run: nix run . -- check --fast
 
   # From c1q03: every quest commit must change exactly what its meta line
   # declares (scripts/quest-verify), compared with its parent.

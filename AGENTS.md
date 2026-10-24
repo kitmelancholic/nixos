@@ -7,7 +7,7 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
 
 - Never edit `hosts/nixos/hardware-configuration.nix`.
 - A theme never changes the host: themes live in the home configuration only.
-- Every theme passes the checks (`scripts/check`).
+- Every theme passes the checks (`dangonix check`).
 - Never remove or rebind an existing key binding.
 - Apps take dark/light, palettes and fonts from `dangonix.look` (`home/look.nix`); every theme sets `dangonix.look.appearance`.
 - Noctalia's `settings.toml` wins over declarations; enforce runtime keys only through the named list.
@@ -18,7 +18,7 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
 
 - `dangonix` is the one CLI (`lib/dangonix/`; `nix run . -- …` before it is
   installed); discover it with `dangonix --dry --json commands`. `--dry`
-  plans any command, `scripts/check` is `dangonix check`.
+  plans any command.
 - `git add` new files before any check (flakes ignore untracked files);
   stage paths explicitly, never `git commit -a`.
 - State-changing tests run in a worktree under `.campaign/` (tasks.md rules).

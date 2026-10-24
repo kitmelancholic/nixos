@@ -3,7 +3,7 @@
 # named by the quest's meta line in docs/tasks.md.
 #   quest-verify [--oracle-only] [--base <rev>] <id>
 # --base   compare with <rev> instead of HEAD (CI: the quest commit's parent)
-# --oracle-only   skip scripts/check (CI runs it as its own job)
+# --oracle-only   skip dangonix check (CI runs it as its own job)
 set -euo pipefail
 base=HEAD
 full=1
@@ -42,8 +42,8 @@ removed=$(get removed)
 leaves=$(get leaves)
 
 if ((full)); then
-  echo "== $id: scripts/check"
-  scripts/check --full
+  echo "== $id: dangonix check"
+  nix run . -- check --full
 fi
 
 case $mode in

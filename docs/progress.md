@@ -426,3 +426,11 @@ GM перевірив чекліст у campaign (2026-10-24).
 запит: scope - додати `~config.fish` до `leaves=` квесту c1q18 (і за бажанням дозволити правку тексту `kit-profile` у dangonix.sh та VM-тесті)
 agent: claude claude-sonnet-5-5
 GM (campaign, 2026-10-24): розширяй скоуп, я дозволяю
+
+## c1q18 - хід майстра
+`just`, `theme-switcher`, `kit-profile`, `kit-theme`, `foundry*`, `scripts/check` і всі flake apps, крім `default`, прибрано; `leaves=` розширено на `~config.fish` (рішення GM), `kit-profile` прибрано з повідомлення блокування в `dangonix.sh` і VM-тесту; `quest-verify` зелений.
+- Видалити старі правила з `.claude/settings.json` (allow: `scripts/check`, `scripts/check *`, `foundry-status`; ask: `just switch`, `just home-switch`, `nix run .#switch`, `nix run .#home-switch`, `kit-profile switch *`, `kit-theme switch *`, `foundry`, `foundry-stop`, `foundry-restart`) і їхні відповідники з `.codex/rules/dangonix.rules`; коміт `chore(c1q18): drop old permission rules`.
+- `dangonix check --vm` (агент запустив, результату не дочекався: змінено текст помилки блокування в `tx_begin` і його assert у VM-тесті).
+- `dangonix switch`; `command -v kit-profile` падає; три Foundry-ярлики працюють.
+- Усе гаразд → `## c1q18 - виконано`.
+agent: claude claude-opus-5-5
