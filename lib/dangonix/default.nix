@@ -8,7 +8,7 @@
   foundryTable,
   # theme ids, for completions
   themes,
-  # the checkout dangonix works on outside one (`kit.repo`)
+  # the checkout dangonix works on outside one (`dangonix.repo`)
   repo,
 }:
 

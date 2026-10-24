@@ -12,8 +12,8 @@ let
   dangonix = import ../lib/dangonix {
     inherit lib pkgs settings;
     foundryTable = lib.importJSON "${inputs.foundryvtt}/pkgs/foundryvtt/versions.json";
-    themes = builtins.attrNames profileRegistry.profiles;
-    inherit (config.kit) repo;
+    themes = builtins.attrNames profileRegistry.themes;
+    inherit (config.dangonix) repo;
   };
 in
 {

@@ -1,5 +1,5 @@
 {
-  profiles = {
+  themes = {
     noctalia = {
       name = "Noctalia";
       description = "Noctalia v5 as the complete Wayland desktop shell.";

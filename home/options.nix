@@ -1,7 +1,7 @@
 { config, lib, ... }:
 
 {
-  options.kit = {
+  options.dangonix = {
     repo = lib.mkOption {
       type = lib.types.str;
       default = "${config.home.homeDirectory}/nixos";
@@ -9,10 +9,10 @@
       description = "The dangoNix checkout dangonix works on when run outside one.";
     };
 
-    profile.id = lib.mkOption {
+    theme.id = lib.mkOption {
       type = lib.types.strMatching "[a-z0-9][a-z0-9-]*";
       readOnly = true;
-      description = "Stable identifier of the selected Home Manager desktop profile.";
+      description = "Stable identifier of the selected Home Manager desktop theme.";
     };
 
     apps = {

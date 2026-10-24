@@ -1,5 +1,5 @@
 {
-  description = "kitOS v0.16.3";
+  description = "dangoNix";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
@@ -122,10 +122,10 @@
           inputs.thyx.nixosModules.default
         ];
       };
-      profileRegistry = import ./profiles // {
+      profileRegistry = import ./themes // {
         default = state.theme;
       };
-      profileIds = builtins.sort builtins.lessThan (builtins.attrNames profileRegistry.profiles);
+      profileIds = builtins.sort builtins.lessThan (builtins.attrNames profileRegistry.themes);
       defaultProfile = profileRegistry.default;
       mkHomeConfiguration = import ./lib/mk-home.nix {
         inherit

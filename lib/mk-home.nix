@@ -10,14 +10,14 @@
 }:
 
 profileId:
-assert builtins.elem profileId (builtins.attrNames profileRegistry.profiles);
+assert builtins.elem profileId (builtins.attrNames profileRegistry.themes);
 home-manager.lib.homeManagerConfiguration {
   pkgs = homePkgs;
   modules = [
     ../home/kit.nix
-    profileRegistry.profiles.${profileId}.module
+    profileRegistry.themes.${profileId}.module
     {
-      kit.profile.id = profileId;
+      dangonix.theme.id = profileId;
     }
   ];
   extraSpecialArgs = {

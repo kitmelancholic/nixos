@@ -33,9 +33,9 @@ dangonix foundry          # екземпляри Foundry: list, status, start, s
 - `hosts/nixos/desktop.nix`: display manager, Hyprland, PipeWire, fonts, portals, and desktop plumbing.
 - `hosts/nixos/workloads.nix` and `hosts/nixos/foundryvtt.nix`: gaming, streaming, Docker, and FoundryVTT ownership.
 - `home/`: invariant Home Manager modules and the Hyprland substrate.
-- `profiles/`: the theme registry and the shell adapters (Noctalia, Caelestia).
+- `themes/`: the theme registry and the shell adapters (Noctalia, Caelestia).
 
-## Desktop profiles
+## Desktop themes
 
 Робочий стіл - одне незмінне Home Manager-середовище плюс рівно один профіль
 (тема). Реєстр: `noctalia` (типова) і `caelestia`. Теми не змінюють хост;

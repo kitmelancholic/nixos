@@ -437,3 +437,9 @@ agent: claude claude-opus-5-5
 
 ## c1q18 - виконано
 GM перевірив чекліст у campaign (2026-10-24).
+
+## c1q19 - хід майстра
+Опції `kit.*` → `dangonix.*` (`kit.profile.id` → `dangonix.theme.id`), `profiles/` → `themes/` (атрибут реєстру `themes`), `~/.config/dangonix/theme-id` (тепер пише `home/look.nix`; раніше ніхто не писав `kit/profile-id`), lock `$XDG_RUNTIME_DIR/dangonix.lock`, `DANGONIX_FLAKE` (новий, після `--flake`), опис флейка "dangoNix". `quest-verify` зелений; `closure-diff` читає `themes or profiles`, бо HEAD ще зі старим ім'ям. Примітка: `…theme.id` друкує `caelestia`, а не `noctalia`, бо `state.json` (вибір GM) має `caelestia`.
+- `dangonix switch`; `cat ~/.config/dangonix/theme-id`; два одночасні `dangonix` досі виключають одне одного.
+- Усе гаразд → `## c1q19 - виконано`.
+agent: claude claude-sonnet-5-5

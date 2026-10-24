@@ -93,7 +93,7 @@
     {
       nixosConfigurations.machine = host;
       homeConfigurations = lib.mapAttrs' (theme: _: lib.nameValuePair "kit-${theme}" (home theme)) themes;
-      lib.themes.profiles = lib.mapAttrs (theme: description: {
+      lib.themes.themes = lib.mapAttrs (theme: description: {
         name = theme;
         inherit description;
       }) themes;

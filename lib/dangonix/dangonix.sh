@@ -203,10 +203,11 @@ confirm() {
   esac
 }
 
-# need_flake: the checkout to work on: --flake, else the dangoNix checkout
-# around the working directory, else kit.repo.
+# need_flake: the checkout to work on: --flake, else $DANGONIX_FLAKE, else the dangoNix checkout
+# around the working directory, else dangonix.repo.
 need_flake() {
   local top
+  [ -n "$flake" ] || flake=${DANGONIX_FLAKE:-}
   if [ -z "$flake" ]; then
     if top=$(git rev-parse --show-toplevel 2>/dev/null) && [ -f "$top/lib/dangonix/commands.nix" ]; then
       flake=$top
@@ -231,7 +232,7 @@ if [ ! -d "${home_profile%/*}" ] && [ -d "$legacy_profiles" ]; then
   home_profile=$legacy_profiles/home-manager
 fi
 
-active_theme() { cat "${XDG_CONFIG_HOME:-$HOME/.config}/kit/profile-id" 2>/dev/null || true; }
+active_theme() { cat "${XDG_CONFIG_HOME:-$HOME/.config}/dangonix/theme-id" 2>/dev/null || true; }
 
 # generations <profile>: its generations, oldest first, and which is current.
 generations() {
@@ -395,11 +396,11 @@ tx_begin() {
   user=$(id -un)
   [ "$user" = "$(cfg .username)" ] || fail 4 "$command_name runs as $(cfg .username), not as $user"
   if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
-    lock=$XDG_RUNTIME_DIR/kit-home-activation.lock
+    lock=$XDG_RUNTIME_DIR/dangonix.lock
   else
-    mkdir -p "$state_dir/kit"
-    chmod 700 "$state_dir/kit"
-    lock=$state_dir/kit/home-activation.lock
+    mkdir -p "$state_dir/dangonix"
+    chmod 700 "$state_dir/dangonix"
+    lock=$state_dir/dangonix/dangonix.lock
   fi
   exec 9>"$lock"
   flock -n 9 || fail 4 "another dangonix run holds $lock"
@@ -899,7 +900,7 @@ cmd_update() {
 
 themes_json() {
   nix eval --no-write-lock-file --json "$flake#lib.themes" --apply \
-    'r: builtins.mapAttrs (_: p: { inherit (p) name description; }) r.profiles'
+    'r: builtins.mapAttrs (_: p: { inherit (p) name description; }) r.themes'
 }
 
 cmd_theme() {

@@ -67,9 +67,11 @@ in
       "org/gnome/desktop/interface".color-scheme = "prefer-${cfg.appearance}";
     };
 
+    xdg.configFile."dangonix/theme-id".text = config.dangonix.theme.id;
+
     xdg.configFile."dangonix/look.json".text = builtins.toJSON {
       inherit (cfg) appearance;
-      theme = config.kit.profile.id;
+      theme = config.dangonix.theme.id;
     };
   };
 }

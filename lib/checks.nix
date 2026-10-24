@@ -12,8 +12,8 @@
 }:
 
 let
-  inherit (profileRegistry) profiles;
-  profileIds = builtins.sort builtins.lessThan (builtins.attrNames profiles);
+  inherit (profileRegistry) themes;
+  profileIds = builtins.sort builtins.lessThan (builtins.attrNames themes);
 
   duplicates = xs: lib.unique (lib.filter (x: lib.count (y: y == x) xs > 1) xs);
 
@@ -22,18 +22,18 @@ let
       (lib.optional (
         !builtins.elem profileRegistry.default profileIds
       ) "state.json theme ${profileRegistry.default} is not in the registry")
-      (map (name: "duplicate name ${name}") (duplicates (map (id: profiles.${id}.name) profileIds)))
+      (map (name: "duplicate name ${name}") (duplicates (map (id: themes.${id}.name) profileIds)))
       (map (module: "duplicate module ${module}") (
-        duplicates (map (id: toString profiles.${id}.module) profileIds)
+        duplicates (map (id: toString themes.${id}.module) profileIds)
       ))
-      (map (id: "duplicate kit.profile.id ${id}") (
-        duplicates (map (id: profileHomes.${id}.config.kit.profile.id) profileIds)
+      (map (id: "duplicate dangonix.theme.id ${id}") (
+        duplicates (map (id: profileHomes.${id}.config.dangonix.theme.id) profileIds)
       ))
     ]
     ++ map (
       id:
       let
-        entry = profiles.${id};
+        entry = themes.${id};
         isText = value: builtins.isString value && value != "";
       in
       lib.optional (builtins.match "[a-z0-9][a-z0-9-]*" id == null) "${id}: invalid id"
@@ -52,8 +52,8 @@ let
         !(entry ? module && builtins.pathExists entry.module)
       ) "${id}: module path does not exist"
       ++
-        lib.optional (profileHomes.${id}.config.kit.profile.id != id)
-          "${id}: kit.profile.id is ${profileHomes.${id}.config.kit.profile.id}"
+        lib.optional (profileHomes.${id}.config.dangonix.theme.id != id)
+          "${id}: dangonix.theme.id is ${profileHomes.${id}.config.dangonix.theme.id}"
     ) profileIds
   );
 
@@ -358,7 +358,7 @@ in
   # noctalia-runtime-keys changes only the named keys, on fixtures in the sandbox.
   noctalia-runtime-keys =
     let
-      runtimeKeys = import ../profiles/noctalia/runtime-keys.nix;
+      runtimeKeys = import ../themes/noctalia/runtime-keys.nix;
       script = runtimeKeys.mkScript pkgs runtimeKeys.keys;
       real = pkgs.writeText "settings-real.toml" ''
         # saved by Noctalia

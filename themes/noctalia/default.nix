@@ -56,9 +56,9 @@ in
 
   wayland.windowManager.hyprland.settings = {
     mod._var = "SUPER";
-    terminal._var = config.kit.apps.terminal.command;
-    explorer._var = config.kit.apps.explorer.command;
-    browser._var = config.kit.apps.browser.command;
+    terminal._var = config.dangonix.apps.terminal.command;
+    explorer._var = config.dangonix.apps.explorer.command;
+    browser._var = config.dangonix.apps.browser.command;
     bind = import ./binds.nix { inherit lib; };
   };
 }

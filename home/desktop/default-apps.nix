@@ -1,7 +1,7 @@
 { config, ... }:
 
 let
-  inherit (config.kit.apps)
+  inherit (config.dangonix.apps)
     archiveManager
     browser
     fileManager
