@@ -402,3 +402,10 @@ agent: claude claude-sonnet-5-5
 
 ## c1q16 - виконано
 GM перевірив чекліст у campaign (2026-10-24).
+
+## c1q17 - провалений кидок
+Зроблено (не закомічено): `services.fwupd` + таймер вимкнено (`hosts/nixos/hardware.nix`), рядки `firmware` і `firmware update` у `commands.nix`, `cmd_firmware*` у `dangonix.sh`, `fwupd` у `default.nix`; три перевірки з *Verify* ок.
+`scripts/check --fast` падає на перевірці 7: для рядка `firmware update` (agent = ask) потрібні правила в `.claude/settings.json` і `.codex/rules/dangonix.rules`, а їх агентам чіпати заборонено.
+Патч обох файлів: `.campaign/c1q17.request.patch`.
+запит: permission - ask-правила `dangonix firmware update*` у `.claude/settings.json` і `.codex/rules/dangonix.rules`
+agent: claude claude-sonnet-5-5
