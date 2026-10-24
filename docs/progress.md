@@ -434,3 +434,6 @@ GM (campaign, 2026-10-24): розширяй скоуп, я дозволяю
 - `dangonix switch`; `command -v kit-profile` падає; три Foundry-ярлики працюють.
 - Усе гаразд → `## c1q18 - виконано`.
 agent: claude claude-opus-5-5
+
+## c1q18 - виконано
+GM перевірив чекліст у campaign (2026-10-24).
