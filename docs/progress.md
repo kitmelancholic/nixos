@@ -463,3 +463,6 @@ GM перевірив чекліст у campaign (2026-10-24).
 - `dangonix switch`; `dangonix doctor` проходить; кілька клавіш (SUPER+R, Print, гучність) працюють як раніше.
 - Усе гаразд → `## c1q21 - виконано`.
 agent: claude claude-sonnet-5-5
+
+## c1q21 - виконано
+GM перевірив чекліст у campaign (2026-10-24).
