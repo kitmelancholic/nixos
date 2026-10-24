@@ -454,3 +454,5 @@ GM перевірив чекліст у campaign (2026-10-24).
 - `systemctl --user stop noctalia` → `doctor` падає на notifications та idle (polkit лишається зеленим, див. вище); `start noctalia` → знову проходить.
 - Усе гаразд → `## c1q20 - виконано`.
 agent: claude claude-sonnet-5-5
+
+## c1q20 - виконано
