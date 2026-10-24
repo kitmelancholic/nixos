@@ -211,4 +211,21 @@ map row [
     complete = [ "instances" ];
     summary = "drop the instance from state.json, switch host; its data stays on disk";
   }
+  {
+    id = "firmware";
+    name = "firmware";
+    args = "[--refresh]";
+    effect = "read";
+    flags = [ "--refresh" ];
+    wraps = [ "fwupdmgr refresh" ];
+    summary = "firmware devices and available updates; metadata refreshed if older than 24 h (--refresh forces)";
+  }
+  {
+    id = "firmware-update";
+    name = "firmware update";
+    effect = "host";
+    reversible = false;
+    wraps = [ "fwupdmgr update" ];
+    summary = "install the available firmware updates (asks y/N, --yes without a TTY); a firmware update cannot be undone";
+  }
 ]

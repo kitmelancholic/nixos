@@ -80,6 +80,7 @@ let
     runtimeInputs = with pkgs; [
       coreutils
       dconf
+      fwupd
       git
       gnugrep
       jq

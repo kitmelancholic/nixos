@@ -410,3 +410,9 @@ GM перевірив чекліст у campaign (2026-10-24).
 запит: permission - ask-правила `dangonix firmware update*` у `.claude/settings.json` і `.codex/rules/dangonix.rules`
 agent: claude claude-sonnet-5-5
 GM (campaign, 2026-10-24): так, permission: патч .campaign/c1q17.request.patch.applied; retry: own tier
+
+## c1q17 - хід майстра
+`fwupd` увімкнено, таймер `fwupd-refresh` вимкнено; `dangonix firmware [--refresh]` (read, allow) і `firmware update` (host, ask, `reversible: false`) додано; `quest-verify` зелений.
+- `dangonix switch` (sudo); `dangonix firmware` показує ThinkPad UEFI/EC; другий запуск протягом 24 год не оновлює метадані; `systemctl list-timers | grep fwupd` порожньо.
+- Усе гаразд → `## c1q17 - виконано`.
+agent: claude claude-sonnet-5-5

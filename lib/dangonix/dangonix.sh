@@ -617,6 +617,14 @@ step_update() {
 
 step_check() { "$0" --flake "$flake" check; }
 
+step_firmware_update() {
+  if ((yes)); then
+    fwupdmgr update --assume-yes
+  else
+    fwupdmgr update
+  fi
+}
+
 # --- commands ---------------------------------------------------------------
 
 cmd_status() {
@@ -1155,6 +1163,47 @@ cmd_foundry_remove() {
   finish "$data" "$steps_text"
 }
 
+# cmd_firmware [--refresh]: devices and updates; the metadata is refreshed
+# only when its stamp is older than 24 h (nothing runs in the background).
+cmd_firmware() {
+  local refresh=0 refreshed=false stamp devices updates
+  for arg; do
+    case $arg in
+    --refresh) refresh=1 ;;
+    *) usage "firmware takes only --refresh" ;;
+    esac
+  done
+  stamp=$state_dir/dangonix/firmware-refresh
+  if ((refresh)) || [ -z "$(find "$stamp" -mmin -1440 2>/dev/null)" ]; then
+    # fwupdmgr exits 2 when the metadata is already current.
+    fwupdmgr refresh --force >&2 || [ "$?" -eq 2 ] || warn "fwupdmgr refresh failed"
+    mkdir -p "${stamp%/*}" && touch "$stamp"
+    refreshed=true
+  fi
+  devices=$(fwupdmgr get-devices --json 2>/dev/null || echo '{}')
+  # fwupdmgr exits 2 when there is nothing to update.
+  updates=$(fwupdmgr get-updates --json 2>/dev/null || echo '{}')
+  finish "$(jq -cn --argjson refreshed "$refreshed" --argjson devices "$devices" --argjson updates "$updates" \
+    '{refreshed: $refreshed, devices: ($devices.Devices // []), updates: ($updates.Devices // [])}')" '
+    "metadata \(if .refreshed then "refreshed" else "fresh (under 24 h)" end)",
+    "devices:",
+    (.devices[] | "  \(.Name // "?")  \(.Version // "?")"),
+    (if .updates == [] then "no updates" else
+      "updates:", (.updates[] | "  \(.Name // "?")  \(.Version // "?") -> \(.Releases[0].Version // "?")") end)'
+}
+
+# cmd_firmware_update: fwupdmgr update; a firmware flash cannot be undone.
+cmd_firmware_update() {
+  no_args "$@"
+  need_flake
+  plan firmware-update "fwupdmgr update"
+  local data='{}'
+  planned "$data"
+  confirm "firmware update"
+  execute
+  finish "$data" "$steps_text"
+}
+
 # --- main -------------------------------------------------------------------
 
 # shellcheck disable=SC2034  # metered_ok, as above
@@ -1217,6 +1266,17 @@ theme)
   else
     use theme-set
     cmd_theme_set "$@"
+  fi
+  ;;
+firmware)
+  if [ "${1:-}" = update ]; then
+    shift
+    use firmware-update
+    cmd_args=$(json_list "$@")
+    cmd_firmware_update "$@"
+  else
+    use firmware
+    cmd_firmware "$@"
   fi
   ;;
 foundry)

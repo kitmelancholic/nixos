@@ -30,4 +30,8 @@
   ];
 
   services.thermald.enable = true;
+
+  # Firmware updates only on request (`dangonix firmware`): no refresh timer.
+  services.fwupd.enable = true;
+  systemd.timers.fwupd-refresh.enable = false;
 }
