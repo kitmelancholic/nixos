@@ -425,3 +425,4 @@ GM перевірив чекліст у campaign (2026-10-24).
 Примітки: `campaign-tui` став `packages.campaign-tui` (`nix run .#campaign-tui` працює); крок 7 `rg` ще бачить `kit-profile` у `lib/dangonix/dangonix.sh:392,405` і `tests/dangonix-vm/default.nix:245` (поза *Files*) та id команд `foundry-status/stop/restart` у `commands.nix` (хибні збіги).
 запит: scope - додати `~config.fish` до `leaves=` квесту c1q18 (і за бажанням дозволити правку тексту `kit-profile` у dangonix.sh та VM-тесті)
 agent: claude claude-sonnet-5-5
+GM (campaign, 2026-10-24): розширяй скоуп, я дозволяю
