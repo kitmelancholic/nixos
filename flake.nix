@@ -140,7 +140,13 @@
           ;
       };
       profileHomes = lib.genAttrs profileIds mkHomeConfiguration;
-      homeConfigurations.${settings.username} = profileHomes.${defaultProfile};
+      # `dangonix` builds `<username>-<theme>`; the bare name is the default.
+      homeConfigurations = {
+        ${settings.username} = profileHomes.${defaultProfile};
+      }
+      // lib.mapAttrs' (
+        profileId: home: lib.nameValuePair "${settings.username}-${profileId}" home
+      ) profileHomes;
       checks = import ./lib/checks.nix {
         inherit
           lib
@@ -148,7 +154,9 @@
           hyprlandPkg
           profileRegistry
           profileHomes
+          homeConfigurations
           ;
+        inherit (settings) username;
         src = self;
         inherit (repoApps) staticCheckCommand;
         host = nixosConfiguration;

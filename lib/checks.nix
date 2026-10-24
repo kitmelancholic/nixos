@@ -6,6 +6,8 @@
   hyprlandPkg,
   profileRegistry,
   profileHomes,
+  homeConfigurations,
+  username,
   host,
 }:
 
@@ -60,6 +62,27 @@ let
       registryProblems == [ ]
     ) "registry: ${lib.concatStringsSep "; " registryProblems}";
     pkgs.runCommand "registry-check" { } "touch $out";
+
+  # `dangonix` builds homeConfigurations.<username>-<theme> (home_target in
+  # lib/dangonix/dangonix.sh); `<username>` alone is the default theme.
+  targetProblems =
+    lib.optional (!homeConfigurations ? ${username}) "homeConfigurations.${username} is missing"
+    ++ lib.concatMap (
+      id:
+      let
+        name = "${username}-${id}";
+      in
+      if !homeConfigurations ? ${name} then
+        [ "homeConfigurations.${name} is missing" ]
+      else
+        lib.optional (
+          homeConfigurations.${name}.activationPackage.drvPath != profileHomes.${id}.activationPackage.drvPath
+        ) "homeConfigurations.${name} is not theme ${id}"
+    ) profileIds;
+
+  targets =
+    assert lib.assertMsg (targetProblems == [ ]) "targets: ${lib.concatStringsSep "; " targetProblems}";
+    pkgs.runCommand "targets-check" { } "touch $out";
 
   # A bind key is `mod .. " + X"` (Lua inline) or a plain string; the
   # resolved form puts modifiers in a fixed order joined by " + ".
@@ -389,7 +412,7 @@ in
       cmp real.toml again.toml
       touch $out
     '';
-  inherit registry commands;
+  inherit registry targets commands;
   binds-fixture = bindsFixture;
   host = host.config.system.build.toplevel;
 }
