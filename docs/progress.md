@@ -399,3 +399,6 @@ Telemetry вимкнено іменованим списком ключів у `
 - `telemetry_enabled` = false у файлі та в UI Noctalia; `diff ~/settings.toml.bak ~/.local/state/noctalia/settings.toml` показує лише цей рядок; палітра така сама.
 - Усе гаразд → `## c1q16 - виконано`.
 agent: claude claude-sonnet-5-5
+
+## c1q16 - виконано
+GM перевірив чекліст у campaign (2026-10-24).
