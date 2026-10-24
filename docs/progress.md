@@ -443,3 +443,6 @@ GM перевірив чекліст у campaign (2026-10-24).
 - `dangonix switch`; `cat ~/.config/dangonix/theme-id`; два одночасні `dangonix` досі виключають одне одного.
 - Усе гаразд → `## c1q19 - виконано`.
 agent: claude claude-sonnet-5-5
+
+## c1q19 - виконано
+GM перевірив чекліст у campaign (2026-10-24).
