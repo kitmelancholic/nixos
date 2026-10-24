@@ -419,3 +419,9 @@ agent: claude claude-sonnet-5-5
 
 ## c1q17 - виконано
 GM перевірив чекліст у campaign (2026-10-24).
+
+## c1q18 - провалений кидок
+Усі кроки зроблено (не закомічено, у stage); `dangonix check --full` ок, `apps` = `[ "default" ]`, `homeConfigurations` = `[ "kit" ]`. `quest-verify` (closure-diff) падає двічі: `unexpected change: ~config.fish` (видалені abbr `jc/jf/jp/js/nfu` міняють `config.fish`). Розшир `leaves=` на `~config.fish`; решта листків покрита.
+Примітки: `campaign-tui` став `packages.campaign-tui` (`nix run .#campaign-tui` працює); крок 7 `rg` ще бачить `kit-profile` у `lib/dangonix/dangonix.sh:392,405` і `tests/dangonix-vm/default.nix:245` (поза *Files*) та id команд `foundry-status/stop/restart` у `commands.nix` (хибні збіги).
+запит: scope - додати `~config.fish` до `leaves=` квесту c1q18 (і за бажанням дозволити правку тексту `kit-profile` у dangonix.sh та VM-тесті)
+agent: claude claude-sonnet-5-5
