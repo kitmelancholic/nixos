@@ -713,11 +713,10 @@ cmd_doctor() {
     fi
   fi
 
-  # Polkit: the Authority interface cannot list agents. polkitd logs every
-  # registration, so its journal since the agent started is the proof (net of
-  # unregistrations); when that journal is unreadable, the agent's unit is
-  # active and its own registration line (`registered`, required) is in its
-  # journal.
+  # Polkit: the Authority interface cannot list agents and polkitd 127 logs no
+  # registrations, so the proof is the agent's own registration line
+  # (`registered`, required) in its journal since its unit started. The agent
+  # registers again by itself when polkitd restarts (a switch does that).
   unit=$(role_unit polkit)
   if [ -n "$unit" ]; then
     if ! systemctl --user is-active --quiet "$unit"; then
@@ -725,16 +724,8 @@ cmd_doctor() {
     else
       line=$(jq -r '.roles.polkit.registered // empty' "$roles_file")
       since=$(systemctl --user show -p ActiveEnterTimestamp --value "$unit")
-      polkitd=$(journalctl -u polkit.service --since "$since" -o cat --no-pager 2>/dev/null || true)
-      if [ -n "$polkitd" ]; then
-        if [ "$(grep -c 'Registered Authentication Agent' <<<"$polkitd" || true)" -gt \
-          "$(grep -c 'Unregistered Authentication Agent' <<<"$polkitd" || true)" ]; then
-          finding polkit ok "$unit is active and polkitd has an agent registered"
-        else
-          finding polkit fail "$unit is active but polkitd has no agent registered since it started"
-        fi
-      elif [ -z "$line" ]; then
-        finding polkit fail "$unit is active; polkitd's journal is unreadable and the theme declares no registration line"
+      if [ -z "$line" ]; then
+        finding polkit fail "$unit is active but the theme declares no registration line"
       elif [ "$(journalctl --user -u "$unit" --since "$since" -o cat --no-pager 2>/dev/null |
         grep -cF -- "$line")" -gt 0 ]; then
         finding polkit ok "$unit is active and logged \"$line\""
