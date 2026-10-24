@@ -459,3 +459,9 @@ agent: claude claude-sonnet-5-5
 
 ## c1q20 - виконано
 GM перевірив чекліст у campaign (2026-10-24).
+
+## c1q21 - хід майстра
+Ядро бінди: `home/hyprland/binds.nix` (записи з `description`, роллю замість команди; опції `dangonix.hyprland.coreBinds`/`binds`; `mod`/`terminal`/`explorer`/`browser` тепер теж звідти), `themes/noctalia/binds.nix` видалено, Caelestia: `coreBinds = false` і власний список без змін. `quest-verify` зелений (`diff=none`, `binds-fixture` проходить, 46 записів, усі з описом). Caelestia-список описів не має (поза вимогою ядра).
+- `dangonix switch`; `dangonix doctor` проходить; кілька клавіш (SUPER+R, Print, гучність) працюють як раніше.
+- Усе гаразд → `## c1q21 - виконано`.
+agent: claude claude-sonnet-5-5

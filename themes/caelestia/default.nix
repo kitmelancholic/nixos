@@ -44,11 +44,9 @@
     cli.settings.theme.enableGtk = false;
   };
 
+  dangonix.hyprland.coreBinds = false;
+
   wayland.windowManager.hyprland.settings = {
-    mod._var = "SUPER";
-    terminal._var = config.dangonix.apps.terminal.command;
-    explorer._var = config.dangonix.apps.explorer.command;
-    browser._var = config.dangonix.apps.browser.command;
     bind = import ./binds.nix { inherit lib; };
   };
 }

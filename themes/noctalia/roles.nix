@@ -1,5 +1,5 @@
 # Noctalia fills every role of the contract (themes/contract.nix); the
-# commands are the ones in binds.nix.
+# commands are the ones the core binds (home/hyprland/binds.nix) call.
 _:
 
 let
