@@ -68,4 +68,4 @@ Hyprland with switchable themes. Claude Code reads this file via `CLAUDE.md`.
   in `lib/checks.nix`; `scripts/` quest tooling, git hooks, `opt`.
 - `state.json` holds the GM's choices; change it only when asked. The bind
   fixture `tests/binds/` changes only with a declared behavior change.
-- `docs/` vision, design, plan, journal; `.agents/` shared skills and models.
+- `docs/` vision, design, plan, journal; theme work: `docs/themes.md`; `.agents/` shared skills and models.

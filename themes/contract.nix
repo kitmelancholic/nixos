@@ -105,57 +105,114 @@ let
     ] cfg
   );
 
+  # An exclusive role has exactly one enabled provider (design §3, check 3):
+  # the declared one, whose unit is wanted by a target, and no other known
+  # Home Manager program of the same job.
+  competitors = {
+    lock = [
+      "programs.hyprlock"
+      "programs.swaylock"
+    ];
+    idle = [
+      "services.hypridle"
+      "services.swayidle"
+    ];
+    bar = [
+      "programs.waybar"
+      "programs.hyprpanel"
+      "programs.eww"
+    ];
+    notifications = [
+      "services.dunst"
+      "services.mako"
+      "services.swaync"
+    ];
+    polkit = [ "services.polkit-gnome" ];
+    wallpaper = [
+      "services.hyprpaper"
+      "services.awww"
+      "services.wpaperd"
+    ];
+  };
+
+  providerProblems = lib.concatLists (
+    lib.mapAttrsToList (
+      role: value:
+      let
+        unit = lib.removeSuffix ".service" value.unit;
+        wanted = (config.systemd.user.services.${unit}.Install.WantedBy or [ ]) != [ ];
+        rivals = lib.filter (
+          option:
+          lib.attrByPath (lib.splitString "." option ++ [ "enable" ]) false config == true
+          && lib.last (lib.splitString "." option) != value.name
+        ) competitors.${role};
+      in
+      lib.optional (!wanted)
+        "theme ${themeId}: role ${role}: ${value.unit} of ${value.name} is not enabled (no user unit wanted by a target)"
+      ++ map (option: "theme ${themeId}: role ${role}: a second provider is enabled: ${option}") rivals
+    ) providers
+  );
+
   noProvider = role: "theme ${themeId}: role ${role} has no provider";
 in
 {
-  options.dangonix.roles = {
-    launcher = command "Open the launcher (SUPER+R).";
-    session = command "Open the session menu (SUPER+Escape, SUPER+Shift+W).";
-    osd = lib.mapAttrs (_: command) osdKeys;
-    screenshot = {
-      region = command "Screenshot of a region (Print).";
-      full = command "Screenshot of every screen (Shift+Print).";
-      window = command "Screenshot of a window (SUPER+Print); optional.";
+  options.dangonix = {
+    roles = {
+      launcher = command "Open the launcher (SUPER+R).";
+      session = command "Open the session menu (SUPER+Escape, SUPER+Shift+W).";
+      osd = lib.mapAttrs (_: command) osdKeys;
+      screenshot = {
+        region = command "Screenshot of a region (Print).";
+        full = command "Screenshot of every screen (Shift+Print).";
+        window = command "Screenshot of a window (SUPER+Print); optional.";
+      };
+
+      lock = provider "Locks the session (`loginctl lock-session`, idle, suspend).";
+      idle = provider "Idle daemon.";
+      bar = provider "The bar.";
+      notifications = provider "Owner of org.freedesktop.Notifications.";
+      polkit = provider "Registered polkit authentication agent.";
+      wallpaper = provider "Draws the wallpaper.";
+
+      palette = mkOption {
+        type = types.nullOr (
+          types.enum [
+            "shell"
+            "static"
+          ]
+        );
+        default = null;
+        description = "Where the palette comes from: the shell's own theming engine, or a fixed one.";
+      };
+      toolkit = mkOption {
+        type = types.nullOr (
+          types.enum [
+            "shell"
+            "none"
+          ]
+        );
+        default = null;
+        description = "Who themes GTK, Qt and the cursor: the shell, or nobody.";
+      };
+
+      windowSwitcher = command "Window switcher (ALT+Tab); optional.";
+      controlCenter = command "Control center (SUPER+S); optional.";
+      settings = command "Shell settings (SUPER+comma); optional.";
     };
 
-    lock = provider "Locks the session (`loginctl lock-session`, idle, suspend).";
-    idle = provider "Idle daemon.";
-    bar = provider "The bar.";
-    notifications = provider "Owner of org.freedesktop.Notifications.";
-    polkit = provider "Registered polkit authentication agent.";
-    wallpaper = provider "Draws the wallpaper.";
-
-    palette = mkOption {
-      type = types.nullOr (
-        types.enum [
-          "shell"
-          "static"
-        ]
-      );
-      default = null;
-      description = "Where the palette comes from: the shell's own theming engine, or a fixed one.";
-    };
-    toolkit = mkOption {
-      type = types.nullOr (
-        types.enum [
-          "shell"
-          "none"
-        ]
-      );
-      default = null;
-      description = "Who themes GTK, Qt and the cursor: the shell, or nobody.";
+    rolesMissing = mkOption {
+      type = types.listOf types.str;
+      readOnly = true;
+      default = missing;
+      description = "Required roles the theme leaves empty.";
     };
 
-    windowSwitcher = command "Window switcher (ALT+Tab); optional.";
-    controlCenter = command "Control center (SUPER+S); optional.";
-    settings = command "Shell settings (SUPER+comma); optional.";
-  };
-
-  options.dangonix.rolesMissing = mkOption {
-    type = types.listOf types.str;
-    readOnly = true;
-    default = missing;
-    description = "Required roles the theme leaves empty.";
+    providerProblems = mkOption {
+      type = types.listOf types.str;
+      readOnly = true;
+      default = providerProblems;
+      description = "Exclusive roles without exactly one enabled provider.";
+    };
   };
 
   config = {
@@ -166,10 +223,10 @@ in
           message = noProvider role;
         }) missing
       )
-      ++ lib.mapAttrsToList (role: value: {
-        assertion = config.systemd.user.services ? ${lib.removeSuffix ".service" value.unit};
-        message = "theme ${themeId}: role ${role}: no user unit ${value.unit} is defined";
-      }) providers;
+      ++ map (message: {
+        assertion = false;
+        inherit message;
+      }) providerProblems;
 
     warnings = lib.optional (status != "stable" && missing != [ ]) (
       "theme ${themeId} (${status}): roles without a provider, tolerated until campaign II: "

@@ -166,6 +166,83 @@ let
         touch $out
       '';
 
+  # Design check 3: an exclusive role has exactly one enabled provider (the
+  # theme's declaration, whose user unit is wanted by a target, and no other
+  # known program that does the same job). The rules live in
+  # themes/contract.nix, whose assertions fail with the same messages; the
+  # check collects them for every theme.
+  providers =
+    let
+      problems = lib.concatMap (id: profileHomes.${id}.config.dangonix.providerProblems) profileIds;
+    in
+    assert lib.assertMsg (problems == [ ]) "providers: ${lib.concatStringsSep "; " problems}";
+    pkgs.runCommand "providers-check" { } "touch $out";
+
+  # Design check 4: the core binds are all there (a key for every role the
+  # theme fills), each has a description, and no two binds share a resolved key.
+  bindingProblems =
+    id:
+    let
+      config = profileHomes.${id}.config;
+      keys = map (bind: bind.key) resolvedBinds.${id};
+      core = config.dangonix.hyprland.binds;
+    in
+    map (key: "theme ${id}: key ${key} is bound twice") (duplicates keys)
+    ++ lib.optionals config.dangonix.hyprland.coreBinds (
+      lib.concatMap (
+        entry:
+        lib.optional (
+          !builtins.isString (entry.description or null) || entry.description == ""
+        ) "theme ${id}: the bind ${luaText entry.key} has no description"
+        ++ lib.optional (
+          !builtins.elem (resolveKey entry.key) keys
+        ) "theme ${id}: role key ${luaText entry.key} is not bound"
+      ) core
+    );
+
+  bindings =
+    let
+      problems = lib.concatMap bindingProblems profileIds;
+    in
+    assert lib.assertMsg (problems == [ ]) "bindings: ${lib.concatStringsSep "; " problems}";
+    pkgs.runCommand "bindings-check" { } "touch $out";
+
+  # Design check 5: the first word of every role command is in the theme's
+  # home-path/bin or an absolute store path.
+  roleCommands =
+    id:
+    let
+      roles = profileHomes.${id}.config.dangonix.roles;
+      commands = lib.collect builtins.isString (
+        lib.getAttrs [
+          "launcher"
+          "session"
+          "osd"
+          "screenshot"
+          "windowSwitcher"
+          "controlCenter"
+          "settings"
+        ] roles
+      );
+    in
+    lib.unique (map (command: lib.head (lib.splitString " " command)) commands);
+
+  executables = pkgs.runCommand "executables-check" { } ''
+    ${lib.concatMapStrings (id: ''
+      for word in ${lib.escapeShellArgs (roleCommands id)}; do
+        case $word in
+        /nix/store/*) ;;
+        *) [ -e ${profileHomes.${id}.config.home.path}/bin/$word ] || {
+             echo "theme ${id}: role command $word is not in home-path/bin" >&2
+             failed=1
+           } ;;
+        esac
+      done
+    '') profileIds}
+    [ -z "''${failed:-}" ]
+    touch $out
+  '';
+
   # Design check 7: the command table of dangonix, and the agents' rules for
   # it fixed by its grammar (every command takes --dry; read rows ignore it).
   commandRows = import ./dangonix/commands.nix;
@@ -419,7 +496,14 @@ in
       cmp real.toml again.toml
       touch $out
     '';
-  inherit registry targets commands;
+  inherit
+    registry
+    targets
+    providers
+    bindings
+    executables
+    commands
+    ;
   binds-fixture = bindsFixture;
   host = host.config.system.build.toplevel;
 }
