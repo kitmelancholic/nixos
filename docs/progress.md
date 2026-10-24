@@ -466,3 +466,11 @@ agent: claude claude-sonnet-5-5
 
 ## c1q21 - виконано
 GM перевірив чекліст у campaign (2026-10-24).
+
+## c1q22 - хід майстра
+Перевірки 3-5 (`providers`, `bindings`, `executables` у `lib/checks.nix`) йдуть на кожну тему; правила провайдерів у `themes/contract.nix` (опція `dangonix.providerProblems`, ті самі тексти як assertions, «увімкнений» = unit з `WantedBy`); `docs/themes.md`; `quest-verify` зелений (`diff=none`). Негативні тести в worktree дали названі повідомлення: роль без значення, `systemd.enable = false` (усі 5 shell-ролей), `programs.waybar`, дубль `SUPER + R`. Worktree `.campaign/wt-c1q22` знято з реєстру git, каталог лишився (зайнятий): видали вручну.
+- Суддя (діапазон `c1r2..HEAD`): Caelestia (`coreBinds = false`) проходить без описів і role keys; експериментальні теми з порожніми ролями не перевіряються на других провайдерів; перевірка 5 не вимагає `test -x` і приймає будь-який store path; `scripts/check`/`just` у `SKILL.md`, `tasks.md`, `pdf2md.md`; `fwupdmgr refresh` оновлює stamp після збою; role-команди не екрануються в Lua. Усе поза межами чи рішенням квесту: на рішення майстра/кампанії II.
+- `dangonix switch`; `dangonix doctor` проходить.
+- Довгий відпочинок: прочитай знахідки, push `redesign`, merge в `main`, синхронізація. Писар напише квести кампанії II.
+- Усе гаразд → `## c1q22 - виконано`.
+agent: claude claude-sonnet-5-5
