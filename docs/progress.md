@@ -416,3 +416,6 @@ GM (campaign, 2026-10-24): так, permission: патч .campaign/c1q17.request.
 - `dangonix switch` (sudo); `dangonix firmware` показує ThinkPad UEFI/EC; другий запуск протягом 24 год не оновлює метадані; `systemctl list-timers | grep fwupd` порожньо.
 - Усе гаразд → `## c1q17 - виконано`.
 agent: claude claude-sonnet-5-5
+
+## c1q17 - виконано
+GM перевірив чекліст у campaign (2026-10-24).
