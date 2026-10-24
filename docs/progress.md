@@ -409,3 +409,4 @@ GM перевірив чекліст у campaign (2026-10-24).
 Патч обох файлів: `.campaign/c1q17.request.patch`.
 запит: permission - ask-правила `dangonix firmware update*` у `.claude/settings.json` і `.codex/rules/dangonix.rules`
 agent: claude claude-sonnet-5-5
+GM (campaign, 2026-10-24): так, permission: патч .campaign/c1q17.request.patch.applied; retry: own tier

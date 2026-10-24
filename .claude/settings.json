@@ -32,6 +32,7 @@
       "Bash(dangonix foundry upgrade*)",
       "Bash(dangonix foundry add*)",
       "Bash(dangonix foundry remove*)",
+      "Bash(dangonix firmware update*)",
       "Bash(nix run . -- switch*)",
       "Bash(nix run . -- update*)",
       "Bash(nix run . -- theme*)",
@@ -42,7 +43,8 @@
       "Bash(nix run . -- foundry import*)",
       "Bash(nix run . -- foundry upgrade*)",
       "Bash(nix run . -- foundry add*)",
-      "Bash(nix run . -- foundry remove*)"
+      "Bash(nix run . -- foundry remove*)",
+      "Bash(nix run . -- firmware update*)"
     ],
     "deny": [
       "Bash(git push *)",
