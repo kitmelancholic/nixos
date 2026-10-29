@@ -6,8 +6,12 @@
 #   .campaign/<id>.request.patch): the judge gives a recommendation, the GM
 #   answers y/n; on y this script applies and commits the patch and retries
 #   on the quest's own tier;
-# - `хід майстра`: the checklist is shown; on y this script records
-#   `виконано` and carries on;
+# - `на суд` (a boss quest, its work staged): the judge reviews the staged
+#   diff here, outside the agent's sandbox; its verdict goes below the entry
+#   and the quest retries on its own tier to fix and commit;
+# - `хід майстра`: the checklist is shown (after a long rest, with the
+#   judge's review of the whole act); on y this script records `виконано`
+#   and carries on;
 # - any other `провалений кидок`: the GM types a one-line decision, the
 #   cleric retries.
 # An agent that exits without a journal entry is retried once on its own
@@ -228,16 +232,53 @@ request() {
   esac
 }
 
-# `хід майстра`: the GM works through the checklist, then answers.
+# `на суд`: a boss quest staged its work and stopped. The judge runs here,
+# outside the agent's sandbox (it needs the network and ~/.claude), and its
+# verdict goes below the entry; the retry fixes what it lists, then commits.
+judge() {
+  local id=$1 verdict
+  echo
+  echo "== $id: на суд ($DANGONIX_JUDGE)"
+  if ! verdict=$(scripts/review "$id"); then
+    prompt "$id: суддя не відповів (.campaign/$id.review.json). Рішення одним рядком (порожньо = стоп):"
+    [[ -n $reply ]] || stop "$id: the judge failed" 0
+    verdict=$reply
+  fi
+  echo "$verdict"
+  answer "$id" "суддя" "Суддя ($DANGONIX_JUDGE, $(date +%F)):
+$verdict
+retry: own tier"
+}
+
+# The previous long-rest tag before <tag>, empty for the first.
+previous_rest() {
+  git describe --tags --abbrev=0 --match 'c[0-9]*r[0-9]*' "$1^" 2>/dev/null || true
+}
+
+# `хід майстра`: the GM works through the checklist, then answers. A quest
+# that ends an act (`rest=<tag>`) first gets the judge's review of the act.
 gm_turn() {
-  local id=$1
+  local id=$1 rest prev review=
   echo
   echo "== $id: хід майстра"
   last_entry "$id" | sed -n '2,$p' | grep -v '^agent:'
+  rest=$(grep -oP 'rest=\K\S+' <<<"$meta" || true)
+  if [[ -n $rest ]] && git rev-parse -q --verify "refs/tags/$rest" >/dev/null; then
+    prev=$(previous_rest "$rest")
+    if [[ -n $prev ]]; then
+      echo "-- суддя акту $prev..$rest ($DANGONIX_JUDGE)"
+      review=$(scripts/review --range "$prev..$rest" "$id") ||
+        review="(суддя не відповів, див. .campaign/$id.review.json)"
+      echo "$review"
+    fi
+  elif [[ -n $rest ]]; then
+    echo "-- немає тегу $rest, суддю акту пропущено"
+  fi
   prompt "Пройди чекліст. Усе добре? [y/n]"
   case $reply in
   y | Y | т | Т)
     printf '\n## %s - виконано\nGM перевірив чекліст у campaign (%s).\n' "$id" "$(date +%F)" >>docs/progress.md
+    [[ -z $review ]] || printf 'Суддя акту: %s\n' "$(head -n 1 <<<"$review")" >>docs/progress.md
     git commit -q -m "chore($id): виконано" -- docs/progress.md ||
       stop "$id: could not commit the journal (see git status)"
     ;;
@@ -274,6 +315,8 @@ while ((attempt < ${QUEST_ATTEMPTS:-25})); do
     kind=$(grep -oP '^запит:\s*\K(scope|permission)' <<<"$entry" | tail -n 1)
     if [[ -n $kind ]]; then
       request "$id" "$kind"
+    elif [[ $(head -n 1 <<<"$entry") == *"на суд" ]]; then
+      judge "$id"
     elif [[ $(head -n 1 <<<"$entry") == *"хід майстра"* ]]; then
       gm_turn "$id"
     else

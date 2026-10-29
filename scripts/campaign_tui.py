@@ -1127,7 +1127,7 @@ class CampaignTUI(App):
             active, status = {"diag"}, Text("◆ сквайр пише діагноз", style="green")
             self.trail |= {"agent", "outcome"}
         elif agent:
-            active, status = {"gm", "gm_request"}, Text("⚖ суддя зважує запит", style="blue")
+            active, status = {"gm", "gm_request"}, Text("⚖ суддя працює", style="blue")
         elif campaign or mine:
             ev = self.event
             if ev in ("gm_request", "gm_turn"):
@@ -1194,6 +1194,7 @@ class CampaignTUI(App):
                 "виконано": ("✓", "green"),
                 "хід майстра": ("⚑", "yellow"),
                 "провалений кидок": ("✗", "red"),
+                "на суд": ("⚖", "blue"),
                 "": ("·", "dim"),
             }.get(q.state, ("?", "yellow"))
             if q.id == cur:
@@ -1227,7 +1228,7 @@ class CampaignTUI(App):
         }
         if nxt:
             qn = next(q for q in qs if q.id == nxt)
-            values["jst"] = {"": "новий", "виконано": "виконано", "хід майстра": "чекає GM"}.get(qn.state, qn.state)
+            values["jst"] = {"": "новий", "виконано": "виконано", "хід майстра": "чекає GM", "на суд": "чекає суддю"}.get(qn.state, qn.state)
         if a and a.steps:
             last = a.steps[-1]
             values["step"] = f"#{len(a.steps)} {last.tool} {last.text}"
