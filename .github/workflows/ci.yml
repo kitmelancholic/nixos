@@ -1,16 +1,20 @@
-# Evaluation-only CI: the runners can fetch every flake input, but nothing is
-# built (the Foundry payload is licensed and the desktop closure is huge).
-# Builds and activation stay on the laptop (docs/remake.md).
+# `check` evaluates, `build` builds what the laptop would: every check (all
+# themes' homes included) and the host with Foundry turned off, since its
+# payload is licensed. Activation stays on the laptop (docs/remake.md).
 name: ci
 
 on:
   push:
     branches: [main, redesign]
   pull_request:
-    branches: [main]
+    branches: [main, redesign]
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
@@ -24,6 +28,47 @@ jobs:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
       - name: dangonix check --fast
         run: nix run . -- check --fast
+
+  build:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      # The desktop closure needs more than the runner's free ~14 GB.
+      - name: free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache /usr/local/share/boost
+          df -h /
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: |
+            extra-substituters = https://hyprland.cachix.org
+            extra-trusted-public-keys = hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc=
+      # Free (actions/cache, 10 GB per repo): what was built or fetched last
+      # time, trimmed so it fits.
+      - uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-build-${{ hashFiles('flake.lock', '**/*.nix') }}
+          restore-prefixes-first-match: nix-build-
+          gc-max-store-size-linux: 6G
+      - name: checks (all but host)
+        run: |
+          set -euo pipefail
+          mapfile -t names < <(nix eval --json .#checks.x86_64-linux \
+            --apply 'c: builtins.filter (n: n != "host") (builtins.attrNames c)' | jq -r '.[]')
+          nix build --no-link --keep-going "${names[@]/#/.#checks.x86_64-linux.}"
+      # No Foundry instances in state.json: the host as it is without them.
+      - name: host without Foundry
+        run: |
+          set -euo pipefail
+          jq '.foundry.instances = {}' state.json >state.ci.json
+          mv state.ci.json state.json
+          nix build --no-link .#checks.x86_64-linux.host
 
   # From c1q03: every quest commit must change exactly what its meta line
   # declares (scripts/quest-verify), compared with its parent.
