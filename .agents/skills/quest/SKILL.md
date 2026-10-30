@@ -33,8 +33,8 @@ that is denied), and you know the exact change: write it as a patch and ask.
 Never use a request to skip or weaken a step, a *Do not* or a check.
 
 1. Read `AGENTS.md` and the last 20 lines of `docs/progress.md`.
-   - If the last entry is `хід майстра` or `провалений кидок` and the
-     argument is not `retry <id>`, print that entry and stop.
+   - If the last entry is `хід майстра`, `провалений кидок` or `на суд`
+     and the argument is not `retry <id>`, print that entry and stop.
    - Any agent may continue any quest: the journal, `docs/tasks.md` and git
      are the whole state. Uncommitted changes you did not make inside the
      quest's paths (its *Files* item) are a previous run's work: keep them.
@@ -48,8 +48,8 @@ Never use a request to skip or weaken a step, a *Do not* or a check.
    heading to the next `## `), the header's *Shared rules*, and the files it
    lists under *Read first*.
    Do not read other quests or explore beyond what the section names.
-   For `retry`, also read the quest's last `провалений кидок` entry and the
-   decision the GM appended under it. If `.campaign/<id>.diagnosis.md`
+   For `retry`, also read the quest's last entry (`провалений кидок` or
+   `на суд`) and what the GM or the judge appended under it. If `.campaign/<id>.diagnosis.md`
    exists, read it too: the squire's summary of the quest's previous attempt
    (its first wrong step, what it wasted). Do not repeat that; the section
    and the journal still decide.
@@ -69,10 +69,16 @@ Never use a request to skip or weaken a step, a *Do not* or a check.
    commit only `docs/progress.md`, stop. A `leaves=` failure whose names are
    all build inputs or aggregates of what the quest adds or removes is still
    a failure: list the names, the GM widens the line.
-7. If the quest's `meta:` line says `boss=yes`: stage everything, then run
-   `scripts/review <id>` (the judge, a separate agent session that reads the
-   quest section and `git diff --staged`). It prints concrete defects or
-   `no defects`. Fix what it finds, rerun step 6.
+7. If the quest's `meta:` line says `boss=yes` and its last entry is not a
+   `на суд` with the judge's verdict under it: stage the quest's work, append
+   `## <id> - на суд` (one line: `quest-verify` passed, the work is staged,
+   plus the `agent:` line), commit only `docs/progress.md` as
+   `chore(<id>): на суд`, stop. Never run `scripts/review` yourself: it
+   needs the network, which the sandbox denies. `scripts/campaign` runs the
+   judge on `git diff --staged` and writes its verdict (concrete defects or
+   `no defects`) under the entry, then retries. On that retry fix every
+   defect it lists, rerun step 6 and go on to step 8 (one judgement per
+   quest).
 8. Update `AGENTS.md` if the section's *AGENTS.md* item says so.
 9. Commit on branch `redesign` with the Conventional Commits subject from
    *Commit*, listing the changed derivations from the verify output in the
@@ -82,11 +88,11 @@ Never use a request to skip or weaken a step, a *Do not* or a check.
    - `## <id> - хід майстра` + the section's *GM's turn* checklist with exact
      commands, if it has one;
    - otherwise `## <id> - виконано` (max 5 lines).
-10. If the quest ends an act (`rest=<tag>` in the meta line): run
-    `scripts/review --range <previous rest tag>..HEAD <id>` (skip for `c1r0`,
-    which has no previous tag), put its findings and the long-rest steps in a
-    `хід майстра` entry, tag the commit with `<tag>` and with the version
-    from `scripts/next-version` (`c1r3`: `v1.0.0`), stop.
+10. If the quest ends an act (`rest=<tag>` in the meta line): put the
+    long-rest steps in the `хід майстра` entry, tag the commit with `<tag>`
+    and with the version from `scripts/next-version` (`c1r3`: `v1.0.0`),
+    stop. `scripts/campaign` runs the judge on the whole act
+    (`<previous rest tag>..<tag>`) and shows its findings with the checklist.
 
 Never print full build logs (tail -n 40 or grep errors). Never push.
 Never start subagents (Claude's Agent tool, Codex's spawned agents): each
